@@ -7,8 +7,8 @@ namespace PickupBot.Commands.Models
     {
         public PickupQueue()
         {
-            Subscribers = new List<string>();
-            WaitingList = new List<string>();
+            Subscribers = new List<Subscriber>();
+            WaitingList = new List<Subscriber>();
         }
 
         public ulong GuildId { get; set; }
@@ -18,8 +18,8 @@ namespace PickupBot.Commands.Models
         public int TeamSize { get; set; }
         public DateTime Created { get; set; }
         public DateTime Updated { get; set; }
-        public List<string> Subscribers { get; set; }
-        public List<string> WaitingList { get; set; }
+        public List<Subscriber> Subscribers { get; set; }
+        public List<Subscriber> WaitingList { get; set; }
 
         public decimal Readiness => Math.Ceiling((decimal)Subscribers.Count / (TeamSize * 2) * 100);
     }

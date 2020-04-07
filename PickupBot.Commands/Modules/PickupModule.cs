@@ -39,7 +39,7 @@ namespace PickupBot.Commands.Modules
                 return;
             }
 
-            await _queueRepository.AddQueue(new PickupQueue()
+            await _queueRepository.AddQueue(new PickupQueue
             {
                 Name = queueName,
                 GuildId = Context.Guild.Id,
@@ -48,7 +48,7 @@ namespace PickupBot.Commands.Modules
                 Created = DateTime.UtcNow,
                 Updated = DateTime.UtcNow,
                 TeamSize = teamSize,
-                Subscribers = new List<string> { Context.User.Username }
+                Subscribers = new List<Subscriber> { new Subscriber { Id = Context.User.Id, Name = Context.User.Username } }
             });
 
             await Context.Channel.SendMessageAsync($"`Queue '{queueName}' was added by {Context.User.Username}`");
@@ -65,10 +65,18 @@ namespace PickupBot.Commands.Modules
                 return;
             }
 
-            if (!queue.Subscribers.Any(w => w.Equals(Context.User.Username, StringComparison.OrdinalIgnoreCase)))
+            if (queue.Subscribers.Count == queue.TeamSize * 2 && queue.WaitingList.All(w => w.Id != Context.User.Id))
             {
                 queue.Updated = DateTime.UtcNow;
-                queue.Subscribers.Add(Context.User.Username);
+                queue.WaitingList.Add(new Subscriber { Id = Context.User.Id, Name = Context.User.Username });
+
+                await _queueRepository.UpdateQueue(queue);
+            }
+
+            if (queue.Subscribers.All(w => w.Id != Context.User.Id))
+            {
+                queue.Updated = DateTime.UtcNow;
+                queue.Subscribers.Add(new Subscriber { Id = Context.User.Id, Name = Context.User.Username });
 
                 //if queue found
                 await _queueRepository.UpdateQueue(queue);
@@ -89,13 +97,7 @@ namespace PickupBot.Commands.Modules
                 return;
             }
 
-            queue.Updated = DateTime.UtcNow;
-            queue.Subscribers.Remove(Context.User.Username);
-
-            //if queue found and user is in queue
-            await Context.Channel.SendMessageAsync($"`{queueName} - {ParseSubscribers(queue)}`");
-
-            //if no queue found or user is not in queue, inform the user
+            await LeaveInternal(queue);
         }
 
         [Command("remove")]
@@ -111,47 +113,108 @@ namespace PickupBot.Commands.Modules
         public async Task Clear()
         {
             //find queues with user in it
+            var allQueues = await _queueRepository.AllQueues(Context.Guild.Id);
 
-            //if queues found and user is in queue
-            await Context.Channel.SendMessageAsync($"{Context.User.Mention} - You have been removed from all queues");
-            await Context.Channel.SendMessageAsync($"List all new queue statuses");
+            var matchingQueues = allQueues.Where(q => q.Subscribers.Any(s => s.Id == Context.User.Id) || q.WaitingList.Any(w => w.Id == Context.User.Id));
 
-            //if no queue found or user is not in queue, inform the user
+            var pickupQueues = matchingQueues as PickupQueue[] ?? matchingQueues.ToArray();
+            if (pickupQueues.Any())
+            {
+                foreach (var queue in pickupQueues)
+                {
+                    var updatedQueue = await LeaveInternal(queue, false);
+
+                    updatedQueue ??= queue;
+
+                    updatedQueue.WaitingList.RemoveAll(w => w.Id == Context.User.Id);
+                    updatedQueue.Updated = DateTime.UtcNow;
+
+                    if (!updatedQueue.Subscribers.Any() && !updatedQueue.WaitingList.Any())
+                        await _queueRepository.RemoveQueue(Context.User, updatedQueue.Name, updatedQueue.GuildId); //Try to remove queue if its empty and its the owner leaving.
+                    else
+                        await _queueRepository.UpdateQueue(updatedQueue);
+                }
+
+                //if queues found and user is in queue
+                await Context.Channel.SendMessageAsync($"{Context.User.Mention} - You have been removed from all queues");
+                await List();
+            }
         }
 
         [Command("list")]
         public async Task List()
         {
             //find all active queues
-            var queues = await _queueRepository.AllQueues();
+            var queues = await _queueRepository.AllQueues(Context.Guild.Id);
             //if queues found
-            if (queues == null || !queues.Any())
+            var pickupQueues = queues as PickupQueue[] ?? queues.ToArray();
+            if (!pickupQueues.Any())
                 return;
 
-            var ordered = queues.OrderByDescending(w => w.Readiness);
+            var ordered = pickupQueues.OrderByDescending(w => w.Readiness);
 
             var description = string.Join(
                 Environment.NewLine,
-                ordered.Select((q, i) => $"{i + 1}. **{q.Name}** by _{q.OwnerName}_ [{q.Subscribers.Count}/{q.TeamSize * 2}] - {ParseSubscribers(q)}"));
+                ordered.Select((q, i) =>
+                    $"{i + 1}. **{q.Name}** by _{q.OwnerName}_ [{q.Subscribers.Count}/{q.TeamSize * 2}] - {ParseSubscribers(q)} {(q.WaitingList.Any() ? $"- waiting: **{q.WaitingList.Count}**" : "")}"
+                ));
 
             var embed = new EmbedBuilder()
             {
                 Title = "Active queues",
                 Description = description
             };
-            await Context.Channel.SendMessageAsync($@"", embed: embed.Build());
+            await Context.Channel.SendMessageAsync("", embed: embed.Build());
 
             //if no queue found or user is not in queue, inform the user
         }
 
         private static string ParseSubscribers(PickupQueue queue)
         {
-            var subscribers = queue.Subscribers.Select(w => $"[{w}]").ToList();
+            var subscribers = queue.Subscribers.Select(w => $"[{w.Name}]").ToList();
             if ((queue.TeamSize * 2) - queue.Subscribers.Count > 0)
                 subscribers.AddRange(Enumerable.Repeat("[?]", (queue.TeamSize * 2) - queue.Subscribers.Count));
 
             //if queue found and user is in queue
             return string.Join(", ", subscribers);
+        }
+
+        private async Task<PickupQueue> LeaveInternal(PickupQueue queue, bool notify = true)
+        {
+            var subscriber = queue.Subscribers.FirstOrDefault(s => s.Id == Context.User.Id);
+            if (subscriber != null)
+            {
+                queue.Updated = DateTime.UtcNow;
+                queue.Subscribers.Remove(subscriber);
+
+                if (queue.WaitingList.Any())
+                {
+                    var next = queue.WaitingList.First();
+                    queue.WaitingList.RemoveAt(0);
+
+                    queue.Subscribers.Add(next);
+
+                    var user = await Context.Channel.GetUserAsync(next.Id);
+                    if (user != null)
+                    {
+                        await ReplyAsync(
+                            $"`{user.Mention} you have been added to '{queue.Name}' since {subscriber.Name} left the queue.`");
+                    }
+                }
+                if (!queue.Subscribers.Any() && !queue.WaitingList.Any())
+                    await _queueRepository.RemoveQueue(Context.User, queue.Name, queue.GuildId); //Try to remove queue if its empty and its the owner leaving.
+                else
+                {
+                    await _queueRepository.UpdateQueue(queue);
+
+                    if (notify)
+                        await Context.Channel.SendMessageAsync($"`{queue.Name} - {ParseSubscribers(queue)}`");
+
+                    return queue;
+                }
+            }
+
+            return null;
         }
     }
 }

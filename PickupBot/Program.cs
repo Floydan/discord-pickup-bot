@@ -22,7 +22,7 @@ namespace PickupBot
                 var client = services.GetRequiredService<DiscordSocketClient>();
 
                 client.Log += LogAsync;
-
+                client.MessageUpdated += OnMessageUpdated;
                 services.GetRequiredService<CommandService>().Log += LogAsync;
 
                 // Tokens should be considered secret data and never hard-coded.
@@ -35,6 +35,14 @@ namespace PickupBot
                 
                 await Task.Delay(-1);
             }
+        }
+
+        private static async Task OnMessageUpdated(Cacheable<IMessage, ulong> before, SocketMessage after, ISocketMessageChannel channel)
+        {
+            var message = await before.GetOrDownloadAsync();
+            await LogAsync(new LogMessage(LogSeverity.Info, "OnMessageUpdated", $"{message} -> {after}"));
+
+            //TODO: maybe trigger CommandHandlerService to check if the updated message is a command
         }
 
         private static Task LogAsync(LogMessage msg)

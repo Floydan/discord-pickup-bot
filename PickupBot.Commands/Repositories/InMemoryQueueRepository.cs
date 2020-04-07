@@ -39,9 +39,11 @@ namespace PickupBot.Commands.Repositories
         {
             var key = $"{queue.Name.ToLowerInvariant()}-{queue.GuildId}";
 
-            var result = _cache.GetOrAdd(key, queue);
+            _cache.TryGetValue(key, out var oldQueue);
 
-            return await Task.FromResult(result != null);
+            var result = _cache.TryUpdate(key, queue, oldQueue);
+
+            return await Task.FromResult(result);
         }
 
         public async Task<PickupQueue> FindQueue(string queueName, ulong guildId)
@@ -52,12 +54,12 @@ namespace PickupBot.Commands.Repositories
             return await Task.FromResult(queue);
         }
 
-        public async Task<IEnumerable<PickupQueue>> AllQueues()
+        public async Task<IEnumerable<PickupQueue>> AllQueues(ulong guildId)
         {
             if (_cache == null || !_cache.Keys.Any())
                 return await Task.FromResult(Enumerable.Empty<PickupQueue>());
 
-            var queues = _cache.Values;
+            var queues = _cache.Values.Where(q => q.GuildId == guildId);
 
             return await Task.FromResult(queues);
         }
@@ -69,6 +71,6 @@ namespace PickupBot.Commands.Repositories
         Task<bool> RemoveQueue(IUser user, string queueName, ulong guildId);
         Task<bool> UpdateQueue(PickupQueue queue);
         Task<PickupQueue> FindQueue(string queueName, ulong guildId);
-        Task<IEnumerable<PickupQueue>> AllQueues();
+        Task<IEnumerable<PickupQueue>> AllQueues(ulong guildId);
     }
 }
