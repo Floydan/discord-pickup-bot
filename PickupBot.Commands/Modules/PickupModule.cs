@@ -14,14 +14,20 @@ namespace PickupBot.Commands.Modules
     public class PickupModule : ModuleBase<SocketCommandContext>
     {
         private readonly IQueueRepository _queueRepository;
+        private readonly CommandService _commandService;
 
-        public PickupModule(IQueueRepository queueRepository)
+        public PickupModule(IQueueRepository queueRepository, CommandService commandService)
         {
             _queueRepository = queueRepository;
+            _commandService = commandService;
         }
 
         [Command("create")]
-        public async Task Create(string queueName, int teamSize = 1)
+        [Summary("Creates a pickup queue")]
+        public async Task Create(
+            [Summary("Queue name")] string queueName,
+            [Summary("Optional team size (how many are in each team NOT total number of players), use if your queue name doesn't start with a number e.g. 2v2")]
+            int teamSize = 1)
         {
             if (teamSize == 1 && Regex.IsMatch(queueName, @"^\d+", RegexOptions.Singleline))
             {
@@ -55,7 +61,8 @@ namespace PickupBot.Commands.Modules
         }
 
         [Command("add")]
-        public async Task Add(string queueName)
+        [Summary("Take a spot in a pickup queue, if the queue is full you are placed on the waiting list.")]
+        public async Task Add([Summary("Queue name")]string queueName)
         {
             //find queue with name {queueName}
             var queue = await _queueRepository.FindQueue(queueName, Context.Guild.Id);
@@ -87,7 +94,8 @@ namespace PickupBot.Commands.Modules
 
         [Command("leave")]
         [Alias("quit")]
-        public async Task Leave(string queueName)
+        [Summary("Leave a queue, freeing up a spot.")]
+        public async Task Leave([Summary("Queue name")] string queueName)
         {
             //find queue with name {queueName}
             var queue = await _queueRepository.FindQueue(queueName, Context.Guild.Id);
@@ -102,7 +110,8 @@ namespace PickupBot.Commands.Modules
 
         [Command("remove")]
         [Alias("del", "cancel")]
-        public async Task Remove(string queueName)
+        [Summary("If you are the creator of the queue you can use this to delete it")]
+        public async Task Remove([Summary("Queue name")] string queueName)
         {
             var result = await _queueRepository.RemoveQueue(Context.User, queueName, Context.Guild.Id);
             var message = result ? $"`Queue '{queueName}' has been canceled`" : $"`Queue with the name '{queueName}' doesn't exists!`";
@@ -110,6 +119,7 @@ namespace PickupBot.Commands.Modules
         }
 
         [Command("clear")]
+        [Summary("Leave all queues you have subscribed to, including waiting lists")]
         public async Task Clear()
         {
             //find queues with user in it
@@ -142,6 +152,7 @@ namespace PickupBot.Commands.Modules
         }
 
         [Command("list")]
+        [Summary("List all active queues")]
         public async Task List()
         {
             //find all active queues
@@ -198,7 +209,7 @@ namespace PickupBot.Commands.Modules
                     if (user != null)
                     {
                         await ReplyAsync(
-                            $"`{user.Mention} you have been added to '{queue.Name}' since {subscriber.Name} left the queue.`");
+                            $"`{user.Mention} you have been added to '{queue.Name}' since {subscriber.Name} has left.`");
                     }
                 }
                 if (!queue.Subscribers.Any() && !queue.WaitingList.Any())

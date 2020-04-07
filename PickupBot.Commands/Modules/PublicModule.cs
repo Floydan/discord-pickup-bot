@@ -1,11 +1,19 @@
 ﻿using System.Threading.Tasks;
 using Discord;
+using Discord.Addons.CommandsExtension;
 using Discord.Commands;
 
 namespace PickupBot.Commands.Modules
 {
     public class PublicModule : ModuleBase<SocketCommandContext>
     {
+        private readonly CommandService _commandService;
+
+        public PublicModule(CommandService commandService)
+        {
+            _commandService = commandService;
+        }
+
         [Command("ping")]
         [Alias("pong", "hello")]
         public Task PingAsync()
@@ -30,5 +38,13 @@ namespace PickupBot.Commands.Modules
         public Task EchoAsync([Remainder] string text)
             // Insert a ZWSP before the text to prevent triggering other bots!
             => ReplyAsync('\u200B' + text);
+
+        [Command("help"), Alias("assist"), Summary("Shows help menu."), Remarks("test remark")]
+        public async Task Help([Remainder] string command = null)
+        {
+            const string botPrefix = "!";
+            var helpEmbed = _commandService.GetDefaultHelpEmbed(command, botPrefix);
+            await Context.Channel.SendMessageAsync(embed: helpEmbed);
+        }
     }
 }

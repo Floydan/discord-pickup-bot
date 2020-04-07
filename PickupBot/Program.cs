@@ -22,7 +22,7 @@ namespace PickupBot
                 var client = services.GetRequiredService<DiscordSocketClient>();
 
                 client.Log += LogAsync;
-                client.MessageUpdated += OnMessageUpdated;
+                //client.MessageUpdated += OnMessageUpdated;
                 services.GetRequiredService<CommandService>().Log += LogAsync;
 
                 // Tokens should be considered secret data and never hard-coded.
