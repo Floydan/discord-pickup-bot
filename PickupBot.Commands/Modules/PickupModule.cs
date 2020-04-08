@@ -5,6 +5,7 @@ using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Discord;
 using Discord.Commands;
+using Discord.WebSocket;
 using PickupBot.Commands.Models;
 using PickupBot.Commands.Repositories;
 
@@ -91,9 +92,34 @@ namespace PickupBot.Commands.Modules
 
                 //if queue found
                 await _queueRepository.UpdateQueue(queue);
+
+                if (queue.Subscribers.Count == queue.TeamSize * 2)
+                {
+                    await NotifyUsers(queue, Context.Guild.Name, queue.Subscribers.Select(subscriber => Context.Client.GetUser(subscriber.Id)).ToArray());
+                }
             }
 
             await Context.Channel.SendMessageAsync($"`{queueName} - {ParseSubscribers(queue)}`");
+        }
+
+        private async Task NotifyUsers(PickupQueue queue, string serverName, params SocketUser[] users)
+        {
+            var usersList = string.Join(Environment.NewLine, queue.Subscribers.Where(u => u.Id != Context.User.Id).Select(u => $@"  - {u.Name}"));
+            var header = $"**Contact your teammates on the \"{serverName}\" server and glhf!**";
+            var remember =
+                $"**Remember** {Environment.NewLine}Remember to do `!leave {queue.Name}` if/when you leave the game to make room for the ones in the waiting list!";
+
+            var embed = new EmbedBuilder
+            {
+                Title = $"Queue {queue.Name} is ready to go!",
+                Description = $@"{header}{Environment.NewLine}{usersList}{Environment.NewLine}{remember}",
+                Footer = new EmbedFooterBuilder { Text = $"Provided by pickup-bot - {serverName}" }
+            }.Build();
+            
+            foreach (var user in users)
+            {
+                await user.SendMessageAsync("", embed: embed);
+            }
         }
 
         [Command("leave")]
@@ -209,11 +235,12 @@ namespace PickupBot.Commands.Modules
 
                     queue.Subscribers.Add(next);
 
-                    var user = await Context.Channel.GetUserAsync(next.Id);
+                    var user = Context.Client.GetUser(next.Id);
                     if (user != null)
                     {
                         await ReplyAsync(
                             $"`{user.Mention} you have been added to '{queue.Name}' since {subscriber.Name} has left.`");
+                        await NotifyUsers(queue, Context.Guild.Name, user);
                     }
                 }
                 if (!queue.Subscribers.Any() && !queue.WaitingList.Any())
