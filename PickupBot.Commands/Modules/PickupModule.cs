@@ -37,6 +37,9 @@ namespace PickupBot.Commands.Modules
                     int.TryParse(match.Value, out teamSize);
             }
 
+            if (teamSize > 16)
+                teamSize = 16;
+
             //find queue with name {queueName}
             var queue = await _queueRepository.FindQueue(queueName, Context.Guild.Id);
 
