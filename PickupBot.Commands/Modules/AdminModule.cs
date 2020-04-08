@@ -7,9 +7,9 @@ using PickupBot.Commands.Repositories;
 
 namespace PickupBot.Commands.Modules
 {
-    [Group("admin")]
+    [Group("Admin"), Name("Admin")]
     [RequireUserPermission(GuildPermission.Administrator)]
-    [Summary("Not implemented yet")]
+    [Summary("Not fully implemented yet")]
     public class AdminModule : ModuleBase<SocketCommandContext>
     {
         private readonly IQueueRepository _queueRepository;

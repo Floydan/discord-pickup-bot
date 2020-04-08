@@ -10,7 +10,8 @@ using PickupBot.Commands.Repositories;
 
 namespace PickupBot.Commands.Modules
 {
-    [Group("pickup")]
+    [Name("Pickup")]
+    [Summary("Commands for handling pickup queues")]
     public class PickupModule : ModuleBase<SocketCommandContext>
     {
         private readonly IQueueRepository _queueRepository;
@@ -62,7 +63,7 @@ namespace PickupBot.Commands.Modules
 
         [Command("add")]
         [Summary("Take a spot in a pickup queue, if the queue is full you are placed on the waiting list.")]
-        public async Task Add([Summary("Queue name")]string queueName)
+        public async Task Add([Summary("Queue name"), Remainder]string queueName)
         {
             //find queue with name {queueName}
             var queue = await _queueRepository.FindQueue(queueName, Context.Guild.Id);
@@ -95,7 +96,7 @@ namespace PickupBot.Commands.Modules
         [Command("leave")]
         [Alias("quit")]
         [Summary("Leave a queue, freeing up a spot.")]
-        public async Task Leave([Summary("Queue name")] string queueName)
+        public async Task Leave([Summary("Queue name"), Remainder] string queueName)
         {
             //find queue with name {queueName}
             var queue = await _queueRepository.FindQueue(queueName, Context.Guild.Id);
@@ -111,7 +112,7 @@ namespace PickupBot.Commands.Modules
         [Command("remove")]
         [Alias("del", "cancel")]
         [Summary("If you are the creator of the queue you can use this to delete it")]
-        public async Task Remove([Summary("Queue name")] string queueName)
+        public async Task Remove([Summary("Queue name"), Remainder] string queueName)
         {
             var result = await _queueRepository.RemoveQueue(Context.User, queueName, Context.Guild.Id);
             var message = result ? $"`Queue '{queueName}' has been canceled`" : $"`Queue with the name '{queueName}' doesn't exists!`";
