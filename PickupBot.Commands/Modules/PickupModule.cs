@@ -16,11 +16,13 @@ namespace PickupBot.Commands.Modules
     public class PickupModule : ModuleBase<SocketCommandContext>
     {
         private readonly IQueueRepository _queueRepository;
+        private readonly IFlaggedSubscribersRepository _flagRepository;
         private readonly CommandService _commandService;
 
-        public PickupModule(IQueueRepository queueRepository, CommandService commandService)
+        public PickupModule(IQueueRepository queueRepository, IFlaggedSubscribersRepository flagRepository, CommandService commandService)
         {
             _queueRepository = queueRepository;
+            _flagRepository = flagRepository;
             _commandService = commandService;
         }
 
@@ -41,6 +43,19 @@ namespace PickupBot.Commands.Modules
             if (teamSize > 16)
                 teamSize = 16;
 
+            var flagged = await _flagRepository.IsFlagged((IGuildUser) Context.User);
+            if (flagged != null)
+            {
+                var embed = new EmbedBuilder
+                {
+                    Title = "You are flagged",
+                    Description = $"You have been flagged which means that you can't join or create queues.{Environment.NewLine}**Reason**{Environment.NewLine}_{flagged.Reason}_",
+                    Color = Color.Orange
+                }.Build();
+                await ReplyAsync(embed: embed);
+                return;
+            }
+
             //find queue with name {queueName}
             var queue = await _queueRepository.FindQueue(queueName, Context.Guild.Id.ToString());
 
@@ -54,15 +69,15 @@ namespace PickupBot.Commands.Modules
             {
                 Name = queueName,
                 GuildId = Context.Guild.Id.ToString(),
-                OwnerName = Context.User.Username,
+                OwnerName = GetNickname(Context.User),
                 OwnerId = Context.User.Id.ToString(),
                 Created = DateTime.UtcNow,
                 Updated = DateTime.UtcNow,
                 TeamSize = teamSize,
-                Subscribers = new List<Subscriber> { new Subscriber { Id = Context.User.Id, Name = Context.User.Username } }
+                Subscribers = new List<Subscriber> { new Subscriber { Id = Context.User.Id, Name = GetNickname(Context.User) } }
             });
 
-            await Context.Channel.SendMessageAsync($"`Queue '{queueName}' was added by {Context.User.Username}`");
+            await Context.Channel.SendMessageAsync($"`Queue '{queueName}' was added by {GetNickname(Context.User)}`");
         }
 
         [Command("add")]
@@ -77,23 +92,44 @@ namespace PickupBot.Commands.Modules
                 return;
             }
 
-            if (queue.Subscribers.Count == queue.TeamSize * 2 && queue.WaitingList.All(w => w.Id != Context.User.Id))
+            var flagged = await _flagRepository.IsFlagged((IGuildUser) Context.User);
+            if (flagged != null)
             {
-                queue.Updated = DateTime.UtcNow;
-                queue.WaitingList.Add(new Subscriber { Id = Context.User.Id, Name = Context.User.Username });
-
-                await _queueRepository.UpdateQueue(queue);
+                var embed = new EmbedBuilder
+                {
+                    Title = "You are flagged",
+                    Description = $"You have been flagged which means that you can't join or create queues.{Environment.NewLine}**Reason**{Environment.NewLine}_{flagged.Reason}_",
+                    Color = Color.Orange
+                }.Build();
+                await ReplyAsync(embed: embed);
+                return;
             }
 
-            if (queue.Subscribers.All(w => w.Id != Context.User.Id))
+            if (queue.Subscribers.Count >= queue.MaxInQueue)
+            {
+                if (queue.WaitingList.All(w => w.Id != Context.User.Id))
+                {
+                    queue.Updated = DateTime.UtcNow;
+                    queue.WaitingList.Add(new Subscriber {Id = Context.User.Id, Name = GetNickname(Context.User)});
+
+                    await _queueRepository.UpdateQueue(queue);
+                    
+                    await ReplyAsync($"`You have been added to the waiting list for '{queue.Name}'`");
+                }
+                else
+                {
+                    await ReplyAsync($"`You are already on the waiting list for queue '{queue.Name}'`");
+                }
+            }
+            else if (queue.Subscribers.All(w => w.Id != Context.User.Id))
             {
                 queue.Updated = DateTime.UtcNow;
-                queue.Subscribers.Add(new Subscriber { Id = Context.User.Id, Name = Context.User.Username });
+                queue.Subscribers.Add(new Subscriber { Id = Context.User.Id, Name = GetNickname(Context.User) });
 
                 //if queue found
                 await _queueRepository.UpdateQueue(queue);
 
-                if (queue.Subscribers.Count == queue.TeamSize * 2)
+                if (queue.Subscribers.Count == queue.MaxInQueue)
                 {
                     await NotifyUsers(queue, Context.Guild.Name, queue.Subscribers.Select(subscriber => Context.Client.GetUser(subscriber.Id)).ToArray());
                 }
@@ -107,15 +143,16 @@ namespace PickupBot.Commands.Modules
             var usersList = string.Join(Environment.NewLine, queue.Subscribers.Where(u => u.Id != Context.User.Id).Select(u => $@"  - {u.Name}"));
             var header = $"**Contact your teammates on the \"{serverName}\" server and glhf!**";
             var remember =
-                $"**Remember** {Environment.NewLine}Remember to do `!leave {queue.Name}` if/when you leave the game to make room for the ones in the waiting list!";
+                $"**Remember** {Environment.NewLine}Remember to do `!leave {queue.Name}` if/when you leave the game to make room for those in the waiting list!";
 
             var embed = new EmbedBuilder
             {
                 Title = $"Queue {queue.Name} is ready to go!",
                 Description = $@"{header}{Environment.NewLine}{usersList}{Environment.NewLine}{remember}",
-                Footer = new EmbedFooterBuilder { Text = $"Provided by pickup-bot - {serverName}" }
+                Footer = new EmbedFooterBuilder { Text = $"Provided by pickup-bot - {serverName}" },
+                Color = Color.Orange
             }.Build();
-            
+
             foreach (var user in users)
             {
                 await user.SendMessageAsync("", embed: embed);
@@ -176,7 +213,7 @@ namespace PickupBot.Commands.Modules
                 }
 
                 //if queues found and user is in queue
-                await Context.Channel.SendMessageAsync($"{Context.User.Mention} - You have been removed from all queues");
+                await Context.Channel.SendMessageAsync($"{GetMention(Context.User)} - You have been removed from all queues");
                 await List();
             }
         }
@@ -187,34 +224,46 @@ namespace PickupBot.Commands.Modules
         {
             //find all active queues
             var queues = await _queueRepository.AllQueues(Context.Guild.Id.ToString());
+            Embed embed;
             //if queues found
             var pickupQueues = queues as PickupQueue[] ?? queues.ToArray();
             if (!pickupQueues.Any())
+            {
+                embed = new EmbedBuilder()
+                {
+                    Title = "Active queues",
+                    Description = "There are no active pickup queues at this time, maybe you should `!create` one \uD83D\uDE09",
+                    Color = Color.Orange
+                }.Build();
+
+                await Context.Channel.SendMessageAsync("", embed: embed);
                 return;
+            }
 
             var ordered = pickupQueues.OrderByDescending(w => w.Readiness);
 
             var description = string.Join(
                 Environment.NewLine,
                 ordered.Select((q, i) =>
-                    $"{i + 1}. **{q.Name}** by _{q.OwnerName}_ [{q.Subscribers.Count}/{q.TeamSize * 2}] - {ParseSubscribers(q)} {(q.WaitingList.Any() ? $"- waiting: **{q.WaitingList.Count}**" : "")}"
+                    $"{i + 1}. **{q.Name}** by _{q.OwnerName}_ [{q.Subscribers.Count}/{q.MaxInQueue}] - {ParseSubscribers(q)} {(q.WaitingList.Any() ? $"- waiting: **{q.WaitingList.Count}**" : "")}"
                 ));
 
-            var embed = new EmbedBuilder()
+            embed = new EmbedBuilder()
             {
                 Title = "Active queues",
-                Description = description
-            };
-            await Context.Channel.SendMessageAsync("", embed: embed.Build());
+                Description = description,
+                Color = Color.Orange
+            }.Build();
+            await Context.Channel.SendMessageAsync("", embed: embed);
 
             //if no queue found or user is not in queue, inform the user
         }
 
         private static string ParseSubscribers(PickupQueue queue)
         {
-            var subscribers = queue.Subscribers.Select(w => $"[{w.Name}]").ToList();
-            if ((queue.TeamSize * 2) - queue.Subscribers.Count > 0)
-                subscribers.AddRange(Enumerable.Repeat("[?]", (queue.TeamSize * 2) - queue.Subscribers.Count));
+            var subscribers = queue.Subscribers.Select(w => w.Name).ToList();
+            if ((queue.MaxInQueue) - queue.Subscribers.Count > 0)
+                subscribers.AddRange(Enumerable.Repeat("[?]", (queue.MaxInQueue) - queue.Subscribers.Count));
 
             //if queue found and user is in queue
             return string.Join(", ", subscribers);
@@ -239,7 +288,7 @@ namespace PickupBot.Commands.Modules
                     if (user != null)
                     {
                         await ReplyAsync(
-                            $"`{user.Mention} you have been added to '{queue.Name}' since {subscriber.Name} has left.`");
+                            $"`{GetMention(user)} you have been added to '{queue.Name}' since {subscriber.Name} has left.`");
                         await NotifyUsers(queue, Context.Guild.Name, user);
                     }
                 }
@@ -257,6 +306,16 @@ namespace PickupBot.Commands.Modules
             }
 
             return null;
+        }
+
+        private static string GetNickname(IUser user)
+        {
+            return ((IGuildUser)user).Nickname;
+        }
+
+        private static string GetMention(IUser user)
+        {
+            return ((IGuildUser)user).Mention;
         }
     }
 }

@@ -65,13 +65,13 @@ namespace PickupBot.Data.Repositories
             return await Task.FromResult(queues);
         }
 
-        public async Task<bool> FlagUser(IUser user, string guildId)
+        public async Task<bool> FlagUser(IGuildUser user, string guildId)
         {
             if (user == null) return false;
             return await Task.FromResult(_flaggedUsersCache.TryAdd(user.Id, new Subscriber {Id = user.Id, Name = user.Username}));
         }
 
-        public async Task<bool> UnFlagUser(IUser user, string guildId)
+        public async Task<bool> UnFlagUser(IGuildUser user, string guildId)
         {
             if (user == null) return false;
             return await Task.FromResult(_flaggedUsersCache.TryRemove(user.Id, out _));

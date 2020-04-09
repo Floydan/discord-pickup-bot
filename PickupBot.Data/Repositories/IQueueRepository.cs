@@ -12,8 +12,8 @@ namespace PickupBot.Data.Repositories
         Task<bool> UpdateQueue(PickupQueue queue);
         Task<PickupQueue> FindQueue(string queueName, string guildId);
         Task<IEnumerable<PickupQueue>> AllQueues(string guildId);
-        Task<bool> FlagUser(IUser user, string guildId);
-        Task<bool> UnFlagUser(IUser user, string guildId);
+        Task<bool> FlagUser(IGuildUser user, string guildId);
+        Task<bool> UnFlagUser(IGuildUser user, string guildId);
         Task<IEnumerable<Subscriber>> GetAllFlaggedUsers(string guildId);
 
     }

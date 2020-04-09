@@ -13,11 +13,11 @@ namespace PickupBot.Commands.Modules
     [Summary("Not fully implemented yet")]
     public class AdminModule : ModuleBase<SocketCommandContext>
     {
-        private readonly IQueueRepository _queueRepository;
+        private readonly IFlaggedSubscribersRepository _flagRepository;
 
-        public AdminModule(IQueueRepository queueRepository)
+        public AdminModule(IFlaggedSubscribersRepository flagRepository)
         {
-            _queueRepository = queueRepository;
+            _flagRepository = flagRepository;
         }
 
         [Command("flag")]
@@ -27,11 +27,11 @@ namespace PickupBot.Commands.Modules
         {
             if(user == null) return;
 
-            await _queueRepository.FlagUser(user, Context.Guild.Id.ToString());
+            await _flagRepository.Flag(user, reason);
             
             //flag user so they can't be added to pickup queues
             await ReplyAsync(
-                $"User {user.Mention} has been flagged by {Context.User.Mention} and can no longer subscribe to pickup queues {Environment.NewLine} {(!string.IsNullOrEmpty(reason) ? $"_{reason}_" : "")}");
+                $"User {user.Mention} has been flagged by {Context.User.Mention} and can no longer subscribe to pickup queues {Environment.NewLine} {(!string.IsNullOrEmpty(reason) ? $" - _{reason}_" : "")}");
         }
 
         [Command("unflag")]
@@ -41,7 +41,7 @@ namespace PickupBot.Commands.Modules
         {
             if(user == null) return;
 
-            await _queueRepository.UnFlagUser(user, Context.Guild.Id.ToString());
+            await _flagRepository.UnFlag(user);
             
             //flag user so they can't be added to pickup queues
             await ReplyAsync($"User {user.Mention} has been un-flagged by {Context.User.Mention} and can now subscribe to pickup queues");
@@ -52,7 +52,7 @@ namespace PickupBot.Commands.Modules
         [Summary("List all flagged users")]
         public async Task GetAll()
         {
-            var flaggedUsers = await _queueRepository.GetAllFlaggedUsers(Context.Guild.Id.ToString());
+            var flaggedUsers = await _flagRepository.List(Context.Guild.Id.ToString());
             
             //flag user so they can't be added to pickup queues
             await ReplyAsync($"**Flagged users:**{Environment.NewLine}{string.Join(", ", flaggedUsers.Select((u, i) => $"{i+1}. {u.Name}`"))}");

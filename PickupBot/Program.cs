@@ -55,16 +55,22 @@ namespace PickupBot
         
         private static ServiceProvider ConfigureServices()
         {
+            var storageConnectionString = Environment.GetEnvironmentVariable("StorageConnectionString");
             return new ServiceCollection()
                 .AddSingleton<DiscordSocketClient>()
                 .AddSingleton<CommandService>()
                 .AddSingleton<CommandHandlerService>()
                 .AddSingleton<HttpClient>()
                 .AddScoped<IAzureTableStorage<PickupQueue>>(provider => new AzureTableStorage<PickupQueue>(new AzureTableSettings(
-                    Environment.GetEnvironmentVariable("StorageConnectionString"),
+                    storageConnectionString,
                     nameof(PickupQueue)
                 )))
+                .AddScoped<IAzureTableStorage<FlaggedSubscriber>>(provider => new AzureTableStorage<FlaggedSubscriber>(new AzureTableSettings(
+                    storageConnectionString,
+                    nameof(FlaggedSubscriber)
+                )))
                 .AddScoped<IQueueRepository, PickupQueueRepository>()
+                .AddScoped<IFlaggedSubscribersRepository, FlaggedSubscribersRepository>()
                 .BuildServiceProvider();
         }
     }

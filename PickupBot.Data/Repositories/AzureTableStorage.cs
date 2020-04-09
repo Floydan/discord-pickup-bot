@@ -84,7 +84,7 @@ namespace PickupBot.Data.Repositories
 
             //Execute
             var result = await table.ExecuteAsync(operation);
-            return result.RequestCharge.HasValue;
+            return result.Result is PickupQueue;
         }
         
         public async Task<bool> Update(T item)
@@ -93,11 +93,11 @@ namespace PickupBot.Data.Repositories
             var table = await GetTableAsync();
 
             //Operation
-            var operation = TableOperation.Merge(item);
+            var operation = TableOperation.Replace(item);
 
             //Execute
             var result = await table.ExecuteAsync(operation);
-            return result.RequestCharge.HasValue;
+            return result.Result is PickupQueue;
         }
         
         public async Task<bool> Delete(string partitionKey, string rowKey)
@@ -113,7 +113,7 @@ namespace PickupBot.Data.Repositories
 
             //Execute
             var result = await table.ExecuteAsync(operation);
-            return result.RequestCharge.HasValue;
+            return result.Result is PickupQueue;
         }
         
         public async Task<bool> Delete(T item)
@@ -128,7 +128,7 @@ namespace PickupBot.Data.Repositories
 
             //Execute
             var result = await table.ExecuteAsync(operation);
-            return result.RequestCharge.HasValue;
+            return result.Result is PickupQueue;
         }
 
         private async Task<CloudTable> GetTableAsync()

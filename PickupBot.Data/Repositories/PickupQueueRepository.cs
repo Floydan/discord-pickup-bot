@@ -24,7 +24,7 @@ namespace PickupBot.Data.Repositories
         {
             var queue = await _client.GetItem(guildId, queueName);
             var result = false;
-            if (queue.OwnerId == user.Id.ToString())
+            if (queue?.OwnerId == user.Id.ToString())
                 result = await _client.Delete(queue);
             return result;
         }
@@ -44,12 +44,12 @@ namespace PickupBot.Data.Repositories
             return await _client.GetList(guildId);
         }
 
-        public Task<bool> FlagUser(IUser user, string guildId)
+        public Task<bool> FlagUser(IGuildUser user, string guildId)
         {
             throw new NotImplementedException();
         }
 
-        public Task<bool> UnFlagUser(IUser user, string guildId)
+        public Task<bool> UnFlagUser(IGuildUser user, string guildId)
         {
             throw new NotImplementedException();
         }
