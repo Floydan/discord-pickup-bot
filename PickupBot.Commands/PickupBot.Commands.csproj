@@ -10,4 +10,8 @@
     <PackageReference Include="Discord.Net.WebSocket" Version="2.1.1" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\PickupBot.Data\PickupBot.Data.csproj" />
+  </ItemGroup>
+
 </Project>

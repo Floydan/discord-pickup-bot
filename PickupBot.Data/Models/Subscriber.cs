@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-
-namespace PickupBot.Commands.Models
+﻿namespace PickupBot.Data.Models
 {
     public class Subscriber
     {

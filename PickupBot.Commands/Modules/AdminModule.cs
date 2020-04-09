@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using Discord;
 using Discord.Commands;
 using PickupBot.Commands.Repositories;
+using PickupBot.Data.Repositories;
 
 namespace PickupBot.Commands.Modules
 {
@@ -26,7 +27,7 @@ namespace PickupBot.Commands.Modules
         {
             if(user == null) return;
 
-            await _queueRepository.FlagUser(user, Context.Guild.Id);
+            await _queueRepository.FlagUser(user, Context.Guild.Id.ToString());
             
             //flag user so they can't be added to pickup queues
             await ReplyAsync(
@@ -40,7 +41,7 @@ namespace PickupBot.Commands.Modules
         {
             if(user == null) return;
 
-            await _queueRepository.UnFlagUser(user, Context.Guild.Id);
+            await _queueRepository.UnFlagUser(user, Context.Guild.Id.ToString());
             
             //flag user so they can't be added to pickup queues
             await ReplyAsync($"User {user.Mention} has been un-flagged by {Context.User.Mention} and can now subscribe to pickup queues");
@@ -51,7 +52,7 @@ namespace PickupBot.Commands.Modules
         [Summary("List all flagged users")]
         public async Task GetAll()
         {
-            var flaggedUsers = await _queueRepository.GetAllFlaggedUsers(Context.Guild.Id);
+            var flaggedUsers = await _queueRepository.GetAllFlaggedUsers(Context.Guild.Id.ToString());
             
             //flag user so they can't be added to pickup queues
             await ReplyAsync($"**Flagged users:**{Environment.NewLine}{string.Join(", ", flaggedUsers.Select((u, i) => $"{i+1}. {u.Name}`"))}");

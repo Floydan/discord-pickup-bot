@@ -5,9 +5,11 @@ using System.Threading.Tasks;
 using Discord;
 using Discord.Commands;
 using Discord.WebSocket;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using PickupBot.Commands;
-using PickupBot.Commands.Repositories;
+using PickupBot.Data.Models;
+using PickupBot.Data.Repositories;
 
 namespace PickupBot
 {
@@ -58,7 +60,11 @@ namespace PickupBot
                 .AddSingleton<CommandService>()
                 .AddSingleton<CommandHandlerService>()
                 .AddSingleton<HttpClient>()
-                .AddSingleton<IQueueRepository, InMemoryQueueRepository>()
+                .AddScoped<IAzureTableStorage<PickupQueue>>(provider => new AzureTableStorage<PickupQueue>(new AzureTableSettings(
+                    Environment.GetEnvironmentVariable("StorageConnectionString"),
+                    nameof(PickupQueue)
+                )))
+                .AddScoped<IQueueRepository, PickupQueueRepository>()
                 .BuildServiceProvider();
         }
     }

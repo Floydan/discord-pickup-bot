@@ -6,8 +6,8 @@ using System.Threading.Tasks;
 using Discord;
 using Discord.Commands;
 using Discord.WebSocket;
-using PickupBot.Commands.Models;
-using PickupBot.Commands.Repositories;
+using PickupBot.Data.Models;
+using PickupBot.Data.Repositories;
 
 namespace PickupBot.Commands.Modules
 {
@@ -42,7 +42,7 @@ namespace PickupBot.Commands.Modules
                 teamSize = 16;
 
             //find queue with name {queueName}
-            var queue = await _queueRepository.FindQueue(queueName, Context.Guild.Id);
+            var queue = await _queueRepository.FindQueue(queueName, Context.Guild.Id.ToString());
 
             if (queue != null)
             {
@@ -50,12 +50,12 @@ namespace PickupBot.Commands.Modules
                 return;
             }
 
-            await _queueRepository.AddQueue(new PickupQueue
+            await _queueRepository.AddQueue(new PickupQueue(Context.Guild.Id.ToString(), queueName)
             {
                 Name = queueName,
-                GuildId = Context.Guild.Id,
+                GuildId = Context.Guild.Id.ToString(),
                 OwnerName = Context.User.Username,
-                OwnerId = Context.User.Id,
+                OwnerId = Context.User.Id.ToString(),
                 Created = DateTime.UtcNow,
                 Updated = DateTime.UtcNow,
                 TeamSize = teamSize,
@@ -70,7 +70,7 @@ namespace PickupBot.Commands.Modules
         public async Task Add([Summary("Queue name"), Remainder]string queueName)
         {
             //find queue with name {queueName}
-            var queue = await _queueRepository.FindQueue(queueName, Context.Guild.Id);
+            var queue = await _queueRepository.FindQueue(queueName, Context.Guild.Id.ToString());
             if (queue == null)
             {
                 await Context.Channel.SendMessageAsync($"`Queue with the name '{queueName}' doesn't exists!`");
@@ -128,7 +128,7 @@ namespace PickupBot.Commands.Modules
         public async Task Leave([Summary("Queue name"), Remainder] string queueName)
         {
             //find queue with name {queueName}
-            var queue = await _queueRepository.FindQueue(queueName, Context.Guild.Id);
+            var queue = await _queueRepository.FindQueue(queueName, Context.Guild.Id.ToString());
             if (queue == null)
             {
                 await Context.Channel.SendMessageAsync($"`Queue with the name '{queueName}' doesn't exists!`");
@@ -143,7 +143,7 @@ namespace PickupBot.Commands.Modules
         [Summary("If you are the creator of the queue you can use this to delete it")]
         public async Task Remove([Summary("Queue name"), Remainder] string queueName)
         {
-            var result = await _queueRepository.RemoveQueue(Context.User, queueName, Context.Guild.Id);
+            var result = await _queueRepository.RemoveQueue(Context.User, queueName, Context.Guild.Id.ToString());
             var message = result ? $"`Queue '{queueName}' has been canceled`" : $"`Queue with the name '{queueName}' doesn't exists!`";
             await Context.Channel.SendMessageAsync(message);
         }
@@ -153,7 +153,7 @@ namespace PickupBot.Commands.Modules
         public async Task Clear()
         {
             //find queues with user in it
-            var allQueues = await _queueRepository.AllQueues(Context.Guild.Id);
+            var allQueues = await _queueRepository.AllQueues(Context.Guild.Id.ToString());
 
             var matchingQueues = allQueues.Where(q => q.Subscribers.Any(s => s.Id == Context.User.Id) || q.WaitingList.Any(w => w.Id == Context.User.Id));
 
@@ -186,7 +186,7 @@ namespace PickupBot.Commands.Modules
         public async Task List()
         {
             //find all active queues
-            var queues = await _queueRepository.AllQueues(Context.Guild.Id);
+            var queues = await _queueRepository.AllQueues(Context.Guild.Id.ToString());
             //if queues found
             var pickupQueues = queues as PickupQueue[] ?? queues.ToArray();
             if (!pickupQueues.Any())

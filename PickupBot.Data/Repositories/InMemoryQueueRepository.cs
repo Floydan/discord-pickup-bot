@@ -4,9 +4,8 @@ using System.Linq;
 using System.Threading.Tasks;
 using Discord;
 using PickupBot.Data.Models;
-using PickupBot.Data.Repositories;
 
-namespace PickupBot.Commands.Repositories
+namespace PickupBot.Data.Repositories
 {
     public class InMemoryQueueRepository : IQueueRepository
     {
