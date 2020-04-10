@@ -25,7 +25,7 @@ namespace PickupBot.Commands.Modules
             _flagRepository = flagRepository;
         }
 
-        [Command("create")]
+        [Command("create2")]
         [Summary("Creates a pickup queue")]
         public async Task Create(
             [Summary("Queue name")] string queueName,
@@ -137,27 +137,6 @@ namespace PickupBot.Commands.Modules
             await Context.Channel.SendMessageAsync($"`{queueName} - {ParseSubscribers(queue)}`");
         }
 
-        private async Task NotifyUsers(PickupQueue queue, string serverName, params SocketGuildUser[] users)
-        {
-            var usersList = string.Join(Environment.NewLine, queue.Subscribers.Where(u => u.Id != Context.User.Id).Select(u => $@"  - {u.Name}"));
-            var header = $"**Contact your teammates on the \"{serverName}\" server and glhf!**";
-            var remember =
-                $"**Remember** {Environment.NewLine}Remember to do `!leave {queue.Name}` if/when you leave the game to make room for those in the waiting list!";
-
-            var embed = new EmbedBuilder
-            {
-                Title = $"Queue {queue.Name} is ready to go!",
-                Description = $@"{header}{Environment.NewLine}{usersList}{Environment.NewLine}{remember}",
-                Footer = new EmbedFooterBuilder { Text = $"Provided by pickup-bot - {serverName}" },
-                Color = Color.Orange
-            }.Build();
-
-            foreach (var user in users)
-            {
-                await user.SendMessageAsync(embed: embed);
-            }
-        }
-
         [Command("leave")]
         [Alias("quit")]
         [Summary("Leave a queue, freeing up a spot.")]
@@ -260,7 +239,7 @@ namespace PickupBot.Commands.Modules
         public async Task WaitList([Summary("Queue name"), Remainder] string queueName)
         {
             var queue = await _queueRepository.FindQueue(queueName, Context.Guild.Id.ToString());
-            
+
             if (queue == null)
             {
                 await Context.Channel.SendMessageAsync($"`Queue with the name '{queueName}' doesn't exists!`");
@@ -278,6 +257,105 @@ namespace PickupBot.Commands.Modules
                 Color = Color.Orange
             }.Build();
             await Context.Channel.SendMessageAsync(embed: embed);
+        }
+
+        [Command("subscribe")]
+        [Summary("Subscribes or unsubscribes the user to the promote role to get notifications when queues are created of when the !promote command is used")]
+        public async Task Subscribe()
+        {
+            var role = Context.Guild.Roles.FirstOrDefault(w => w.Name == "pickup-promote") ??
+                         (IRole)await Context.Guild.CreateRoleAsync("pickup-promote", GuildPermissions.None, Color.Orange,
+                             false);
+            if (role == null)
+                return; //Failed to get or create role;
+
+            var user = (IGuildUser)Context.User;
+
+            if (user.RoleIds.Any(w => w == role.Id))
+            {
+                await user.RemoveRoleAsync(role);
+                await ReplyAsync($"{GetMention(user)} has unsubscribed from the promote role");
+            }
+            else
+            {
+                await user.AddRoleAsync(role);
+                await ReplyAsync($"{GetMention(user)} has subscribed from the promote role");
+            }
+        }
+
+        [Command("promote")]
+        [Summary("Promotes one specific or all queues to the 'promote-role' role")]
+        public async Task Promote([Summary("Queue name"), Remainder] string queueName = "")
+        {
+            PickupQueue queue = null;
+            if (!string.IsNullOrWhiteSpace(queueName))
+            {
+                queue = await _queueRepository.FindQueue(queueName, Context.Guild.Id.ToString());
+                if (queue == null)
+                {
+                    await Context.Channel.SendMessageAsync($"`Queue with the name '{queueName}' doesn't exists!`");
+                    return;
+                }
+
+                if (queue.MaxInQueue <= queue.Subscribers.Count)
+                {
+                    await ReplyAsync("Queue is full, why the spam?");
+                    return;
+                }
+            }
+
+            var role = Context.Guild.Roles.FirstOrDefault(w => w.Name == "pickup-promote") ??
+                       (IRole)await Context.Guild.CreateRoleAsync("pickup-promote", GuildPermissions.None, Color.Orange,
+                           false);
+            if (role == null)
+                return; //Failed to get or create role;
+
+            if (string.IsNullOrWhiteSpace(queueName))
+            {
+                var queues = await _queueRepository.AllQueues(Context.Guild.Id.ToString());
+                var filtered = queues.Where(q => q.MaxInQueue > q.Subscribers.Count).ToArray();
+                if (filtered.Any())
+                    await ReplyAsync($"{role.Mention} - There are {filtered.Length} pickup queues with spots left, check out the `!list`!");
+            }
+            else if (queue != null)
+            {
+                var embed = new EmbedBuilder()
+                {
+                    Title = $"{queue.Name} needs more players",
+                    Description = $"**Current queue**" +
+                                  $"{Environment.NewLine} " +
+                                  $"{ParseSubscribers(queue)}" +
+                                  $"{Environment.NewLine}{Environment.NewLine}" +
+                                  $"**Spots left: {queue.MaxInQueue - queue.Subscribers.Count}" +
+                                  $"{Environment.NewLine}" +
+                                  $"**Team size**: {queue.TeamSize}" +
+                                  $"{Environment.NewLine}{Environment.NewLine}" +
+                                  $"Just run `!add {queue.Name}` to join!",
+                    Color = Color.Orange
+                }.Build();
+                await ReplyAsync(role.Mention, embed: embed);
+            }
+        }
+
+        private async Task NotifyUsers(PickupQueue queue, string serverName, params SocketGuildUser[] users)
+        {
+            var usersList = string.Join(Environment.NewLine, queue.Subscribers.Where(u => u.Id != Context.User.Id).Select(u => $@"  - {u.Name}"));
+            var header = $"**Contact your teammates on the \"{serverName}\" server and glhf!**";
+            var remember =
+                $"**Remember** {Environment.NewLine}Remember to do `!leave {queue.Name}` if/when you leave the game to make room for those in the waiting list!";
+
+            var embed = new EmbedBuilder
+            {
+                Title = $"Queue {queue.Name} is ready to go!",
+                Description = $@"{header}{Environment.NewLine}{usersList}{Environment.NewLine}{remember}",
+                Footer = new EmbedFooterBuilder { Text = $"Provided by pickup-bot - {serverName}" },
+                Color = Color.Orange
+            }.Build();
+
+            foreach (var user in users)
+            {
+                await user.SendMessageAsync(embed: embed);
+            }
         }
 
         private static string ParseSubscribers(PickupQueue queue)
@@ -330,7 +408,7 @@ namespace PickupBot.Commands.Modules
         private static string GetNickname(IUser user) =>
             user switch
             {
-                IGuildUser guildUser => guildUser.Nickname,
+                IGuildUser guildUser => guildUser.Nickname ?? guildUser.Username,
                 IGroupUser groupUser => groupUser.Username,
                 ISelfUser selfUser => selfUser.Username,
                 _ => user.Username
