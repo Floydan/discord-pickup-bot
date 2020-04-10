@@ -8,6 +8,7 @@ using Discord.Commands;
 using Discord.WebSocket;
 using PickupBot.Data.Models;
 using PickupBot.Data.Repositories;
+// ReSharper disable MemberCanBePrivate.Global
 
 namespace PickupBot.Commands.Modules
 {
@@ -17,20 +18,18 @@ namespace PickupBot.Commands.Modules
     {
         private readonly IQueueRepository _queueRepository;
         private readonly IFlaggedSubscribersRepository _flagRepository;
-        private readonly CommandService _commandService;
 
-        public PickupModule(IQueueRepository queueRepository, IFlaggedSubscribersRepository flagRepository, CommandService commandService)
+        public PickupModule(IQueueRepository queueRepository, IFlaggedSubscribersRepository flagRepository)
         {
             _queueRepository = queueRepository;
             _flagRepository = flagRepository;
-            _commandService = commandService;
         }
 
         [Command("create")]
         [Summary("Creates a pickup queue")]
         public async Task Create(
             [Summary("Queue name")] string queueName,
-            [Summary("Optional team size (how many are in each team NOT total number of players), use if your queue name doesn't start with a number e.g. 2v2")]
+            [Summary("Optional team size (how many are in each team **NOT** total number of players), use if your queue name doesn't start with a number e.g. 2v2")]
             int teamSize = 1)
         {
             if (teamSize == 1 && Regex.IsMatch(queueName, @"^\d+", RegexOptions.Singleline))
@@ -43,7 +42,7 @@ namespace PickupBot.Commands.Modules
             if (teamSize > 16)
                 teamSize = 16;
 
-            var flagged = await _flagRepository.IsFlagged((IGuildUser) Context.User);
+            var flagged = await _flagRepository.IsFlagged((IGuildUser)Context.User);
             if (flagged != null)
             {
                 var embed = new EmbedBuilder
@@ -92,7 +91,7 @@ namespace PickupBot.Commands.Modules
                 return;
             }
 
-            var flagged = await _flagRepository.IsFlagged((IGuildUser) Context.User);
+            var flagged = await _flagRepository.IsFlagged((IGuildUser)Context.User);
             if (flagged != null)
             {
                 var embed = new EmbedBuilder
@@ -110,10 +109,10 @@ namespace PickupBot.Commands.Modules
                 if (queue.WaitingList.All(w => w.Id != Context.User.Id))
                 {
                     queue.Updated = DateTime.UtcNow;
-                    queue.WaitingList.Add(new Subscriber {Id = Context.User.Id, Name = GetNickname(Context.User)});
+                    queue.WaitingList.Add(new Subscriber { Id = Context.User.Id, Name = GetNickname(Context.User) });
 
                     await _queueRepository.UpdateQueue(queue);
-                    
+
                     await ReplyAsync($"`You have been added to the waiting list for '{queue.Name}'`");
                 }
                 else
@@ -131,14 +130,14 @@ namespace PickupBot.Commands.Modules
 
                 if (queue.Subscribers.Count == queue.MaxInQueue)
                 {
-                    await NotifyUsers(queue, Context.Guild.Name, queue.Subscribers.Select(subscriber => Context.Client.GetUser(subscriber.Id)).ToArray());
+                    await NotifyUsers(queue, Context.Guild.Name, queue.Subscribers.Select(subscriber => Context.Guild.GetUser(subscriber.Id)).ToArray());
                 }
             }
 
             await Context.Channel.SendMessageAsync($"`{queueName} - {ParseSubscribers(queue)}`");
         }
 
-        private async Task NotifyUsers(PickupQueue queue, string serverName, params SocketUser[] users)
+        private async Task NotifyUsers(PickupQueue queue, string serverName, params SocketGuildUser[] users)
         {
             var usersList = string.Join(Environment.NewLine, queue.Subscribers.Where(u => u.Id != Context.User.Id).Select(u => $@"  - {u.Name}"));
             var header = $"**Contact your teammates on the \"{serverName}\" server and glhf!**";
@@ -155,7 +154,7 @@ namespace PickupBot.Commands.Modules
 
             foreach (var user in users)
             {
-                await user.SendMessageAsync("", embed: embed);
+                await user.SendMessageAsync(embed: embed);
             }
         }
 
@@ -181,7 +180,7 @@ namespace PickupBot.Commands.Modules
         public async Task Remove([Summary("Queue name"), Remainder] string queueName)
         {
             var result = await _queueRepository.RemoveQueue(Context.User, queueName, Context.Guild.Id.ToString());
-            var message = result ? $"`Queue '{queueName}' has been canceled`" : $"`Queue with the name '{queueName}' doesn't exists!`";
+            var message = result ? $"`Queue '{queueName}' has been canceled`" : $"`Queue with the name '{queueName}' doesn't exists or you are not the owner of the queue!`";
             await Context.Channel.SendMessageAsync(message);
         }
 
@@ -214,7 +213,6 @@ namespace PickupBot.Commands.Modules
 
                 //if queues found and user is in queue
                 await Context.Channel.SendMessageAsync($"{GetMention(Context.User)} - You have been removed from all queues");
-                await List();
             }
         }
 
@@ -236,7 +234,7 @@ namespace PickupBot.Commands.Modules
                     Color = Color.Orange
                 }.Build();
 
-                await Context.Channel.SendMessageAsync("", embed: embed);
+                await Context.Channel.SendMessageAsync(embed: embed);
                 return;
             }
 
@@ -254,9 +252,32 @@ namespace PickupBot.Commands.Modules
                 Description = description,
                 Color = Color.Orange
             }.Build();
-            await Context.Channel.SendMessageAsync("", embed: embed);
+            await Context.Channel.SendMessageAsync(embed: embed);
+        }
 
-            //if no queue found or user is not in queue, inform the user
+        [Command("waitlist")]
+        [Summary("Lists all the players in a given queues wait list")]
+        public async Task WaitList([Summary("Queue name"), Remainder] string queueName)
+        {
+            var queue = await _queueRepository.FindQueue(queueName, Context.Guild.Id.ToString());
+            
+            if (queue == null)
+            {
+                await Context.Channel.SendMessageAsync($"`Queue with the name '{queueName}' doesn't exists!`");
+                return;
+            }
+
+            var waitlist = string.Join($"{Environment.NewLine} ", queue.WaitingList.Select((w, i) => $"{i + 1}: {w.Name}"));
+            if (string.IsNullOrWhiteSpace(waitlist))
+                waitlist = "No players in the waiting list";
+
+            var embed = new EmbedBuilder()
+            {
+                Title = $"Players in waiting list for queue {queue.Name}",
+                Description = waitlist,
+                Color = Color.Orange
+            }.Build();
+            await Context.Channel.SendMessageAsync(embed: embed);
         }
 
         private static string ParseSubscribers(PickupQueue queue)
@@ -284,7 +305,7 @@ namespace PickupBot.Commands.Modules
 
                     queue.Subscribers.Add(next);
 
-                    var user = Context.Client.GetUser(next.Id);
+                    var user = Context.Guild.GetUser(next.Id);
                     if (user != null)
                     {
                         await ReplyAsync(
@@ -300,22 +321,29 @@ namespace PickupBot.Commands.Modules
 
                     if (notify)
                         await Context.Channel.SendMessageAsync($"`{queue.Name} - {ParseSubscribers(queue)}`");
-
-                    return queue;
                 }
             }
 
-            return null;
+            return queue;
         }
 
-        private static string GetNickname(IUser user)
-        {
-            return ((IGuildUser)user).Nickname;
-        }
+        private static string GetNickname(IUser user) =>
+            user switch
+            {
+                IGuildUser guildUser => guildUser.Nickname,
+                IGroupUser groupUser => groupUser.Username,
+                ISelfUser selfUser => selfUser.Username,
+                _ => user.Username
+            };
 
-        private static string GetMention(IUser user)
-        {
-            return ((IGuildUser)user).Mention;
-        }
+        private static string GetMention(IMentionable user) =>
+            user switch
+            {
+                IGuildUser guildUser => guildUser.Mention,
+                IGroupUser groupUser => groupUser.Mention,
+                ISelfUser selfUser => selfUser.Mention,
+                _ => user.Mention
+            };
+
     }
 }
