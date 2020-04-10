@@ -326,7 +326,7 @@ namespace PickupBot.Commands.Modules
                                   $"{Environment.NewLine} " +
                                   $"{ParseSubscribers(queue)}" +
                                   $"{Environment.NewLine}{Environment.NewLine}" +
-                                  $"**Spots left: {queue.MaxInQueue - queue.Subscribers.Count}" +
+                                  $"**Spots left**: {queue.MaxInQueue - queue.Subscribers.Count}" +
                                   $"{Environment.NewLine}" +
                                   $"**Team size**: {queue.TeamSize}" +
                                   $"{Environment.NewLine}{Environment.NewLine}" +
