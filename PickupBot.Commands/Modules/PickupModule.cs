@@ -25,7 +25,7 @@ namespace PickupBot.Commands.Modules
             _flagRepository = flagRepository;
         }
 
-        [Command("create2")]
+        [Command("create")]
         [Summary("Creates a pickup queue")]
         public async Task Create(
             [Summary("Queue name")] string queueName,
@@ -274,12 +274,12 @@ namespace PickupBot.Commands.Modules
             if (user.RoleIds.Any(w => w == role.Id))
             {
                 await user.RemoveRoleAsync(role);
-                await ReplyAsync($"{GetMention(user)} has unsubscribed from the promote role");
+                await ReplyAsync($"{GetMention(user)} - you are no longer subscribed to get notifications on `!promote`");
             }
             else
             {
                 await user.AddRoleAsync(role);
-                await ReplyAsync($"{GetMention(user)} has subscribed from the promote role");
+                await ReplyAsync($"{GetMention(user)} - you are now subscribed to get notifications on `!promote`");
             }
         }
 
