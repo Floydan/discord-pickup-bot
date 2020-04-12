@@ -35,7 +35,7 @@ namespace PickupBot.Commands
             await _commands.AddModulesAsync(GetType().Assembly, _services);
         }
 
-        private async Task MessageReceivedAsync(SocketMessage rawMessage)
+        public async Task MessageReceivedAsync(SocketMessage rawMessage)
         {
             // Ignore system messages, or messages from other bots
             if (!(rawMessage is SocketUserMessage message)) return;
@@ -43,18 +43,15 @@ namespace PickupBot.Commands
 
             // This value holds the offset where the prefix ends
             var argPos = 0;
-            // Perform prefix check. You may want to replace this with
-            // (!message.HasCharPrefix('!', ref argPos))
-            // for a more traditional command format like !help.
+
             if (!message.HasCharPrefix('!', ref argPos)) return;
 
             var context = new SocketCommandContext(_discord, message);
+
             // Perform the execution of the command. In this method,
             // the command service will perform precondition and parsing check
             // then execute the command if one is matched.
             await _commands.ExecuteAsync(context, argPos, _services); 
-            // Note that normally a result will be returned by this format, but here
-            // we will handle the result in CommandExecutedAsync,
         }
 
         private static async Task CommandExecutedAsync(Optional<CommandInfo> command, ICommandContext context, IResult result)
@@ -64,6 +61,13 @@ namespace PickupBot.Commands
                 return;
 
             // the command was successful, we don't care about this result, unless we want to log that a command succeeded.
+
+            if (result.IsSuccess && command.Value.Name == "promote")
+            {
+                //save when the command was used so we can check against this to prevent spamming
+                //e.g. only allow !promote once per hour
+            }
+
             if (result.IsSuccess)
                 return;
 

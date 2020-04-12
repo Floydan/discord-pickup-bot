@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
@@ -21,10 +22,12 @@ namespace PickupBot
         {
             using (var services = ConfigureServices())
             {
+                ServiceLocator.SetLocatorProvider(services);
                 var client = services.GetRequiredService<DiscordSocketClient>();
 
                 client.Log += LogAsync;
-                //client.MessageUpdated += OnMessageUpdated;
+                client.JoinedGuild += OnJoinedGuild;
+                client.MessageUpdated += OnMessageUpdated;
                 services.GetRequiredService<CommandService>().Log += LogAsync;
 
                 // Tokens should be considered secret data and never hard-coded.
@@ -39,12 +42,52 @@ namespace PickupBot
             }
         }
 
+        private static async Task OnJoinedGuild(SocketGuild guild)
+        {
+            try
+            {
+                // create #pickup channel if missing
+                var channel = guild.Channels.FirstOrDefault(c => c.Name.Equals("pickup"));
+                if (channel == null)
+                {
+                    await guild.CreateTextChannelAsync("pickup",
+                        properties => properties.Topic = "powered by pickup-bot | !help for instructions");
+                }
+
+                // TODO: create voice channels if missing
+                //var voiceChannels = guild.VoiceChannels.Where(vc => vc.Name.StartsWith("pickup")).ToArray();
+                //if (!voiceChannels.Any() || voiceChannels.Count() < 6)
+                //{
+                //    var vctasks = new List<Task>();
+                //    for(var i = 1; i <= 6; i++)
+                //    {
+                //        vctasks.Add(guild.CreateVoiceChannelAsync($"Pickup {i}", properties => properties.UserLimit = 16));
+                //    }
+
+                //    await Task.WhenAll(vctasks);
+                //}
+
+                // create applicable roles if missing
+                if(guild.Roles.All(w => w.Name != "pickup-promote")) 
+                    await guild.CreateRoleAsync("pickup-promote", GuildPermissions.None, Color.Orange, false);
+
+                // TODO: sync roles with @everyone?
+            }
+            catch (Exception e)
+            {
+                await LogAsync(new LogMessage(LogSeverity.Error, nameof(OnJoinedGuild), e.Message, e));
+            }
+        }
+
         private static async Task OnMessageUpdated(Cacheable<IMessage, ulong> before, SocketMessage after, ISocketMessageChannel channel)
         {
             var message = await before.GetOrDownloadAsync();
             await LogAsync(new LogMessage(LogSeverity.Info, "OnMessageUpdated", $"{message} -> {after}"));
 
             //TODO: maybe trigger CommandHandlerService to check if the updated message is a command
+            var commandHandler = ServiceLocator.Current.GetInstance<CommandHandlerService>();
+            if(commandHandler != null)
+                await commandHandler.MessageReceivedAsync(after);
         }
 
         private static Task LogAsync(LogMessage msg)
@@ -56,8 +99,11 @@ namespace PickupBot
         private static ServiceProvider ConfigureServices()
         {
             var storageConnectionString = Environment.GetEnvironmentVariable("StorageConnectionString");
+
+            var discordSocketConfig = new DiscordSocketConfig { MessageCacheSize = 100, LogLevel = LogSeverity.Debug };
+
             return new ServiceCollection()
-                .AddSingleton<DiscordSocketClient>()
+                .AddSingleton<DiscordSocketClient>(provider => new DiscordSocketClient(discordSocketConfig))
                 .AddSingleton<CommandService>()
                 .AddSingleton<CommandHandlerService>()
                 .AddSingleton<HttpClient>()

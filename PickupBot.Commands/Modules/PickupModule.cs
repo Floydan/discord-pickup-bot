@@ -42,18 +42,8 @@ namespace PickupBot.Commands.Modules
             if (teamSize > 16)
                 teamSize = 16;
 
-            var flagged = await _flagRepository.IsFlagged((IGuildUser)Context.User);
-            if (flagged != null)
-            {
-                var embed = new EmbedBuilder
-                {
-                    Title = "You are flagged",
-                    Description = $"You have been flagged which means that you can't join or create queues.{Environment.NewLine}**Reason**{Environment.NewLine}_{flagged.Reason}_",
-                    Color = Color.Orange
-                }.Build();
-                await ReplyAsync(embed: embed);
+            if(!await VerifyUserFlaggedStatus())
                 return;
-            }
 
             //find queue with name {queueName}
             var queue = await _queueRepository.FindQueue(queueName, Context.Guild.Id.ToString());
@@ -81,28 +71,28 @@ namespace PickupBot.Commands.Modules
 
         [Command("add")]
         [Summary("Take a spot in a pickup queue, if the queue is full you are placed on the waiting list.")]
-        public async Task Add([Summary("Queue name"), Remainder]string queueName)
+        public async Task Add([Summary("Queue name"), Remainder]string queueName = "")
         {
             //find queue with name {queueName}
-            var queue = await _queueRepository.FindQueue(queueName, Context.Guild.Id.ToString());
+            PickupQueue queue = null;
+            if (!string.IsNullOrWhiteSpace(queueName))
+            {
+                queue = await _queueRepository.FindQueue(queueName, Context.Guild.Id.ToString());
+            }
+            else
+            {
+                var queues = (await _queueRepository.AllQueues(Context.Guild.Id.ToString())).OrderByDescending(w => w.Readiness).ToList();
+                queue = queues.Any(q => q.Readiness < 100) ? queues.FirstOrDefault(q => q.Readiness < 100) : queues.FirstOrDefault();
+            }
+
             if (queue == null)
             {
                 await Context.Channel.SendMessageAsync($"`Queue with the name '{queueName}' doesn't exists!`");
                 return;
             }
-
-            var flagged = await _flagRepository.IsFlagged((IGuildUser)Context.User);
-            if (flagged != null)
-            {
-                var embed = new EmbedBuilder
-                {
-                    Title = "You are flagged",
-                    Description = $"You have been flagged which means that you can't join or create queues.{Environment.NewLine}**Reason**{Environment.NewLine}_{flagged.Reason}_",
-                    Color = Color.Orange
-                }.Build();
-                await ReplyAsync(embed: embed);
+            
+            if(!await VerifyUserFlaggedStatus())
                 return;
-            }
 
             if (queue.Subscribers.Count >= queue.MaxInQueue)
             {
@@ -134,7 +124,7 @@ namespace PickupBot.Commands.Modules
                 }
             }
 
-            await Context.Channel.SendMessageAsync($"`{queueName} - {ParseSubscribers(queue)}`");
+            await Context.Channel.SendMessageAsync($"`{queue.Name} - {ParseSubscribers(queue)}`");
         }
 
         [Command("leave")]
@@ -159,7 +149,9 @@ namespace PickupBot.Commands.Modules
         public async Task Remove([Summary("Queue name"), Remainder] string queueName)
         {
             var result = await _queueRepository.RemoveQueue(Context.User, queueName, Context.Guild.Id.ToString());
-            var message = result ? $"`Queue '{queueName}' has been canceled`" : $"`Queue with the name '{queueName}' doesn't exists or you are not the owner of the queue!`";
+            var message = result ? 
+                $"`Queue '{queueName}' has been canceled`" : 
+                $"`Queue with the name '{queueName}' doesn't exists or you are not the owner of the queue!`";
             await Context.Channel.SendMessageAsync(message);
         }
 
@@ -309,20 +301,30 @@ namespace PickupBot.Commands.Modules
                            false);
             if (role == null)
                 return; //Failed to get or create role;
+            
+            await Context.Channel.TriggerTypingAsync();
+
+            var users = Context.Guild.Users.Where(w => w.Roles.Any(r => r.Id == role.Id)).ToList();
+            if (!users.Any())
+            {
+                await ReplyAsync("No users have subscribed using the `!subscribe` command.");
+                return;
+            }
 
             if (string.IsNullOrWhiteSpace(queueName))
             {
                 var queues = await _queueRepository.AllQueues(Context.Guild.Id.ToString());
                 var filtered = queues.Where(q => q.MaxInQueue > q.Subscribers.Count).ToArray();
                 if (filtered.Any())
-                    await ReplyAsync($"{role.Mention} - There are {filtered.Length} pickup queues with spots left, check out the `!list`!");
+                    await ReplyAsync($"There are {filtered.Length} pickup queues with spots left, check out the `!list`! - {role.Mention}");
             }
             else if (queue != null)
             {
-                var embed = new EmbedBuilder()
+                var voiceChannel = Context.Guild.VoiceChannels.OrderBy(c => c.Position).FirstOrDefault();
+                var embed = new EmbedBuilder
                 {
-                    Title = $"{queue.Name} needs more players",
-                    Description = $"**Current queue**" +
+                    Title = $"Pickup queue {queue.Name} needs more players",
+                    Description = "**Current queue**" +
                                   $"{Environment.NewLine} " +
                                   $"{ParseSubscribers(queue)}" +
                                   $"{Environment.NewLine}{Environment.NewLine}" +
@@ -330,19 +332,101 @@ namespace PickupBot.Commands.Modules
                                   $"{Environment.NewLine}" +
                                   $"**Team size**: {queue.TeamSize}" +
                                   $"{Environment.NewLine}{Environment.NewLine}" +
-                                  $"Just run `!add {queue.Name}` to join!",
+                                  $"Just run `!add {queue.Name}` in channel <#{Context.Channel.Id}> on the **{Context.Guild.Name}** server to join!"
+                                  /*$"voice channel [<#{voiceChannel?.Id}>](https://discordapp.com/channels/{Context.Guild.Id}/{voiceChannel?.Id})"*/,
+                    Author = new EmbedAuthorBuilder { Name = "pickup-bot" },
                     Color = Color.Orange
                 }.Build();
-                await ReplyAsync(role.Mention, embed: embed);
+
+                var tasks = users.Select(user => user.SendMessageAsync(embed: embed));
+
+                await Task.WhenAll(tasks);
             }
+        }
+
+        [Command("start")]
+        [Summary("Triggers the start of the game by splitting teams and setting up voice channels")]
+        public async Task Start(string queueName)
+        {
+            var queue = await VerifyQueueByName(queueName);
+            if(queue == null) return;
+
+            var category = (ICategoryChannel)Context.Guild.CategoryChannels.FirstOrDefault(c => c.Name.Equals("Pickup voice channels", StringComparison.OrdinalIgnoreCase))
+                           ?? await Context.Guild.CreateCategoryChannelAsync("Pickup voice channels",
+                               properties => properties.Position = int.MaxValue);
+
+            var vcRedTeamName = $"{queue.Name} \uD83D\uDD34";
+            var vcBlueTeamName = $"{queue.Name} \uD83D\uDD35";
+
+            var vcRed = (IVoiceChannel)Context.Guild.VoiceChannels.FirstOrDefault(c => c.Name.Equals(vcRedTeamName, StringComparison.OrdinalIgnoreCase)) 
+                          ?? await Context.Guild.CreateVoiceChannelAsync(vcRedTeamName, properties => properties.CategoryId = category.Id);
+            
+            var vcBlue = (IVoiceChannel)Context.Guild.VoiceChannels.FirstOrDefault(c => c.Name.Equals(vcBlueTeamName, StringComparison.OrdinalIgnoreCase)) 
+                          ?? await Context.Guild.CreateVoiceChannelAsync(vcBlueTeamName, properties => properties.CategoryId = category.Id);
+
+            var halfPoint = (int) Math.Ceiling(queue.Subscribers.Count / (double) 2);
+
+            var redTeam = queue.Subscribers.Take(halfPoint).Select(u => Context.Guild.GetUser(Convert.ToUInt64(u.Id)));
+            var blueTeam = queue.Subscribers.Skip(halfPoint).Select(u => Context.Guild.GetUser(Convert.ToUInt64(u.Id)));
+
+            await ReplyAsync(embed: new EmbedBuilder
+            {
+                Title = "Red Team \uD83D\uDD34",
+                Description = "**Teammates:**" +
+                              $"{Environment.NewLine}" +
+                              $"{string.Join(Environment.NewLine, redTeam.Select(GetMention))}" +
+                              $"{Environment.NewLine}{Environment.NewLine}" +
+                              $"Your designated voice channel:" +
+                              $"{Environment.NewLine}" +
+                              $"[<#{vcRed.Id}>](https://discordapp.com/channels/{Context.Guild.Id}/{vcRed.Id})",
+                Color = Color.Red
+            }.Build());
+
+            await ReplyAsync(embed: new EmbedBuilder
+            {
+                Title = "Blue Team \uD83D\uDD35",
+                Description = "**Teammates:**" +
+                              $"{Environment.NewLine}" +
+                              $"{string.Join(Environment.NewLine, blueTeam.Select(GetMention))}" +
+                              $"{Environment.NewLine}{Environment.NewLine}" +
+                              $"Your designated voice channel:" +
+                              $"{Environment.NewLine}" +
+                              $"[<#{vcBlue.Id}>](https://discordapp.com/channels/{Context.Guild.Id}/{vcBlue.Id})",
+                Color = Color.Blue
+            }.Build());
+        }
+
+
+        [Command("stop")]
+        [Summary("Triggers the end of the game by removing voice channels and removing the queue")]
+        public async Task Stop(string queueName)
+        {
+            var queue = await VerifyQueueByName(queueName);
+            if(queue == null) return;
+            
+            var vcRedTeamName = $"{queue.Name} \uD83D\uDD34";
+            var vcBlueTeamName = $"{queue.Name} \uD83D\uDD35";
+
+            var vcRed = (IVoiceChannel) Context.Guild.VoiceChannels.FirstOrDefault(c =>
+                c.Name.Equals(vcRedTeamName, StringComparison.OrdinalIgnoreCase));
+            var vcBlue = (IVoiceChannel) Context.Guild.VoiceChannels.FirstOrDefault(c => 
+                c.Name.Equals(vcBlueTeamName, StringComparison.OrdinalIgnoreCase));
+
+            if (vcRed != null)
+                await vcRed.DeleteAsync();
+            if (vcBlue != null)
+                await vcBlue.DeleteAsync();
+
+            await Remove(queueName);
         }
 
         private async Task NotifyUsers(PickupQueue queue, string serverName, params SocketGuildUser[] users)
         {
             var usersList = string.Join(Environment.NewLine, queue.Subscribers.Where(u => u.Id != Context.User.Id).Select(u => $@"  - {u.Name}"));
             var header = $"**Contact your teammates on the \"{serverName}\" server and glhf!**";
-            var remember =
-                $"**Remember** {Environment.NewLine}Remember to do `!leave {queue.Name}` if/when you leave the game to make room for those in the waiting list!";
+            var remember = "**Remember**" +
+                           $"{Environment.NewLine}" +
+                           $"Remember to do `!leave {queue.Name}` if/when you leave the game to make room for those in the waiting list!";
 
             var embed = new EmbedBuilder
             {
@@ -368,6 +452,16 @@ namespace PickupBot.Commands.Modules
             return string.Join(", ", subscribers);
         }
 
+        private async Task<PickupQueue> VerifyQueueByName(string queueName)
+        {
+            var queue = await _queueRepository.FindQueue(queueName, Context.Guild.Id.ToString());
+
+            if (queue != null) return queue;
+
+            await Context.Channel.SendMessageAsync($"`Queue with the name '{queueName}' doesn't exists!`");
+            return null;
+        }
+
         private async Task<PickupQueue> LeaveInternal(PickupQueue queue, bool notify = true)
         {
             var subscriber = queue.Subscribers.FirstOrDefault(s => s.Id == Context.User.Id);
@@ -386,8 +480,7 @@ namespace PickupBot.Commands.Modules
                     var user = Context.Guild.GetUser(next.Id);
                     if (user != null)
                     {
-                        await ReplyAsync(
-                            $"`{GetMention(user)} you have been added to '{queue.Name}' since {subscriber.Name} has left.`");
+                        await ReplyAsync($"`{GetMention(user)} you have been added to '{queue.Name}' since {subscriber.Name} has left.`");
                         await NotifyUsers(queue, Context.Guild.Name, user);
                     }
                 }
@@ -403,6 +496,26 @@ namespace PickupBot.Commands.Modules
             }
 
             return queue;
+        }
+
+        private async Task<bool> VerifyUserFlaggedStatus()
+        {
+            var flagged = await _flagRepository.IsFlagged((IGuildUser) Context.User);
+            if (flagged == null) return true;
+
+            var embed = new EmbedBuilder
+            {
+                Title = "You are flagged",
+                Description = $"You have been flagged which means that you can't join or create queues." +
+                              $"{Environment.NewLine}" +
+                              $"**Reason**" +
+                              $"{Environment.NewLine}" +
+                              $"_{flagged.Reason}_",
+                Color = Color.Orange
+            }.Build();
+            await ReplyAsync(embed: embed);
+
+            return false;
         }
 
         private static string GetNickname(IUser user) =>

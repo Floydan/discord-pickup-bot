@@ -44,7 +44,7 @@ namespace PickupBot.Data.Models
         public List<Subscriber> Subscribers { get; set; }
         public List<Subscriber> WaitingList { get; private set; }
 
-        public decimal Readiness => Math.Ceiling((decimal)Subscribers.Count / (TeamSize * 2) * 100);
+        public decimal Readiness => Math.Ceiling((decimal)Subscribers.Count / MaxInQueue * 100);
         public int MaxInQueue => TeamSize * 2;
     }
 }
