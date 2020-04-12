@@ -369,8 +369,11 @@ namespace PickupBot.Commands.Modules
 
             var halfPoint = (int) Math.Ceiling(queue.Subscribers.Count / (double) 2);
 
-            var redTeam = queue.Subscribers.Take(halfPoint).Select(u => Context.Guild.GetUser(Convert.ToUInt64(u.Id)));
-            var blueTeam = queue.Subscribers.Skip(halfPoint).Select(u => Context.Guild.GetUser(Convert.ToUInt64(u.Id)));
+            var rnd = new Random();
+            var users = queue.Subscribers.OrderBy(s => rnd.Next()).Select(u => Context.Guild.GetUser(Convert.ToUInt64(u.Id))).ToList();
+
+            var redTeam = users.Take(halfPoint);
+            var blueTeam = users.Skip(halfPoint);
 
             await ReplyAsync(embed: new EmbedBuilder
             {
