@@ -351,6 +351,9 @@ namespace PickupBot.Commands.Modules
             var queue = await VerifyQueueByName(queueName);
             if(queue == null) return;
 
+            if(queue.TeamSize < 2)
+                return;
+
             var category = (ICategoryChannel)Context.Guild.CategoryChannels.FirstOrDefault(c => c.Name.Equals("Pickup voice channels", StringComparison.OrdinalIgnoreCase))
                            ?? await Context.Guild.CreateCategoryChannelAsync("Pickup voice channels",
                                properties => properties.Position = int.MaxValue);
@@ -403,6 +406,9 @@ namespace PickupBot.Commands.Modules
         {
             var queue = await VerifyQueueByName(queueName);
             if(queue == null) return;
+
+            if(queue.TeamSize < 2)
+                return;
             
             var vcRedTeamName = $"{queue.Name} \uD83D\uDD34";
             var vcBlueTeamName = $"{queue.Name} \uD83D\uDD35";
