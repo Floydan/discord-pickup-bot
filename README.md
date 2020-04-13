@@ -1,3 +1,6 @@
+![.NET Core](https://github.com/Floydan/discord-pickup-bot/workflows/.NET%20Core/badge.svg?branch=master)
+
+
 # Discord pickup game bot
 A discord bot for managing pickup games
 
