@@ -24,3 +24,10 @@ Then add this to the json file substituting the values
 ```
 
 The `settings.job` can be ignores since this discord bot needs to be run continuously.
+
+## Testing/using
+To add the bot to your discord server just go here to authorize and give the bot access:
+
+[Bot Authorization](https://discordapp.com/api/oauth2/authorize?client_id=696658931434389505&permissions=285215793&scope=bot)
+
+After the bot has been added to your server you can run `!help` to see all the available commands.
