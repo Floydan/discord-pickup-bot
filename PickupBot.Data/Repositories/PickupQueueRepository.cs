@@ -17,12 +17,14 @@ namespace PickupBot.Data.Repositories
 
         public async Task<bool> AddQueue(PickupQueue queue)
         {
+            queue.Name = queue.Name.ToLowerInvariant();
+
             return await _client.Insert(queue);
         }
 
         public async Task<bool> RemoveQueue(IUser user, string queueName, string guildId)
         {
-            var queue = await _client.GetItem(guildId, queueName);
+            var queue = await _client.GetItem(guildId, queueName.ToLowerInvariant());
             var result = false;
             if (queue?.OwnerId == user.Id.ToString())
                 result = await _client.Delete(queue);
@@ -36,27 +38,12 @@ namespace PickupBot.Data.Repositories
 
         public async Task<PickupQueue> FindQueue(string queueName, string guildId)
         {
-            return await _client.GetItem(guildId, queueName);
+            return await _client.GetItem(guildId, queueName.ToLowerInvariant());
         }
 
         public async Task<IEnumerable<PickupQueue>> AllQueues(string guildId)
         {
             return await _client.GetList(guildId);
-        }
-
-        public Task<bool> FlagUser(IGuildUser user, string guildId)
-        {
-            throw new NotImplementedException();
-        }
-
-        public Task<bool> UnFlagUser(IGuildUser user, string guildId)
-        {
-            throw new NotImplementedException();
-        }
-
-        public Task<IEnumerable<Subscriber>> GetAllFlaggedUsers(string guildId)
-        {
-            throw new NotImplementedException();
         }
     }
 }

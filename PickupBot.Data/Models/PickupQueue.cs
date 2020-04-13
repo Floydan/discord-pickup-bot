@@ -15,7 +15,7 @@ namespace PickupBot.Data.Models
             Subscribers = new List<Subscriber>();
             WaitingList = new List<Subscriber>();
             PartitionKey = guildId;
-            RowKey = name;
+            RowKey = name.ToLowerInvariant();
         }
 
         public string GuildId { get; set; }

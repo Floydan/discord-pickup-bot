@@ -10,7 +10,6 @@ namespace PickupBot.Data.Repositories
     public class InMemoryQueueRepository : IQueueRepository
     {
         private readonly ConcurrentDictionary<string, PickupQueue> _queueCache = new ConcurrentDictionary<string, PickupQueue>();
-        private readonly ConcurrentDictionary<ulong, Subscriber> _flaggedUsersCache = new ConcurrentDictionary<ulong, Subscriber>();
 
         public async Task<bool> AddQueue(PickupQueue queue)
         {
@@ -63,23 +62,6 @@ namespace PickupBot.Data.Repositories
             var queues = _queueCache.Values.Where(q => q.GuildId == guildId);
 
             return await Task.FromResult(queues);
-        }
-
-        public async Task<bool> FlagUser(IGuildUser user, string guildId)
-        {
-            if (user == null) return false;
-            return await Task.FromResult(_flaggedUsersCache.TryAdd(user.Id, new Subscriber {Id = user.Id, Name = user.Username}));
-        }
-
-        public async Task<bool> UnFlagUser(IGuildUser user, string guildId)
-        {
-            if (user == null) return false;
-            return await Task.FromResult(_flaggedUsersCache.TryRemove(user.Id, out _));
-        }
-
-        public async Task<IEnumerable<Subscriber>> GetAllFlaggedUsers(string guildId)
-        {
-            return await Task.FromResult(_flaggedUsersCache.Values);
         }
     }
 }
