@@ -42,7 +42,7 @@ namespace PickupBot.Commands.Modules
             if (teamSize > 16)
                 teamSize = 16;
 
-            if(!await VerifyUserFlaggedStatus())
+            if (!await VerifyUserFlaggedStatus())
                 return;
 
             //find queue with name {queueName}
@@ -90,8 +90,8 @@ namespace PickupBot.Commands.Modules
                 await Context.Channel.SendMessageAsync($"`Queue with the name '{queueName}' doesn't exists!`");
                 return;
             }
-            
-            if(!await VerifyUserFlaggedStatus())
+
+            if (!await VerifyUserFlaggedStatus())
                 return;
 
             if (queue.Subscribers.Count >= queue.MaxInQueue)
@@ -149,8 +149,8 @@ namespace PickupBot.Commands.Modules
         public async Task Remove([Summary("Queue name"), Remainder] string queueName)
         {
             var result = await _queueRepository.RemoveQueue(Context.User, queueName, Context.Guild.Id.ToString());
-            var message = result ? 
-                $"`Queue '{queueName}' has been canceled`" : 
+            var message = result ?
+                $"`Queue '{queueName}' has been canceled`" :
                 $"`Queue with the name '{queueName}' doesn't exists or you are not the owner of the queue!`";
             await Context.Channel.SendMessageAsync(message);
         }
@@ -301,7 +301,7 @@ namespace PickupBot.Commands.Modules
                            false);
             if (role == null)
                 return; //Failed to get or create role;
-            
+
             await Context.Channel.TriggerTypingAsync();
 
             var users = Context.Guild.Users.Where(w => w.Roles.Any(r => r.Id == role.Id)).ToList();
@@ -349,25 +349,30 @@ namespace PickupBot.Commands.Modules
         public async Task Start(string queueName)
         {
             var queue = await VerifyQueueByName(queueName);
-            if(queue == null) return;
+            if (queue == null) return;
 
-            if(queue.TeamSize < 2)
+            if (queue.TeamSize < 2)
                 return;
 
-            var category = (ICategoryChannel)Context.Guild.CategoryChannels.FirstOrDefault(c => c.Name.Equals("Pickup voice channels", StringComparison.OrdinalIgnoreCase))
+            var pickupCategory = (ICategoryChannel)Context.Guild.CategoryChannels.FirstOrDefault(c =>
+                              c.Name.Equals("Pickup voice channels", StringComparison.OrdinalIgnoreCase))
                            ?? await Context.Guild.CreateCategoryChannelAsync("Pickup voice channels",
                                properties => properties.Position = int.MaxValue);
 
-            var vcRedTeamName = $"{queue.Name} \uD83D\uDD34";
-            var vcBlueTeamName = $"{queue.Name} \uD83D\uDD35";
+            var vcLobbyName = $"{queue.Name} - lobby";
+            var vcRedTeamName = $"{queue.Name} - \uD83D\uDD34";
+            var vcBlueTeamName = $"{queue.Name} - \uD83D\uDD35";
 
-            var vcRed = (IVoiceChannel)Context.Guild.VoiceChannels.FirstOrDefault(c => c.Name.Equals(vcRedTeamName, StringComparison.OrdinalIgnoreCase)) 
-                          ?? await Context.Guild.CreateVoiceChannelAsync(vcRedTeamName, properties => properties.CategoryId = category.Id);
-            
-            var vcBlue = (IVoiceChannel)Context.Guild.VoiceChannels.FirstOrDefault(c => c.Name.Equals(vcBlueTeamName, StringComparison.OrdinalIgnoreCase)) 
-                          ?? await Context.Guild.CreateVoiceChannelAsync(vcBlueTeamName, properties => properties.CategoryId = category.Id);
+            var vcLobby = (IVoiceChannel)Context.Guild.VoiceChannels.FirstOrDefault(c => c.Name.Equals(vcLobbyName, StringComparison.OrdinalIgnoreCase))
+                          ?? await Context.Guild.CreateVoiceChannelAsync(vcLobbyName, properties => properties.CategoryId = pickupCategory.Id);
 
-            var halfPoint = (int) Math.Ceiling(queue.Subscribers.Count / (double) 2);
+            var vcRed = (IVoiceChannel)Context.Guild.VoiceChannels.FirstOrDefault(c => c.Name.Equals(vcRedTeamName, StringComparison.OrdinalIgnoreCase))
+                          ?? await Context.Guild.CreateVoiceChannelAsync(vcRedTeamName, properties => properties.CategoryId = pickupCategory.Id);
+
+            var vcBlue = (IVoiceChannel)Context.Guild.VoiceChannels.FirstOrDefault(c => c.Name.Equals(vcBlueTeamName, StringComparison.OrdinalIgnoreCase))
+                          ?? await Context.Guild.CreateVoiceChannelAsync(vcBlueTeamName, properties => properties.CategoryId = pickupCategory.Id);
+
+            var halfPoint = (int)Math.Ceiling(queue.Subscribers.Count / (double)2);
 
             var rnd = new Random();
             var users = queue.Subscribers.OrderBy(s => rnd.Next()).Select(u => Context.Guild.GetUser(Convert.ToUInt64(u.Id))).ToList();
@@ -382,8 +387,9 @@ namespace PickupBot.Commands.Modules
                               $"{Environment.NewLine}" +
                               $"{string.Join(Environment.NewLine, redTeam.Select(GetMention))}" +
                               $"{Environment.NewLine}{Environment.NewLine}" +
-                              $"Your designated voice channel:" +
+                              $"Your designated voice channels:" +
                               $"{Environment.NewLine}" +
+                              $"[<#{vcLobby.Id}>](https://discordapp.com/channels/{Context.Guild.Id}/{vcLobby.Id}) " +
                               $"[<#{vcRed.Id}>](https://discordapp.com/channels/{Context.Guild.Id}/{vcRed.Id})",
                 Color = Color.Red
             }.Build());
@@ -395,8 +401,9 @@ namespace PickupBot.Commands.Modules
                               $"{Environment.NewLine}" +
                               $"{string.Join(Environment.NewLine, blueTeam.Select(GetMention))}" +
                               $"{Environment.NewLine}{Environment.NewLine}" +
-                              $"Your designated voice channel:" +
+                              $"Your designated voice channels:" +
                               $"{Environment.NewLine}" +
+                              $"[<#{vcLobby.Id}>](https://discordapp.com/channels/{Context.Guild.Id}/{vcLobby.Id}) " +
                               $"[<#{vcBlue.Id}>](https://discordapp.com/channels/{Context.Guild.Id}/{vcBlue.Id})",
                 Color = Color.Blue
             }.Build());
@@ -408,23 +415,30 @@ namespace PickupBot.Commands.Modules
         public async Task Stop(string queueName)
         {
             var queue = await VerifyQueueByName(queueName);
-            if(queue == null) return;
+            if (queue == null) return;
 
-            if(queue.TeamSize < 2)
+            if (queue.TeamSize < 2)
                 return;
-            
+
+            var lobbyName = $"{queue.Name} Lobby";
             var vcRedTeamName = $"{queue.Name} \uD83D\uDD34";
             var vcBlueTeamName = $"{queue.Name} \uD83D\uDD35";
 
-            var vcRed = (IVoiceChannel) Context.Guild.VoiceChannels.FirstOrDefault(c =>
-                c.Name.Equals(vcRedTeamName, StringComparison.OrdinalIgnoreCase));
-            var vcBlue = (IVoiceChannel) Context.Guild.VoiceChannels.FirstOrDefault(c => 
-                c.Name.Equals(vcBlueTeamName, StringComparison.OrdinalIgnoreCase));
+            var vcLobby = (IVoiceChannel)Context.Guild.VoiceChannels.FirstOrDefault(c =>
+               c.Name.Equals(lobbyName, StringComparison.OrdinalIgnoreCase));
+            var vcRed = (IVoiceChannel)Context.Guild.VoiceChannels.FirstOrDefault(c =>
+               c.Name.Equals(vcRedTeamName, StringComparison.OrdinalIgnoreCase));
+            var vcBlue = (IVoiceChannel)Context.Guild.VoiceChannels.FirstOrDefault(c =>
+               c.Name.Equals(vcBlueTeamName, StringComparison.OrdinalIgnoreCase));
+            var pickupCategory = (IVoiceChannel)Context.Guild.CategoryChannels.FirstOrDefault(c =>
+                c.Name.Equals(queue.Name, StringComparison.OrdinalIgnoreCase));
 
             if (vcRed != null)
                 await vcRed.DeleteAsync();
             if (vcBlue != null)
                 await vcBlue.DeleteAsync();
+            if (vcLobby != null)
+                await vcLobby.DeleteAsync();
 
             await Remove(queueName);
         }
@@ -509,7 +523,7 @@ namespace PickupBot.Commands.Modules
 
         private async Task<bool> VerifyUserFlaggedStatus()
         {
-            var flagged = await _flagRepository.IsFlagged((IGuildUser) Context.User);
+            var flagged = await _flagRepository.IsFlagged((IGuildUser)Context.User);
             if (flagged == null) return true;
 
             var embed = new EmbedBuilder

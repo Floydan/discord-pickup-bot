@@ -100,7 +100,7 @@ namespace PickupBot
         {
             var storageConnectionString = Environment.GetEnvironmentVariable("StorageConnectionString");
 
-            var discordSocketConfig = new DiscordSocketConfig { MessageCacheSize = 100, LogLevel = LogSeverity.Debug };
+            var discordSocketConfig = new DiscordSocketConfig { MessageCacheSize = 100, LogLevel = LogSeverity.Info };
 
             return new ServiceCollection()
                 .AddSingleton<DiscordSocketClient>(provider => new DiscordSocketClient(discordSocketConfig))
