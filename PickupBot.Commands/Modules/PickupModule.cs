@@ -94,6 +94,12 @@ namespace PickupBot.Commands.Modules
             if (!await VerifyUserFlaggedStatus())
                 return;
 
+            if (queue.Subscribers.Any(w => w.Id == Context.User.Id))
+            {
+                await Context.Channel.SendMessageAsync($"`{queue.Name} - {ParseSubscribers(queue)}`");
+                return;
+            }
+
             if (queue.Subscribers.Count >= queue.MaxInQueue)
             {
                 if (queue.WaitingList.All(w => w.Id != Context.User.Id))
@@ -103,25 +109,25 @@ namespace PickupBot.Commands.Modules
 
                     await _queueRepository.UpdateQueue(queue);
 
-                    await ReplyAsync($"`You have been added to the waiting list for '{queue.Name}'`");
+                    await ReplyAsync($"`You have been added to the '{queue.Name}' waiting list`");
                 }
                 else
                 {
-                    await ReplyAsync($"`You are already on the waiting list for queue '{queue.Name}'`");
+                    await ReplyAsync($"`You are already on the '{queue.Name}' waiting list`");
                 }
+
+                return;
             }
-            else if (queue.Subscribers.All(w => w.Id != Context.User.Id))
+
+            queue.Updated = DateTime.UtcNow;
+            queue.Subscribers.Add(new Subscriber { Id = Context.User.Id, Name = GetNickname(Context.User) });
+
+            //if queue found
+            await _queueRepository.UpdateQueue(queue);
+
+            if (queue.Subscribers.Count == queue.MaxInQueue)
             {
-                queue.Updated = DateTime.UtcNow;
-                queue.Subscribers.Add(new Subscriber { Id = Context.User.Id, Name = GetNickname(Context.User) });
-
-                //if queue found
-                await _queueRepository.UpdateQueue(queue);
-
-                if (queue.Subscribers.Count == queue.MaxInQueue)
-                {
-                    await NotifyUsers(queue, Context.Guild.Name, queue.Subscribers.Select(subscriber => Context.Guild.GetUser(subscriber.Id)).ToArray());
-                }
+                await NotifyUsers(queue, Context.Guild.Name, queue.Subscribers.Select(subscriber => Context.Guild.GetUser(subscriber.Id)).ToArray());
             }
 
             await Context.Channel.SendMessageAsync($"`{queue.Name} - {ParseSubscribers(queue)}`");
@@ -359,12 +365,8 @@ namespace PickupBot.Commands.Modules
                            ?? await Context.Guild.CreateCategoryChannelAsync("Pickup voice channels",
                                properties => properties.Position = int.MaxValue);
 
-            var vcLobbyName = $"{queue.Name} - lobby";
             var vcRedTeamName = $"{queue.Name} - \uD83D\uDD34";
             var vcBlueTeamName = $"{queue.Name} - \uD83D\uDD35";
-
-            var vcLobby = (IVoiceChannel)Context.Guild.VoiceChannels.FirstOrDefault(c => c.Name.Equals(vcLobbyName, StringComparison.OrdinalIgnoreCase))
-                          ?? await Context.Guild.CreateVoiceChannelAsync(vcLobbyName, properties => properties.CategoryId = pickupCategory.Id);
 
             var vcRed = (IVoiceChannel)Context.Guild.VoiceChannels.FirstOrDefault(c => c.Name.Equals(vcRedTeamName, StringComparison.OrdinalIgnoreCase))
                           ?? await Context.Guild.CreateVoiceChannelAsync(vcRedTeamName, properties => properties.CategoryId = pickupCategory.Id);
@@ -387,9 +389,8 @@ namespace PickupBot.Commands.Modules
                               $"{Environment.NewLine}" +
                               $"{string.Join(Environment.NewLine, redTeam.Select(GetMention))}" +
                               $"{Environment.NewLine}{Environment.NewLine}" +
-                              $"Your designated voice channels:" +
+                              $"Your designated voice channel:" +
                               $"{Environment.NewLine}" +
-                              $"[<#{vcLobby.Id}>](https://discordapp.com/channels/{Context.Guild.Id}/{vcLobby.Id}) " +
                               $"[<#{vcRed.Id}>](https://discordapp.com/channels/{Context.Guild.Id}/{vcRed.Id})",
                 Color = Color.Red
             }.Build());
@@ -401,9 +402,8 @@ namespace PickupBot.Commands.Modules
                               $"{Environment.NewLine}" +
                               $"{string.Join(Environment.NewLine, blueTeam.Select(GetMention))}" +
                               $"{Environment.NewLine}{Environment.NewLine}" +
-                              $"Your designated voice channels:" +
+                              $"Your designated voice channel:" +
                               $"{Environment.NewLine}" +
-                              $"[<#{vcLobby.Id}>](https://discordapp.com/channels/{Context.Guild.Id}/{vcLobby.Id}) " +
                               $"[<#{vcBlue.Id}>](https://discordapp.com/channels/{Context.Guild.Id}/{vcBlue.Id})",
                 Color = Color.Blue
             }.Build());
@@ -420,25 +420,18 @@ namespace PickupBot.Commands.Modules
             if (queue.TeamSize < 2)
                 return;
 
-            var lobbyName = $"{queue.Name} Lobby";
             var vcRedTeamName = $"{queue.Name} \uD83D\uDD34";
             var vcBlueTeamName = $"{queue.Name} \uD83D\uDD35";
 
-            var vcLobby = (IVoiceChannel)Context.Guild.VoiceChannels.FirstOrDefault(c =>
-               c.Name.Equals(lobbyName, StringComparison.OrdinalIgnoreCase));
             var vcRed = (IVoiceChannel)Context.Guild.VoiceChannels.FirstOrDefault(c =>
                c.Name.Equals(vcRedTeamName, StringComparison.OrdinalIgnoreCase));
             var vcBlue = (IVoiceChannel)Context.Guild.VoiceChannels.FirstOrDefault(c =>
                c.Name.Equals(vcBlueTeamName, StringComparison.OrdinalIgnoreCase));
-            var pickupCategory = (IVoiceChannel)Context.Guild.CategoryChannels.FirstOrDefault(c =>
-                c.Name.Equals(queue.Name, StringComparison.OrdinalIgnoreCase));
 
             if (vcRed != null)
                 await vcRed.DeleteAsync();
             if (vcBlue != null)
                 await vcBlue.DeleteAsync();
-            if (vcLobby != null)
-                await vcLobby.DeleteAsync();
 
             await Remove(queueName);
         }
@@ -503,7 +496,7 @@ namespace PickupBot.Commands.Modules
                     var user = Context.Guild.GetUser(next.Id);
                     if (user != null)
                     {
-                        await ReplyAsync($"`{GetMention(user)} you have been added to '{queue.Name}' since {subscriber.Name} has left.`");
+                        await ReplyAsync($"{GetMention(user)} - you have been added to '{queue.Name}' since {subscriber.Name} has left.");
                         await NotifyUsers(queue, Context.Guild.Name, user);
                     }
                 }
