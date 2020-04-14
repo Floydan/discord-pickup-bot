@@ -28,11 +28,11 @@ namespace PickupBot.Commands.Modules
         [Command("create")]
         [Summary("Creates a pickup queue")]
         public async Task Create(
-            [Summary("Queue name")] string queueName,
-            [Summary("Optional team size (how many are in each team **NOT** total number of players), use if your queue name doesn't start with a number e.g. 2v2")]
-            int teamSize = 1)
+            [Name("Queue name"), Summary("Queue name")] string queueName,
+            [Name("Team size"), Summary("Optional team size (how many are in each team **NOT** total number of players), use if your queue name doesn't start with a number e.g. 2v2")]
+            int teamSize = 4)
         {
-            if (teamSize == 1 && Regex.IsMatch(queueName, @"^\d+", RegexOptions.Singleline))
+            if (teamSize == 4 && Regex.IsMatch(queueName, @"^\d+", RegexOptions.Singleline))
             {
                 var match = Regex.Match(queueName, @"^(?<number>(\d+))");
                 if (match.Success)
@@ -71,7 +71,7 @@ namespace PickupBot.Commands.Modules
 
         [Command("add")]
         [Summary("Take a spot in a pickup queue, if the queue is full you are placed on the waiting list.")]
-        public async Task Add([Summary("Queue name"), Remainder]string queueName = "")
+        public async Task Add([Name("Queue name"), Summary("Queue name"), Remainder]string queueName = "")
         {
             //find queue with name {queueName}
             PickupQueue queue = null;
@@ -136,7 +136,7 @@ namespace PickupBot.Commands.Modules
         [Command("leave")]
         [Alias("quit")]
         [Summary("Leave a queue, freeing up a spot.")]
-        public async Task Leave([Summary("Queue name"), Remainder] string queueName)
+        public async Task Leave([Name("Queue name"), Summary("Queue name"), Remainder] string queueName)
         {
             //find queue with name {queueName}
             var queue = await _queueRepository.FindQueue(queueName, Context.Guild.Id.ToString());
@@ -152,7 +152,7 @@ namespace PickupBot.Commands.Modules
         [Command("remove")]
         [Alias("del", "cancel")]
         [Summary("If you are the creator of the queue you can use this to delete it")]
-        public async Task Remove([Summary("Queue name"), Remainder] string queueName)
+        public async Task Remove([Name("Queue name"), Summary("Queue name"), Remainder] string queueName)
         {
             var result = await _queueRepository.RemoveQueue(Context.User, queueName, Context.Guild.Id.ToString());
             var message = result ?
@@ -234,7 +234,7 @@ namespace PickupBot.Commands.Modules
 
         [Command("waitlist")]
         [Summary("Lists all the players in a given queues wait list")]
-        public async Task WaitList([Summary("Queue name"), Remainder] string queueName)
+        public async Task WaitList([Name("Queue name"), Summary("Queue name"), Remainder] string queueName)
         {
             var queue = await _queueRepository.FindQueue(queueName, Context.Guild.Id.ToString());
 
@@ -283,7 +283,7 @@ namespace PickupBot.Commands.Modules
 
         [Command("promote")]
         [Summary("Promotes one specific or all queues to the 'promote-role' role")]
-        public async Task Promote([Summary("Queue name"), Remainder] string queueName = "")
+        public async Task Promote([Name("Queue name"), Summary("Queue name"), Remainder] string queueName = "")
         {
             PickupQueue queue = null;
             if (!string.IsNullOrWhiteSpace(queueName))
@@ -352,7 +352,7 @@ namespace PickupBot.Commands.Modules
 
         [Command("start")]
         [Summary("Triggers the start of the game by splitting teams and setting up voice channels")]
-        public async Task Start(string queueName)
+        public async Task Start([Name("Queue name"), Summary("Queue name")] string queueName)
         {
             var queue = await VerifyQueueByName(queueName);
             if (queue == null) return;
@@ -412,7 +412,7 @@ namespace PickupBot.Commands.Modules
 
         [Command("stop")]
         [Summary("Triggers the end of the game by removing voice channels and removing the queue")]
-        public async Task Stop(string queueName)
+        public async Task Stop([Name("Queue name"), Summary("Queue name")]string queueName)
         {
             var queue = await VerifyQueueByName(queueName);
             if (queue == null) return;
