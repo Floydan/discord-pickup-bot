@@ -1,4 +1,4 @@
-![build](https://github.com/Floydan/discord-pickup-bot/workflows/.NET%20Core/badge.svg?branch=master)
+![build](https://github.com/Floydan/discord-pickup-bot/workflows/build/badge.svg?branch=master)
 
 
 # Discord pickup game bot
