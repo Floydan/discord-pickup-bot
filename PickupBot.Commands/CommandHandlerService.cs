@@ -64,6 +64,7 @@ namespace PickupBot.Commands
 
             if (result.IsSuccess && command.Value.Name == "promote")
             {
+                //TODO
                 //save when the command was used so we can check against this to prevent spamming
                 //e.g. only allow !promote once per hour
             }

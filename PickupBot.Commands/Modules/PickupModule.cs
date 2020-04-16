@@ -29,16 +29,9 @@ namespace PickupBot.Commands.Modules
         [Summary("Creates a pickup queue")]
         public async Task Create(
             [Name("Queue name"), Summary("Queue name")] string queueName,
-            [Name("Team size"), Summary("Optional team size (how many are in each team **NOT** total number of players), use if your queue name doesn't start with a number e.g. 2v2")]
-            int teamSize = 4)
+            [Name("Team size"), Summary("Team size (how many are in each team **NOT** total number of players)")]
+            int teamSize)
         {
-            if (teamSize == 4 && Regex.IsMatch(queueName, @"^\d+", RegexOptions.Singleline))
-            {
-                var match = Regex.Match(queueName, @"^(?<number>(\d+))");
-                if (match.Success)
-                    int.TryParse(match.Value, out teamSize);
-            }
-
             if (teamSize > 16)
                 teamSize = 16;
 
