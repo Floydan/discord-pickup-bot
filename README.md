@@ -1,9 +1,7 @@
-![build](https://github.com/Floydan/discord-pickup-bot/workflows/build/badge.svg?branch=master)
-
+![build](https://github.com/Floydan/discord-pickup-bot/workflows/build/badge.svg?branch=master) 
+[![Join the chat at https://gitter.im/discord-pickup-bot/community](https://badges.gitter.im/discord-pickup-bot/community.svg)](https://gitter.im/discord-pickup-bot/community?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
 # Discord pickup game bot
-
-[![Join the chat at https://gitter.im/discord-pickup-bot/community](https://badges.gitter.im/discord-pickup-bot/community.svg)](https://gitter.im/discord-pickup-bot/community?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
 A discord bot for managing pickup games
 
