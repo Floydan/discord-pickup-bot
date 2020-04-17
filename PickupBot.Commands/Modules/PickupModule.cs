@@ -358,8 +358,8 @@ namespace PickupBot.Commands.Modules
                            ?? await Context.Guild.CreateCategoryChannelAsync("Pickup voice channels",
                                properties => properties.Position = int.MaxValue);
 
-            var vcRedTeamName = $"{queue.Name} - \uD83D\uDD34";
-            var vcBlueTeamName = $"{queue.Name} - \uD83D\uDD35";
+            var vcRedTeamName = $"{queue.Name} \uD83D\uDD34";
+            var vcBlueTeamName = $"{queue.Name} \uD83D\uDD35";
 
             var vcRed = (IVoiceChannel)Context.Guild.VoiceChannels.FirstOrDefault(c => c.Name.Equals(vcRedTeamName, StringComparison.OrdinalIgnoreCase))
                           ?? await Context.Guild.CreateVoiceChannelAsync(vcRedTeamName, properties => properties.CategoryId = pickupCategory.Id);
