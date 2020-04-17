@@ -2,6 +2,9 @@
 
 
 # Discord pickup game bot
+
+[![Join the chat at https://gitter.im/discord-pickup-bot/community](https://badges.gitter.im/discord-pickup-bot/community.svg)](https://gitter.im/discord-pickup-bot/community?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+
 A discord bot for managing pickup games
 
 The bot can use azure tables for storing queues or just an in memory store using `ConcurrentDictionary`.
