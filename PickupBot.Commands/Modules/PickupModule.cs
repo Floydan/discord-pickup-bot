@@ -127,9 +127,9 @@ namespace PickupBot.Commands.Modules
         }
 
         [Command("remove")]
-        [Alias("quit")]
+        [Alias("quit", "ragequit")]
         [Summary("Leave a queue, freeing up a spot.")]
-        public async Task Leave([Name("Queue name"), Summary("Queue name"), Remainder] string queueName)
+        public async Task Remove([Name("Queue name"), Summary("Queue name"), Remainder] string queueName)
         {
             //find queue with name {queueName}
             var queue = await _queueRepository.FindQueue(queueName, Context.Guild.Id.ToString());
@@ -145,7 +145,7 @@ namespace PickupBot.Commands.Modules
         [Command("delete")]
         [Alias("del", "cancel")]
         [Summary("If you are the creator of the queue you can use this to delete it")]
-        public async Task Remove([Name("Queue name"), Summary("Queue name"), Remainder] string queueName)
+        public async Task Delete([Name("Queue name"), Summary("Queue name"), Remainder] string queueName)
         {
             var result = await _queueRepository.RemoveQueue(Context.User, queueName, Context.Guild.Id.ToString());
             var message = result ?
