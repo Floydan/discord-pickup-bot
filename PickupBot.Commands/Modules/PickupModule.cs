@@ -126,7 +126,7 @@ namespace PickupBot.Commands.Modules
             await Context.Channel.SendMessageAsync($"`{queue.Name} - {ParseSubscribers(queue)}`");
         }
 
-        [Command("leave")]
+        [Command("remove")]
         [Alias("quit")]
         [Summary("Leave a queue, freeing up a spot.")]
         public async Task Leave([Name("Queue name"), Summary("Queue name"), Remainder] string queueName)
@@ -142,7 +142,7 @@ namespace PickupBot.Commands.Modules
             await LeaveInternal(queue);
         }
 
-        [Command("remove")]
+        [Command("delete")]
         [Alias("del", "cancel")]
         [Summary("If you are the creator of the queue you can use this to delete it")]
         public async Task Remove([Name("Queue name"), Summary("Queue name"), Remainder] string queueName)
