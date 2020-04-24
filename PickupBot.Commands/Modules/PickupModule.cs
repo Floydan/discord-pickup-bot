@@ -1,11 +1,17 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Linq;
+using System.Net;
+using System.Net.Sockets;
+using System.Text;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
 using Discord;
 using Discord.Commands;
 using Discord.WebSocket;
+using PickupBot.Commands.Models;
 using PickupBot.Data.Models;
 using PickupBot.Data.Repositories;
 // ReSharper disable MemberCanBePrivate.Global
@@ -34,7 +40,7 @@ namespace PickupBot.Commands.Modules
         {
             if (!teamSize.HasValue)
                 teamSize = 4;
-            
+
             if (teamSize > 16)
                 teamSize = 16;
 
@@ -348,7 +354,7 @@ namespace PickupBot.Commands.Modules
 
         [Command("start")]
         [Summary("Triggers the start of the game by splitting teams and setting up voice channels")]
-        public async Task Start([Name("Queue name"), Summary("Queue name")] string queueName)
+        public async Task Start([Name("Queue name"), Summary("Queue name"), Remainder] string queueName)
         {
             var queue = await VerifyQueueByName(queueName);
             if (queue == null) return;
@@ -375,8 +381,8 @@ namespace PickupBot.Commands.Modules
             var rnd = new Random();
             var users = queue.Subscribers.OrderBy(s => rnd.Next()).Select(u => Context.Guild.GetUser(Convert.ToUInt64(u.Id))).ToList();
 
-            var redTeam = users.Take(halfPoint);
-            var blueTeam = users.Skip(halfPoint);
+            var redTeam = users.Take(halfPoint).ToList();
+            var blueTeam = users.Skip(halfPoint).ToList();
 
             await ReplyAsync(embed: new EmbedBuilder
             {
@@ -403,6 +409,36 @@ namespace PickupBot.Commands.Modules
                               $"[<#{vcBlue.Id}>](https://discordapp.com/channels/{Context.Guild.Id}/{vcBlue.Id})",
                 Color = Color.Blue
             }.Build());
+
+            try
+            {
+                const string host = "ra3.se";
+                var password = Environment.GetEnvironmentVariable("RCONServerPassword") ?? "";
+                if(string.IsNullOrWhiteSpace(password) || !host.Contains("ra3.se", StringComparison.OrdinalIgnoreCase)) return;
+
+                var cancellationTokenSource = new CancellationTokenSource();
+                var cancellationToken = cancellationTokenSource.Token;
+
+                var command = $"say_world " +
+                              $"RED TEAM: [{string.Join(", ", redTeam.Select(GetNickname))}]; " +
+                              $"BLUE TEAM: [{string.Join(", ", blueTeam.Select(GetNickname))}]";
+
+                // 2 minute delay message
+                await Task.Delay(1000 * 120, cancellationToken).ContinueWith(async t =>
+                {
+                    await RCON.SendCommand(command, "ra3.se", password, 27960);
+                }, cancellationToken);
+                
+                // 2 minute delay message
+                await Task.Delay(1000 * 120, cancellationToken).ContinueWith(async t =>
+                {
+                    await RCON.SendCommand(command, "ra3.se", password, 27960);
+                }, cancellationToken);
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e);
+            }
         }
 
 
@@ -440,11 +476,79 @@ namespace PickupBot.Commands.Modules
             await ReplyAsync(embed: new EmbedBuilder
             {
                 Title = "Server addresses",
-                Description = $"ra3.se" +
+                Description = "ra3.se" +
                               $"{Environment.NewLine}" +
-                              $"pickup.ra3.se",
+                              "pickup.ra3.se",
                 Color = Color.Green
             }.Build());
+        }
+
+        [Command("serverstatus")]
+        public async Task ServerStatus([Remainder]string host = null)
+        {
+            if (string.IsNullOrWhiteSpace(host)) host = "ra3.se";
+            var password = Environment.GetEnvironmentVariable("RCONServerPassword") ?? "";
+            if(string.IsNullOrWhiteSpace(password) || !host.Contains("ra3.se", StringComparison.OrdinalIgnoreCase)) return;
+
+            try
+            {
+                var response = await RCON.SendCommand("status", host, password, 27960);
+                response = response.Replace(password, "[PASSWORD]").Replace("\0", "");
+                var serverStatus = new ServerStatus(response);
+
+                var embed = new EmbedBuilder
+                {
+                    Title = $"Server status for {host}",
+                    Description = $"**Map:** _{serverStatus.Map} _" +
+                                  $"{Environment.NewLine}" +
+                                  "**Players**" +
+                                  $"{Environment.NewLine}"
+                };
+
+                if (serverStatus.Players.Any())
+                {
+                    var dataTable = new DataTable();
+                    dataTable.Columns.Add("ID", typeof(int));
+                    dataTable.Columns.Add("Name", typeof(string));
+                    dataTable.Columns.Add("Score", typeof(int));
+                    dataTable.Columns.Add("Ping", typeof(int));
+                    dataTable.Columns.Add("Rate", typeof(int));
+
+                    foreach (var player in serverStatus.Players)
+                    {
+                        var guildUser = Context.Guild.Users.FirstOrDefault(w =>
+                            GetNickname(w).Equals(player.Name, StringComparison.OrdinalIgnoreCase));
+                        var name = player.Name;
+                        if (guildUser != null)
+                            name = GetMention(guildUser);
+
+                        var row = dataTable.NewRow();
+                        row[0] = player.CL;
+                        row[1] = name;
+                        row[2] = player.Score;
+                        row[3] = player.Ping;
+                        row[4] = player.Rate;
+
+                        dataTable.Rows.Add(row);
+                    }
+
+                    embed.Description += $"```{Environment.NewLine}" +
+                                         $"{AsciiTableGenerator.CreateAsciiTableFromDataTable(dataTable)}" +
+                                         $"{Environment.NewLine}```";
+                }
+                else
+                {
+                    embed.Description += $"```{Environment.NewLine}" +
+                                         "No players are currently online" +
+                                         $"{Environment.NewLine}```";
+                }
+
+                await ReplyAsync(embed: embed.Build());
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e);
+            }   
         }
 
         private async Task NotifyUsers(PickupQueue queue, string serverName, params SocketGuildUser[] users)
@@ -533,7 +637,7 @@ namespace PickupBot.Commands.Modules
             var embed = new EmbedBuilder
             {
                 Title = "You are flagged",
-                Description = $"You have been flagged which means that you can't join or create queues." +
+                Description = "You have been flagged which means that you can't join or create queues." +
                               $"{Environment.NewLine}" +
                               $"**Reason**" +
                               $"{Environment.NewLine}" +
