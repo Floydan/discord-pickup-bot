@@ -434,6 +434,7 @@ namespace PickupBot.Commands.Modules
 
         [Command("servers")]
         [Alias("server", "ip")]
+        [Summary("Returns a list of server addresses.")]
         public async Task Servers()
         {
             await ReplyAsync(embed: new EmbedBuilder
