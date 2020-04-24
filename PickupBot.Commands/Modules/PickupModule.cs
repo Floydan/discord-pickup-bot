@@ -30,8 +30,11 @@ namespace PickupBot.Commands.Modules
         public async Task Create(
             [Name("Queue name"), Summary("Queue name")] string queueName,
             [Name("Team size"), Summary("Team size (how many are in each team **NOT** total number of players)")]
-            int teamSize)
+            int? teamSize = null)
         {
+            if (!teamSize.HasValue)
+                teamSize = 4;
+            
             if (teamSize > 16)
                 teamSize = 16;
 
@@ -55,7 +58,7 @@ namespace PickupBot.Commands.Modules
                 OwnerId = Context.User.Id.ToString(),
                 Created = DateTime.UtcNow,
                 Updated = DateTime.UtcNow,
-                TeamSize = teamSize,
+                TeamSize = teamSize.Value,
                 Subscribers = new List<Subscriber> { new Subscriber { Id = Context.User.Id, Name = GetNickname(Context.User) } }
             });
 
@@ -427,6 +430,20 @@ namespace PickupBot.Commands.Modules
                 await vcBlue.DeleteAsync();
 
             await Remove(queueName);
+        }
+
+        [Command("servers")]
+        [Alias("server", "ip")]
+        public async Task Servers()
+        {
+            await ReplyAsync(embed: new EmbedBuilder
+            {
+                Title = "Server addresses",
+                Description = $"ra3.se" +
+                              $"{Environment.NewLine}" +
+                              $"pickup.ra3.se",
+                Color = Color.Green
+            }.Build());
         }
 
         private async Task NotifyUsers(PickupQueue queue, string serverName, params SocketGuildUser[] users)
