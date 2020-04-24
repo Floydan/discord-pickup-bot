@@ -352,7 +352,7 @@ namespace PickupBot.Commands.Modules
             }
         }
 
-        [Command("start2")]
+        [Command("start")]
         [Summary("Triggers the start of the game by splitting teams and setting up voice channels")]
         public async Task Start([Name("Queue name"), Summary("Queue name"), Remainder] string queueName)
         {
