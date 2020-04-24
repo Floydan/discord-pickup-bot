@@ -16,7 +16,7 @@ namespace PickupBot.Commands
             using var client = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
             client.Connect(host, gameServerPort);
 
-            var command = $"rcon {password} {rconCommand}\n";
+            var command = $"rcon {password} {rconCommand}{Environment.NewLine}{Environment.NewLine}";
             var bufferTemp = Encoding.ASCII.GetBytes(command);
             var bufferSend = new byte[bufferTemp.Length + 4];
 
@@ -27,7 +27,7 @@ namespace PickupBot.Commands
             bufferSend[3] = byte.Parse("255");
             //bufferSend[4] = byte.Parse("02");
             var j = 4;
-
+            
             foreach (var t in bufferTemp)
             {
                 bufferSend[j++] = t;
@@ -42,7 +42,10 @@ namespace PickupBot.Commands
             //big enough to receive response
             var bufferRec = new byte[65000];
             client.Receive(bufferRec);
-            return Encoding.ASCII.GetString(bufferRec);
+            return Encoding.ASCII.GetString(bufferRec)?
+                .Replace(password, "[PASSWORD]")
+                .Replace("????print\n", "")
+                .Replace("\0", "");
         }
     }
 }

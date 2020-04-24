@@ -352,7 +352,7 @@ namespace PickupBot.Commands.Modules
             }
         }
 
-        [Command("start")]
+        [Command("start2")]
         [Summary("Triggers the start of the game by splitting teams and setting up voice channels")]
         public async Task Start([Name("Queue name"), Summary("Queue name"), Remainder] string queueName)
         {
@@ -419,21 +419,23 @@ namespace PickupBot.Commands.Modules
                 var cancellationTokenSource = new CancellationTokenSource();
                 var cancellationToken = cancellationTokenSource.Token;
 
-                var command = $"say_world " +
-                              $"RED TEAM: [{string.Join(", ", redTeam.Select(GetNickname))}]; " +
-                              $"BLUE TEAM: [{string.Join(", ", blueTeam.Select(GetNickname))}]";
+                var command = $"say \"^2Pickup '^3{queue.Name}^2' has started! " +
+                              $"^1RED TEAM: ^5{string.Join(", ", redTeam.Select(GetNickname))} ^7- " +
+                              $"^4BLUE TEAM: ^5{string.Join(", ", blueTeam.Select(GetNickname))}\"";
 
                 // 2 minute delay message
-                await Task.Delay(1000 * 120, cancellationToken).ContinueWith(async t =>
+#pragma warning disable 4014
+                Task.Delay(TimeSpan.FromMinutes(2), cancellationToken).ContinueWith(async t =>
                 {
-                    await RCON.SendCommand(command, "ra3.se", password, 27960);
+                   var resp = await RCON.SendCommand(command, "ra3.se", password, 27960);
                 }, cancellationToken);
                 
-                // 2 minute delay message
-                await Task.Delay(1000 * 120, cancellationToken).ContinueWith(async t =>
+                // 4 minute delay message
+                Task.Delay(TimeSpan.FromMinutes(4), cancellationToken).ContinueWith(async t =>
                 {
                     await RCON.SendCommand(command, "ra3.se", password, 27960);
                 }, cancellationToken);
+#pragma warning restore 4014
             }
             catch (Exception e)
             {
@@ -492,8 +494,7 @@ namespace PickupBot.Commands.Modules
 
             try
             {
-                var response = await RCON.SendCommand("status", host, password, 27960);
-                response = response.Replace(password, "[PASSWORD]").Replace("\0", "");
+                var response = await RCON.SendCommand("status", host, password, 27960);;
                 var serverStatus = new ServerStatus(response);
 
                 var embed = new EmbedBuilder
