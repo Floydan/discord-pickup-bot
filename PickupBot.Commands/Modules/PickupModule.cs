@@ -24,11 +24,15 @@ namespace PickupBot.Commands.Modules
     {
         private readonly IQueueRepository _queueRepository;
         private readonly IFlaggedSubscribersRepository _flagRepository;
+        private readonly string _rconPassword;
+        private readonly int _rconPort;
 
         public PickupModule(IQueueRepository queueRepository, IFlaggedSubscribersRepository flagRepository)
         {
             _queueRepository = queueRepository;
             _flagRepository = flagRepository;
+            _rconPassword = Environment.GetEnvironmentVariable("RCONServerPassword") ?? "";
+            _rconPort = 27960;
         }
 
         [Command("create")]
@@ -156,11 +160,25 @@ namespace PickupBot.Commands.Modules
         [Summary("If you are the creator of the queue you can use this to delete it")]
         public async Task Delete([Name("Queue name"), Summary("Queue name"), Remainder] string queueName)
         {
-            var result = await _queueRepository.RemoveQueue(Context.User, queueName, Context.Guild.Id.ToString());
-            var message = result ?
-                $"`Queue '{queueName}' has been canceled`" :
-                $"`Queue with the name '{queueName}' doesn't exists or you are not the owner of the queue!`";
-            await Context.Channel.SendMessageAsync(message);
+            var queue = await _queueRepository.FindQueue(queueName, Context.Guild.Id.ToString());
+            if (queue == null)
+            {
+                await Context.Channel.SendMessageAsync($"`Queue '{queueName}' has been canceled`");
+                return;
+            }
+
+            var isAdmin = (Context.User as IGuildUser)?.GuildPermissions.Has(GuildPermission.Administrator) ?? false;
+            if (isAdmin || queue.OwnerId == Context.User.Id.ToString())
+            {
+                var result = await _queueRepository.RemoveQueue(Context.User, queueName, Context.Guild.Id.ToString());
+                var message = result ?
+                    $"`Queue '{queueName}' has been canceled`" :
+                    $"`Queue with the name '{queueName}' doesn't exists or you are not the owner of the queue!`";
+                await Context.Channel.SendMessageAsync(message);
+                return;
+            }
+
+            await Context.Channel.SendMessageAsync("You do not have permission to remove the queue.");
         }
 
         [Command("clear")]
@@ -413,8 +431,7 @@ namespace PickupBot.Commands.Modules
             try
             {
                 const string host = "ra3.se";
-                var password = Environment.GetEnvironmentVariable("RCONServerPassword") ?? "";
-                if(string.IsNullOrWhiteSpace(password) || !host.Contains("ra3.se", StringComparison.OrdinalIgnoreCase)) return;
+                if (string.IsNullOrWhiteSpace(_rconPassword) || !host.Contains("ra3.se", StringComparison.OrdinalIgnoreCase)) return;
 
                 var cancellationTokenSource = new CancellationTokenSource();
                 var cancellationToken = cancellationTokenSource.Token;
@@ -427,13 +444,13 @@ namespace PickupBot.Commands.Modules
 #pragma warning disable 4014
                 Task.Delay(TimeSpan.FromMinutes(2), cancellationToken).ContinueWith(async t =>
                 {
-                   var resp = await RCON.SendCommand(command, "ra3.se", password, 27960);
+                    await RCON.UDPSendCommand(command, "ra3.se", _rconPassword, _rconPort, true);
                 }, cancellationToken);
-                
+
                 // 4 minute delay message
                 Task.Delay(TimeSpan.FromMinutes(4), cancellationToken).ContinueWith(async t =>
                 {
-                    await RCON.SendCommand(command, "ra3.se", password, 27960);
+                    await RCON.UDPSendCommand(command, "ra3.se", _rconPassword, _rconPort, true);
                 }, cancellationToken);
 #pragma warning restore 4014
             }
@@ -489,12 +506,12 @@ namespace PickupBot.Commands.Modules
         public async Task ServerStatus([Remainder]string host = null)
         {
             if (string.IsNullOrWhiteSpace(host)) host = "ra3.se";
-            var password = Environment.GetEnvironmentVariable("RCONServerPassword") ?? "";
-            if(string.IsNullOrWhiteSpace(password) || !host.Contains("ra3.se", StringComparison.OrdinalIgnoreCase)) return;
+
+            if (string.IsNullOrWhiteSpace(_rconPassword) || !host.Contains("ra3.se", StringComparison.OrdinalIgnoreCase)) return;
 
             try
             {
-                var response = await RCON.SendCommand("status", host, password, 27960);;
+                var response = await RCON.UDPSendCommand("status", host, _rconPassword, _rconPort);
                 var serverStatus = new ServerStatus(response);
 
                 var embed = new EmbedBuilder
@@ -509,26 +526,16 @@ namespace PickupBot.Commands.Modules
                 if (serverStatus.Players.Any())
                 {
                     var dataTable = new DataTable();
-                    dataTable.Columns.Add("ID", typeof(int));
                     dataTable.Columns.Add("Name", typeof(string));
                     dataTable.Columns.Add("Score", typeof(int));
                     dataTable.Columns.Add("Ping", typeof(int));
-                    dataTable.Columns.Add("Rate", typeof(int));
 
                     foreach (var player in serverStatus.Players)
                     {
-                        var guildUser = Context.Guild.Users.FirstOrDefault(w =>
-                            GetNickname(w).Equals(player.Name, StringComparison.OrdinalIgnoreCase));
-                        var name = player.Name;
-                        if (guildUser != null)
-                            name = GetMention(guildUser);
-
                         var row = dataTable.NewRow();
-                        row[0] = player.CL;
-                        row[1] = name;
-                        row[2] = player.Score;
-                        row[3] = player.Ping;
-                        row[4] = player.Rate;
+                        row[0] = player.Name;
+                        row[1] = player.Score;
+                        row[2] = player.Ping;
 
                         dataTable.Rows.Add(row);
                     }
@@ -549,7 +556,22 @@ namespace PickupBot.Commands.Modules
             catch (Exception e)
             {
                 Console.WriteLine(e);
-            }   
+            }
+        }
+
+        [Command("clientinfo")]
+        [RequireUserPermission(GuildPermission.Administrator)]
+        public async Task ClientInfo(string player)
+        {
+            var host = "ra3.se";
+
+            if (string.IsNullOrWhiteSpace(_rconPassword) || !host.Contains("ra3.se", StringComparison.OrdinalIgnoreCase)) return;
+
+            //var serverinfo = await RCON.SendCommand($"serverinfo", host, _rconPassword, _rconPort);
+            var players = await RCON.UDPSendCommand($"dumpuser {player}", host, _rconPassword, _rconPort);
+
+            //await ReplyAsync(serverinfo);
+            await ReplyAsync(players);
         }
 
         private async Task NotifyUsers(PickupQueue queue, string serverName, params SocketGuildUser[] users)
@@ -616,16 +638,19 @@ namespace PickupBot.Commands.Modules
                         await NotifyUsers(queue, Context.Guild.Name, user);
                     }
                 }
-                if (!queue.Subscribers.Any() && !queue.WaitingList.Any())
-                    await _queueRepository.RemoveQueue(Context.User, queue.Name, queue.GuildId); //Try to remove queue if its empty and its the owner leaving.
-                else
-                {
-                    await _queueRepository.UpdateQueue(queue);
 
+                await _queueRepository.UpdateQueue(queue);
+
+                if (!queue.Subscribers.Any() && !queue.WaitingList.Any())
+                {
+                    await _queueRepository.RemoveQueue(Context.User, queue.Name, queue.GuildId); //Try to remove queue if its empty
                     if (notify)
-                        await Context.Channel.SendMessageAsync($"`{queue.Name} - {ParseSubscribers(queue)}`");
+                        await Context.Channel.SendMessageAsync($"`{queue.Name} has been removed since everyone left.`");
                 }
             }
+
+            if (notify)
+                await Context.Channel.SendMessageAsync($"`{queue.Name} - {ParseSubscribers(queue)}`");
 
             return queue;
         }

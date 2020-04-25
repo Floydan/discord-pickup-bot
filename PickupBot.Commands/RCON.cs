@@ -7,9 +7,9 @@ using System.Threading.Tasks;
 
 namespace PickupBot.Commands
 {
-    public class RCON
+    // ReSharper disable once InconsistentNaming
+    public static class RCON
     {
-
         public static async Task<string> SendCommand(string rconCommand, string host, string password, int gameServerPort)
         {
             //connecting to server
@@ -20,12 +20,11 @@ namespace PickupBot.Commands
             var bufferTemp = Encoding.ASCII.GetBytes(command);
             var bufferSend = new byte[bufferTemp.Length + 4];
 
-            //intial 5 characters as per standard
+            //intial 4 characters as per standard
             bufferSend[0] = byte.Parse("255");
             bufferSend[1] = byte.Parse("255");
             bufferSend[2] = byte.Parse("255");
             bufferSend[3] = byte.Parse("255");
-            //bufferSend[4] = byte.Parse("02");
             var j = 4;
             
             foreach (var t in bufferTemp)
@@ -33,16 +32,49 @@ namespace PickupBot.Commands
                 bufferSend[j++] = t;
             }
 
-            var temp = Encoding.ASCII.GetString(bufferSend);
-
             //send rcon command and get response
-            var remoteIpEndPoint = new IPEndPoint(IPAddress.Any, 0);
             await client.SendAsync(bufferSend, SocketFlags.None);
 
             //big enough to receive response
             var bufferRec = new byte[65000];
             client.Receive(bufferRec);
             return Encoding.ASCII.GetString(bufferRec)?
+                .Replace(password, "[PASSWORD]")
+                .Replace("????print\n", "")
+                .Replace("\0", "");
+        }
+        
+        public static async Task<string> UDPSendCommand(string rconCommand, string host, string password, int gameServerPort, bool skipReceive = false)
+        {
+            //connecting to server
+            var client = new UdpClient();
+            client.Connect(host, gameServerPort);
+
+            var command = $"rcon {password} {rconCommand}{Environment.NewLine}{Environment.NewLine}";
+            var bufferTemp = Encoding.ASCII.GetBytes(command);
+            var bufferSend = new byte[bufferTemp.Length + 4];
+
+            //intial 4 characters as per standard
+            bufferSend[0] = byte.Parse("255");
+            bufferSend[1] = byte.Parse("255");
+            bufferSend[2] = byte.Parse("255");
+            bufferSend[3] = byte.Parse("255");
+            var j = 4;
+            
+            foreach (var t in bufferTemp)
+            {
+                bufferSend[j++] = t;
+            }
+
+            //send rcon command and get response
+            await client.SendAsync(bufferSend, bufferSend.Length);
+
+            if (skipReceive) return "";
+            
+            //big enough to receive response
+            var bufferRec = await client.ReceiveAsync();
+
+            return Encoding.ASCII.GetString(bufferRec.Buffer)?
                 .Replace(password, "[PASSWORD]")
                 .Replace("????print\n", "")
                 .Replace("\0", "");

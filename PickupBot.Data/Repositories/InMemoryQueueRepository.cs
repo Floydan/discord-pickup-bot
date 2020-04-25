@@ -27,12 +27,7 @@ namespace PickupBot.Data.Repositories
 
             if (!_queueCache.TryGetValue(key, out var queue)) return true;
 
-            if (queue.OwnerId == user.Id.ToString())
-            {
-                return _queueCache.TryRemove(key, out _);
-            }
-
-            return await Task.FromResult(false);
+            return await Task.FromResult(_queueCache.TryRemove(key, out _));
         }
 
         public async Task<bool> UpdateQueue(PickupQueue queue)
