@@ -21,13 +21,18 @@ namespace PickupBot.Data.Repositories
             return await Task.FromResult(false);
         }
 
-        public async Task<bool> RemoveQueue(IUser user, string queueName, string guildId)
+        public async Task<bool> RemoveQueue(string queueName, string guildId)
         {
             var key = $"{queueName.ToLowerInvariant()}-{guildId}";
 
             if (!_queueCache.TryGetValue(key, out var queue)) return true;
 
             return await Task.FromResult(_queueCache.TryRemove(key, out _));
+        }
+
+        public async Task<bool> RemoveQueue(PickupQueue queue)
+        {
+            return await RemoveQueue(queue?.Name, queue?.GuildId);
         }
 
         public async Task<bool> UpdateQueue(PickupQueue queue)

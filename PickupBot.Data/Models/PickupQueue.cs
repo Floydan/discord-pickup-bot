@@ -16,6 +16,8 @@ namespace PickupBot.Data.Models
             WaitingList = new List<Subscriber>();
             PartitionKey = guildId;
             RowKey = name.ToLowerInvariant();
+            GuildId = guildId;
+            Name = name;
         }
 
         public string GuildId { get; set; }
@@ -42,7 +44,7 @@ namespace PickupBot.Data.Models
                 });
         }
         public List<Subscriber> Subscribers { get; set; }
-        public List<Subscriber> WaitingList { get; private set; }
+        public List<Subscriber> WaitingList { get; set; }
 
         public decimal Readiness => Math.Ceiling((decimal)Subscribers.Count / MaxInQueue * 100);
         public int MaxInQueue => TeamSize * 2;

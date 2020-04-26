@@ -22,9 +22,17 @@ namespace PickupBot.Data.Repositories
             return await _client.Insert(queue);
         }
 
-        public async Task<bool> RemoveQueue(IUser user, string queueName, string guildId)
+        public async Task<bool> RemoveQueue(string queueName, string guildId)
         {
             var queue = await _client.GetItem(guildId, queueName.ToLowerInvariant());
+            var result = await _client.Delete(queue);
+            return result;
+        }
+
+        public async Task<bool> RemoveQueue(PickupQueue queue)
+        {
+            if (queue == null) return false;
+            if (string.IsNullOrWhiteSpace(queue.PartitionKey) || string.IsNullOrWhiteSpace(queue.RowKey)) return false;
             var result = await _client.Delete(queue);
             return result;
         }

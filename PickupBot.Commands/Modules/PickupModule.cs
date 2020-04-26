@@ -75,6 +75,55 @@ namespace PickupBot.Commands.Modules
             await Context.Channel.SendMessageAsync($"`Queue '{queueName}' was added by {GetNickname(Context.User)}`");
         }
 
+        [Command("rename")]
+        [Summary("Rename a queue")]
+        public async Task Rename([Name("Queue name")] string queueName, [Name("New name")] string newName)
+        {
+            var queue = await _queueRepository.FindQueue(queueName, Context.Guild.Id.ToString());
+            if (queue == null)
+            {
+                await ReplyAsync($"`Queue '{queueName}' could not be found check your spelling.`");
+                return;
+            }
+
+            var isAdmin = (Context.User as IGuildUser)?.GuildPermissions.Has(GuildPermission.Administrator) ?? false;
+            if (isAdmin || queue.OwnerId == Context.User.Id.ToString())
+            {
+                var newQueueCheck = await _queueRepository.FindQueue(newName, Context.Guild.Id.ToString());
+                if (newQueueCheck != null)
+                {
+                    await ReplyAsync($"`A queue with the name '{newName}' already exists.`");
+                    return;
+                }
+                
+                var newQueue = new PickupQueue(Context.Guild.Id.ToString(), newName)
+                {
+                    OwnerId = queue.OwnerId,
+                    OwnerName = queue.OwnerName,
+                    Created = queue.Created,
+                    Updated = DateTime.UtcNow,
+                    TeamSize = queue.TeamSize,
+                    Subscribers = queue.Subscribers,
+                    WaitingList = queue.WaitingList
+                };
+
+                var result = await _queueRepository.AddQueue(newQueue);
+                if (result)
+                {
+                    result = await _queueRepository.RemoveQueue(queue);
+                    await ReplyAsync($"The queue '{queue.Name}' has been renamed to '{newQueue.Name}'");
+                    await ReplyAsync($"`{newQueue.Name} - {ParseSubscribers(newQueue)}`");
+                    return;
+                }
+
+                await ReplyAsync("An error occured when trying to update the queue name, try again.");
+                return;
+            }
+
+            await ReplyAsync(
+                "`You do not have permission to rename this queue, you have to be either the owner or a server admin`");
+        }
+
         [Command("add")]
         [Summary("Take a spot in a pickup queue, if the queue is full you are placed on the waiting list.")]
         public async Task Add([Name("Queue name"), Summary("Queue name"), Remainder]string queueName = "")
@@ -170,7 +219,7 @@ namespace PickupBot.Commands.Modules
             var isAdmin = (Context.User as IGuildUser)?.GuildPermissions.Has(GuildPermission.Administrator) ?? false;
             if (isAdmin || queue.OwnerId == Context.User.Id.ToString())
             {
-                var result = await _queueRepository.RemoveQueue(Context.User, queueName, Context.Guild.Id.ToString());
+                var result = await _queueRepository.RemoveQueue(queueName, Context.Guild.Id.ToString());
                 var message = result ?
                     $"`Queue '{queueName}' has been canceled`" :
                     $"`Queue with the name '{queueName}' doesn't exists or you are not the owner of the queue!`";
@@ -203,7 +252,7 @@ namespace PickupBot.Commands.Modules
                     updatedQueue.Updated = DateTime.UtcNow;
 
                     if (!updatedQueue.Subscribers.Any() && !updatedQueue.WaitingList.Any())
-                        await _queueRepository.RemoveQueue(Context.User, updatedQueue.Name, updatedQueue.GuildId); //Try to remove queue if its empty and its the owner leaving.
+                        await _queueRepository.RemoveQueue(updatedQueue.Name, updatedQueue.GuildId); //Try to remove queue if its empty.
                     else
                         await _queueRepository.UpdateQueue(updatedQueue);
                 }
@@ -643,9 +692,12 @@ namespace PickupBot.Commands.Modules
 
                 if (!queue.Subscribers.Any() && !queue.WaitingList.Any())
                 {
-                    await _queueRepository.RemoveQueue(Context.User, queue.Name, queue.GuildId); //Try to remove queue if its empty
+                    await _queueRepository.RemoveQueue(queue.Name, queue.GuildId); //Try to remove queue if its empty
                     if (notify)
+                    {
                         await Context.Channel.SendMessageAsync($"`{queue.Name} has been removed since everyone left.`");
+                        notify = false;
+                    }
                 }
             }
 
