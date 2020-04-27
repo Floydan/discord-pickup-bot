@@ -615,21 +615,21 @@ namespace PickupBot.Commands.Modules
                 );
         }
 
-        [Command("rconcmd")]
-        [Remarks("Test remark")]
-        [RequireUserPermission(GuildPermission.Administrator)]
-        public async Task RconCmd()
-        {
-            var host = "ra3.se";
+        //[Command("rconcmd")]
+        //[Remarks("Test remark")]
+        //[RequireUserPermission(GuildPermission.Administrator)]
+        //public async Task RconCmd(string command = "")
+        //{
+        //    var host = "ra3.se";
 
-            if (string.IsNullOrWhiteSpace(_rconPassword) || !host.Contains("ra3.se", StringComparison.OrdinalIgnoreCase)) return;
+        //    if (string.IsNullOrWhiteSpace(_rconPassword) || !host.Contains("ra3.se", StringComparison.OrdinalIgnoreCase)) return;
 
-            //var serverinfo = await RCON.SendCommand($"serverinfo", host, _rconPassword, _rconPort);
-            var players = await RCON.UDPSendCommand($@"cmd stats", host, _rconPassword, _rconPort);
+        //    //var serverinfo = await RCON.SendCommand($"serverinfo", host, _rconPassword, _rconPort);
+        //    var players = await RCON.UDPSendCommand($@"sectorlist", host, _rconPassword, _rconPort);
 
-            //await ReplyAsync(serverinfo);
-            await ReplyAsync(players);
-        }
+        //    //await ReplyAsync(serverinfo);
+        //    await ReplyAsync(players);
+        //}
 
         private async Task NotifyUsers(PickupQueue queue, string serverName, params SocketGuildUser[] users)
         {
