@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Data;
 using System.Text.RegularExpressions;
 
@@ -12,7 +13,7 @@ namespace PickupBot.Commands.Models
 
         public ServerStatus(string status) : this()
         {
-            var lines = status.Split('\n');
+            var lines = status.Split('\n', StringSplitOptions.RemoveEmptyEntries);
             var regex = new Regex(@"(?<cl>(\d+))[ ]+(?<score>([-]?\d+))[ ]+(?<ping>(\d+))[ ]+(?<name>(.+))[ ]+(?<ip>(\^\d{2,4}\.\d{2,3}\.\d{2,3}\.\d{2,3}))[ ]+(?<rate>(\d+))");
 
             foreach (var line in lines)

@@ -600,7 +600,6 @@ namespace PickupBot.Commands.Modules
         }
 
         [Command("clientinfo")]
-        [RequireUserPermission(GuildPermission.Administrator)]
         public async Task ClientInfo(string player)
         {
             var host = "ra3.se";
