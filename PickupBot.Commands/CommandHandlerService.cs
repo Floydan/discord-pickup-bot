@@ -13,12 +13,14 @@ namespace PickupBot.Commands
         private readonly CommandService _commands;
         private readonly DiscordSocketClient _discord;
         private readonly IServiceProvider _services;
+        private readonly string _commandPrefix;
 
         public CommandHandlerService(IServiceProvider services)
         {
             _commands = services.GetRequiredService<CommandService>();
             _discord = services.GetRequiredService<DiscordSocketClient>();
             _services = services;
+            _commandPrefix = Environment.GetEnvironmentVariable("CommandPrefix") ?? "!";
 
             // Hook CommandExecuted to handle post-command-execution logic.
             _commands.CommandExecuted += CommandExecutedAsync;
@@ -44,7 +46,7 @@ namespace PickupBot.Commands
             // This value holds the offset where the prefix ends
             var argPos = 0;
 
-            if (!message.HasCharPrefix('!', ref argPos)) return;
+            if (!message.HasStringPrefix(_commandPrefix, ref argPos)) return;
 
             var context = new SocketCommandContext(_discord, message);
 

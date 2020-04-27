@@ -54,24 +54,9 @@ namespace PickupBot
                         properties => properties.Topic = "powered by pickup-bot | !help for instructions");
                 }
 
-                // TODO: create voice channels if missing
-                //var voiceChannels = guild.VoiceChannels.Where(vc => vc.Name.StartsWith("pickup")).ToArray();
-                //if (!voiceChannels.Any() || voiceChannels.Count() < 6)
-                //{
-                //    var vctasks = new List<Task>();
-                //    for(var i = 1; i <= 6; i++)
-                //    {
-                //        vctasks.Add(guild.CreateVoiceChannelAsync($"Pickup {i}", properties => properties.UserLimit = 16));
-                //    }
-
-                //    await Task.WhenAll(vctasks);
-                //}
-
                 // create applicable roles if missing
                 if(guild.Roles.All(w => w.Name != "pickup-promote")) 
                     await guild.CreateRoleAsync("pickup-promote", GuildPermissions.None, Color.Orange, false);
-
-                // TODO: sync roles with @everyone?
             }
             catch (Exception e)
             {
@@ -81,10 +66,9 @@ namespace PickupBot
 
         private static async Task OnMessageUpdated(Cacheable<IMessage, ulong> before, SocketMessage after, ISocketMessageChannel channel)
         {
-            var message = await before.GetOrDownloadAsync();
-            await LogAsync(new LogMessage(LogSeverity.Info, "OnMessageUpdated", $"{message} -> {after}"));
+            //var message = await before.GetOrDownloadAsync();
+            //await LogAsync(new LogMessage(LogSeverity.Info, "OnMessageUpdated", $"{message} -> {after}"));
 
-            //TODO: maybe trigger CommandHandlerService to check if the updated message is a command
             var commandHandler = ServiceLocator.Current.GetInstance<CommandHandlerService>();
             if(commandHandler != null)
                 await commandHandler.MessageReceivedAsync(after);

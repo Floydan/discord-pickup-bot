@@ -191,8 +191,14 @@ namespace PickupBot.Commands.Modules
         [Command("remove")]
         [Alias("quit", "ragequit")]
         [Summary("Leave a queue, freeing up a spot.")]
-        public async Task Remove([Name("Queue name"), Summary("Queue name"), Remainder] string queueName)
+        public async Task Remove([Name("Queue name"), Summary("Optional, if empty the !clear command will be used."), Remainder] string queueName = "")
         {
+            if (string.IsNullOrWhiteSpace(queueName))
+            {
+                await Clear();
+                return;
+            }
+
             //find queue with name {queueName}
             var queue = await _queueRepository.FindQueue(queueName, Context.Guild.Id.ToString());
             if (queue == null)
@@ -574,23 +580,8 @@ namespace PickupBot.Commands.Modules
 
                 if (serverStatus.Players.Any())
                 {
-                    var dataTable = new DataTable();
-                    dataTable.Columns.Add("Name", typeof(string));
-                    dataTable.Columns.Add("Score", typeof(int));
-                    dataTable.Columns.Add("Ping", typeof(int));
-
-                    foreach (var player in serverStatus.Players)
-                    {
-                        var row = dataTable.NewRow();
-                        row[0] = player.Name;
-                        row[1] = player.Score;
-                        row[2] = player.Ping;
-
-                        dataTable.Rows.Add(row);
-                    }
-
                     embed.Description += $"```{Environment.NewLine}" +
-                                         $"{AsciiTableGenerator.CreateAsciiTableFromDataTable(dataTable)}" +
+                                         $"{serverStatus.PlayersToTable()}" +
                                          $"{Environment.NewLine}```";
                 }
                 else
@@ -616,8 +607,26 @@ namespace PickupBot.Commands.Modules
 
             if (string.IsNullOrWhiteSpace(_rconPassword) || !host.Contains("ra3.se", StringComparison.OrdinalIgnoreCase)) return;
 
+            var clientInfo = new ClientInfo(await RCON.UDPSendCommand($"dumpuser {player}", host, _rconPassword, _rconPort));
+
+            await ReplyAsync(
+                $"```{Environment.NewLine}" +
+                $"{clientInfo.ToTable()}" +
+                $"{Environment.NewLine}```"
+                );
+        }
+
+        [Command("rconcmd")]
+        [Remarks("Test remark")]
+        [RequireUserPermission(GuildPermission.Administrator)]
+        public async Task RconCmd()
+        {
+            var host = "ra3.se";
+
+            if (string.IsNullOrWhiteSpace(_rconPassword) || !host.Contains("ra3.se", StringComparison.OrdinalIgnoreCase)) return;
+
             //var serverinfo = await RCON.SendCommand($"serverinfo", host, _rconPassword, _rconPort);
-            var players = await RCON.UDPSendCommand($"dumpuser {player}", host, _rconPassword, _rconPort);
+            var players = await RCON.UDPSendCommand($@"cmd stats", host, _rconPassword, _rconPort);
 
             //await ReplyAsync(serverinfo);
             await ReplyAsync(players);

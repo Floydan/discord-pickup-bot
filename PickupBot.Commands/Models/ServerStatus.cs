@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using System.Data;
 using System.Text.RegularExpressions;
 
 namespace PickupBot.Commands.Models
@@ -35,6 +36,26 @@ namespace PickupBot.Commands.Models
 			
                 Players.Add(player);
             }
+        }
+
+        public string PlayersToTable()
+        {
+            var dataTable = new DataTable();
+            dataTable.Columns.Add("Name", typeof(string));
+            dataTable.Columns.Add("Score", typeof(int));
+            dataTable.Columns.Add("Ping", typeof(int));
+
+            foreach (var player in Players)
+            {
+                var row = dataTable.NewRow();
+                row[0] = player.Name;
+                row[1] = player.Score;
+                row[2] = player.Ping;
+
+                dataTable.Rows.Add(row);
+            }
+
+            return AsciiTableGenerator.CreateAsciiTableFromDataTable(dataTable)?.ToString();
         }
 
         public string Map { get; set; }
