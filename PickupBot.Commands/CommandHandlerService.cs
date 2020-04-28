@@ -1,9 +1,12 @@
 ﻿using System;
 using System.Reflection;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Discord;
 using Discord.Commands;
 using Discord.WebSocket;
+using Google.Apis.Auth.OAuth2;
+using Google.Cloud.Translation.V2;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace PickupBot.Commands
@@ -14,6 +17,7 @@ namespace PickupBot.Commands
         private readonly DiscordSocketClient _discord;
         private readonly IServiceProvider _services;
         private readonly string _commandPrefix;
+        private readonly string _googleTranslateApiKey;
 
         public CommandHandlerService(IServiceProvider services)
         {
@@ -21,12 +25,92 @@ namespace PickupBot.Commands
             _discord = services.GetRequiredService<DiscordSocketClient>();
             _services = services;
             _commandPrefix = Environment.GetEnvironmentVariable("CommandPrefix") ?? "!";
+            _googleTranslateApiKey = Environment.GetEnvironmentVariable("GoogleTranslateAPIKey") ?? "";
 
             // Hook CommandExecuted to handle post-command-execution logic.
             _commands.CommandExecuted += CommandExecutedAsync;
             // Hook MessageReceived so we can process each message to see
             // if it qualifies as a command.
             _discord.MessageReceived += MessageReceivedAsync;
+            _discord.ReactionAdded += ReactionAddedAsync;
+        }
+
+        private async Task ReactionAddedAsync(Cacheable<IUserMessage, ulong> message, ISocketMessageChannel channel, SocketReaction reaction)
+        {
+            var msg = await message.GetOrDownloadAsync();
+
+            var messageText = msg?.Resolve();
+            
+            if(_commandPrefix != "!!" || string.IsNullOrWhiteSpace(_googleTranslateApiKey) || string.IsNullOrWhiteSpace(messageText)) return;
+            var targetLanguage = GetTargetLanguage(reaction.Emote.Name);
+
+            if(string.IsNullOrEmpty(targetLanguage)) return;
+
+            var translation = await GetTranslation(messageText, targetLanguage) ?? await GetTranslation(messageText, targetLanguage);
+
+            if(translation == null) return;
+                
+            await channel.SendMessageAsync(embed: new EmbedBuilder
+            {
+                Title = $"Translation - {translation.DetectedSourceLanguage} -> {translation.TargetLanguage}",
+                Description = $"{translation.TranslatedText}",
+                Color = Color.DarkBlue,
+                Footer = new EmbedFooterBuilder { Text = "Translation provided by Google Translate and pickup-bot" }
+            }.Build());
+        }
+
+        private async Task<TranslationResult> GetTranslation(string messageText, string targetLanguage)
+        {
+            using var client = TranslationClient.CreateFromApiKey(_googleTranslateApiKey, TranslationModel.Base);
+            client.Service.HttpClient.DefaultRequestHeaders.Add("referer", "127.0.0.1");
+
+            TranslationResult translation = null;
+            try
+            {
+                translation = await client.TranslateTextAsync(messageText, targetLanguage);
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e);
+
+                return null;
+            }
+
+            return translation;
+        }
+
+        private static string GetTargetLanguage(string emote)
+        {
+            switch (emote)
+            {
+                case "🇸🇪":
+                    return "se";
+                case "🇫🇷":
+                    return "fr";
+                case "🇩🇪":
+                    return "de";
+                case "🇳🇱":
+                    return "nl";
+                case "🇳🇴":
+                    return "no";
+                case "🇫🇮":
+                    return "fi";
+                case "🇩🇰":
+                    return "dk";
+                case "🇵🇱":
+                    return "pl";
+                case "🇪🇸":
+                    return "es";
+                case "🇮🇹":
+                    return "it";
+                case "🇬🇷":
+                    return "gr";
+                case "🇬🇧":
+                case "🇺🇸":
+                    return "en";
+                default:
+                    return null;
+            }
         }
 
         public async Task InitializeAsync()

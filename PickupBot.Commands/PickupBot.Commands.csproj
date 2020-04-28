@@ -8,6 +8,7 @@
     <PackageReference Include="Discord.Addons.CommandsExtension" Version="1.0.4" />
     <PackageReference Include="Discord.Net.Commands" Version="2.1.1" />
     <PackageReference Include="Discord.Net.WebSocket" Version="2.1.1" />
+    <PackageReference Include="Google.Cloud.Translation.V2" Version="2.0.0" />
     <PackageReference Include="System.Net.Sockets" Version="4.3.0" />
   </ItemGroup>
 
