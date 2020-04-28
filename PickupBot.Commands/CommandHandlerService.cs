@@ -105,7 +105,7 @@ namespace PickupBot.Commands
                 case "🇮🇹":
                     return "it";
                 case "🇬🇷":
-                    return "gr";
+                    return "el";
                 case "🇬🇧":
                 case "🇺🇸":
                     return "en";
