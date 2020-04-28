@@ -64,10 +64,9 @@ namespace PickupBot.Commands
             using var client = TranslationClient.CreateFromApiKey(_googleTranslateApiKey, TranslationModel.Base);
             client.Service.HttpClient.DefaultRequestHeaders.Add("referer", "127.0.0.1");
 
-            TranslationResult translation = null;
             try
             {
-                translation = await client.TranslateTextAsync(messageText, targetLanguage);
+                return await client.TranslateTextAsync(messageText, targetLanguage);
             }
             catch (Exception e)
             {
@@ -75,8 +74,6 @@ namespace PickupBot.Commands
 
                 return null;
             }
-
-            return translation;
         }
 
         private static string GetTargetLanguage(string emote)
