@@ -85,7 +85,7 @@ namespace PickupBot.Commands
             switch (emote)
             {
                 case "🇸🇪":
-                    return "se";
+                    return "sv";
                 case "🇫🇷":
                     return "fr";
                 case "🇩🇪":
