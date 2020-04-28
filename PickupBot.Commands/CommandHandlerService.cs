@@ -41,7 +41,7 @@ namespace PickupBot.Commands
 
             var messageText = msg?.Resolve();
             
-            if(_commandPrefix != "!!" || string.IsNullOrWhiteSpace(_googleTranslateApiKey) || string.IsNullOrWhiteSpace(messageText)) return;
+            if(string.IsNullOrWhiteSpace(_googleTranslateApiKey) || string.IsNullOrWhiteSpace(messageText)) return;
             var targetLanguage = GetTargetLanguage(reaction.Emote.Name);
 
             if(string.IsNullOrEmpty(targetLanguage)) return;
@@ -49,11 +49,15 @@ namespace PickupBot.Commands
             var translation = await GetTranslation(messageText, targetLanguage) ?? await GetTranslation(messageText, targetLanguage);
 
             if(translation == null) return;
-                
+
+            var userName = (msg.Author as IGuildUser)?.Nickname ??
+                           (msg.Author as IGuildUser)?.Username ?? 
+                           msg.Author.Username;
+
             await channel.SendMessageAsync(embed: new EmbedBuilder
             {
-                Title = $"Translation - {translation.DetectedSourceLanguage} -> {translation.TargetLanguage}",
-                Description = $"{translation.TranslatedText}",
+                Author = new EmbedAuthorBuilder { IconUrl = msg.Author.GetAvatarUrl(), Name = userName },
+                Description = $"{translation.TranslatedText}{Environment.NewLine + Environment.NewLine}",
                 Color = Color.DarkBlue,
                 Footer = new EmbedFooterBuilder { Text = "Translation provided by Google Translate and pickup-bot" }
             }.Build());
@@ -93,7 +97,7 @@ namespace PickupBot.Commands
                 case "🇫🇮":
                     return "fi";
                 case "🇩🇰":
-                    return "dk";
+                    return "da";
                 case "🇵🇱":
                     return "pl";
                 case "🇪🇸":
