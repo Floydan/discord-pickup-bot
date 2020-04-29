@@ -25,7 +25,7 @@ namespace PickupBot.Data.Repositories
         {
             var key = $"{queueName.ToLowerInvariant()}-{guildId}";
 
-            if (!_queueCache.TryGetValue(key, out var queue)) return true;
+            if (!_queueCache.TryGetValue(key, out _)) return true;
 
             return await Task.FromResult(_queueCache.TryRemove(key, out _));
         }

@@ -1,12 +1,10 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
 using Discord;
 using Discord.Commands;
 using Discord.WebSocket;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using PickupBot.Commands;
 using PickupBot.Data.Models;
@@ -20,26 +18,25 @@ namespace PickupBot
 
         private async Task MainAsync()
         {
-            using (var services = ConfigureServices())
-            {
-                ServiceLocator.SetLocatorProvider(services);
-                var client = services.GetRequiredService<DiscordSocketClient>();
+            await using var services = ConfigureServices();
 
-                client.Log += LogAsync;
-                client.JoinedGuild += OnJoinedGuild;
-                client.MessageUpdated += OnMessageUpdated;
-                services.GetRequiredService<CommandService>().Log += LogAsync;
+            ServiceLocator.SetLocatorProvider(services);
+            var client = services.GetRequiredService<DiscordSocketClient>();
 
-                // Tokens should be considered secret data and never hard-coded.
-                // We can read from the environment variable to avoid hardcoding.
-                await client.LoginAsync(TokenType.Bot, Environment.GetEnvironmentVariable("DiscordToken"));
-                await client.StartAsync();
+            client.Log += LogAsync;
+            client.JoinedGuild += OnJoinedGuild;
+            client.MessageUpdated += OnMessageUpdated;
+            services.GetRequiredService<CommandService>().Log += LogAsync;
 
-                // Here we initialize the logic required to register our commands.
-                await services.GetRequiredService<CommandHandlerService>().InitializeAsync();
+            // Tokens should be considered secret data and never hard-coded.
+            // We can read from the environment variable to avoid hardcoding.
+            await client.LoginAsync(TokenType.Bot, Environment.GetEnvironmentVariable("DiscordToken"));
+            await client.StartAsync();
 
-                await Task.Delay(-1);
-            }
+            // Here we initialize the logic required to register our commands.
+            await services.GetRequiredService<CommandHandlerService>().InitializeAsync();
+
+            await Task.Delay(-1);
         }
 
         private static async Task OnJoinedGuild(SocketGuild guild)

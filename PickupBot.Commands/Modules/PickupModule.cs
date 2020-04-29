@@ -119,7 +119,7 @@ namespace PickupBot.Commands.Modules
                 var result = await _queueRepository.AddQueue(newQueue);
                 if (result)
                 {
-                    result = await _queueRepository.RemoveQueue(queue);
+                    await _queueRepository.RemoveQueue(queue);
                     await ReplyAsync($"The queue '{queue.Name}' has been renamed to '{newQueue.Name}'");
                     await ReplyAsync($"`{newQueue.Name} - {ParseSubscribers(newQueue)}`");
                     return;
