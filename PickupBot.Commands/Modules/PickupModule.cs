@@ -12,6 +12,7 @@ using Discord;
 using Discord.Commands;
 using Discord.WebSocket;
 using PickupBot.Commands.Models;
+using PickupBot.Commands.Utilities;
 using PickupBot.Data.Models;
 using PickupBot.Data.Repositories;
 // ReSharper disable MemberCanBePrivate.Global
@@ -42,7 +43,7 @@ namespace PickupBot.Commands.Modules
             [Name("Team size"), Summary("Team size (how many are in each team **NOT** total number of players)")]
             int? teamSize = null)
         {
-            if(!IsInPickupChannel((IGuildChannel)Context.Channel))
+            if (!IsInPickupChannel((IGuildChannel)Context.Channel))
                 return;
 
             if (!teamSize.HasValue)
@@ -82,7 +83,7 @@ namespace PickupBot.Commands.Modules
         [Summary("Rename a queue")]
         public async Task Rename([Name("Queue name")] string queueName, [Name("New name")] string newName)
         {
-            if(!IsInPickupChannel((IGuildChannel)Context.Channel))
+            if (!IsInPickupChannel((IGuildChannel)Context.Channel))
                 return;
 
             var queue = await _queueRepository.FindQueue(queueName, Context.Guild.Id.ToString());
@@ -101,7 +102,7 @@ namespace PickupBot.Commands.Modules
                     await ReplyAsync($"`A queue with the name '{newName}' already exists.`");
                     return;
                 }
-                
+
                 var newQueue = new PickupQueue(Context.Guild.Id.ToString(), newName)
                 {
                     OwnerId = queue.OwnerId,
@@ -134,7 +135,7 @@ namespace PickupBot.Commands.Modules
         [Summary("Take a spot in a pickup queue, if the queue is full you are placed on the waiting list.")]
         public async Task Add([Name("Queue name"), Summary("Queue name"), Remainder]string queueName = "")
         {
-            if(!IsInPickupChannel((IGuildChannel)Context.Channel))
+            if (!IsInPickupChannel((IGuildChannel)Context.Channel))
                 return;
 
             //find queue with name {queueName}
@@ -202,7 +203,7 @@ namespace PickupBot.Commands.Modules
         [Summary("Leave a queue, freeing up a spot.")]
         public async Task Remove([Name("Queue name"), Summary("Optional, if empty the !clear command will be used."), Remainder] string queueName = "")
         {
-            if(!IsInPickupChannel((IGuildChannel)Context.Channel))
+            if (!IsInPickupChannel((IGuildChannel)Context.Channel))
                 return;
 
             if (string.IsNullOrWhiteSpace(queueName))
@@ -227,7 +228,7 @@ namespace PickupBot.Commands.Modules
         [Summary("If you are the creator of the queue you can use this to delete it")]
         public async Task Delete([Name("Queue name"), Summary("Queue name"), Remainder] string queueName)
         {
-            if(!IsInPickupChannel((IGuildChannel)Context.Channel))
+            if (!IsInPickupChannel((IGuildChannel)Context.Channel))
                 return;
 
             var queue = await _queueRepository.FindQueue(queueName, Context.Guild.Id.ToString());
@@ -255,7 +256,7 @@ namespace PickupBot.Commands.Modules
         [Summary("Leave all queues you have subscribed to, including waiting lists")]
         public async Task Clear()
         {
-            if(!IsInPickupChannel((IGuildChannel)Context.Channel))
+            if (!IsInPickupChannel((IGuildChannel)Context.Channel))
                 return;
 
             //find queues with user in it
@@ -290,7 +291,7 @@ namespace PickupBot.Commands.Modules
         [Summary("List all active queues")]
         public async Task List()
         {
-            if(!IsInPickupChannel((IGuildChannel)Context.Channel))
+            if (!IsInPickupChannel((IGuildChannel)Context.Channel))
                 return;
 
             //find all active queues
@@ -332,7 +333,7 @@ namespace PickupBot.Commands.Modules
         [Summary("Lists all the players in a given queues wait list")]
         public async Task WaitList([Name("Queue name"), Summary("Queue name"), Remainder] string queueName)
         {
-            if(!IsInPickupChannel((IGuildChannel)Context.Channel))
+            if (!IsInPickupChannel((IGuildChannel)Context.Channel))
                 return;
 
             var queue = await _queueRepository.FindQueue(queueName, Context.Guild.Id.ToString());
@@ -360,12 +361,11 @@ namespace PickupBot.Commands.Modules
         [Summary("Subscribes or unsubscribes the user to the promote role to get notifications when queues are created of when the !promote command is used")]
         public async Task Subscribe()
         {
-            if(!IsInPickupChannel((IGuildChannel)Context.Channel))
+            if (!IsInPickupChannel((IGuildChannel)Context.Channel))
                 return;
 
             var role = Context.Guild.Roles.FirstOrDefault(w => w.Name == "pickup-promote") ??
-                         (IRole)await Context.Guild.CreateRoleAsync("pickup-promote", GuildPermissions.None, Color.Orange,
-                             false);
+                         (IRole)await Context.Guild.CreateRoleAsync("pickup-promote", GuildPermissions.None, Color.Orange, isHoisted: false, isMentionable: true);
             if (role == null)
                 return; //Failed to get or create role;
 
@@ -387,7 +387,7 @@ namespace PickupBot.Commands.Modules
         [Summary("Promotes one specific or all queues to the 'promote-role' role")]
         public async Task Promote([Name("Queue name"), Summary("Queue name"), Remainder] string queueName = "")
         {
-            if(!IsInPickupChannel((IGuildChannel)Context.Channel))
+            if (!IsInPickupChannel((IGuildChannel)Context.Channel))
                 return;
 
             PickupQueue queue = null;
@@ -408,8 +408,7 @@ namespace PickupBot.Commands.Modules
             }
 
             var role = Context.Guild.Roles.FirstOrDefault(w => w.Name == "pickup-promote") ??
-                       (IRole)await Context.Guild.CreateRoleAsync("pickup-promote", GuildPermissions.None, Color.Orange,
-                           false);
+                       (IRole)await Context.Guild.CreateRoleAsync("pickup-promote", GuildPermissions.None, Color.Orange, isHoisted: false, isMentionable: true);
             if (role == null)
                 return; //Failed to get or create role;
 
@@ -459,7 +458,7 @@ namespace PickupBot.Commands.Modules
         [Summary("Triggers the start of the game by splitting teams and setting up voice channels")]
         public async Task Start([Name("Queue name"), Summary("Queue name"), Remainder] string queueName)
         {
-            if(!IsInPickupChannel((IGuildChannel)Context.Channel))
+            if (!IsInPickupChannel((IGuildChannel)Context.Channel))
                 return;
 
             var queue = await VerifyQueueByName(queueName);
@@ -527,20 +526,12 @@ namespace PickupBot.Commands.Modules
                 var command = $"say \"^2Pickup '^3{queue.Name}^2' has started! " +
                               $"^1RED TEAM: ^5{string.Join(", ", redTeam.Select(GetNickname))} ^7- " +
                               $"^4BLUE TEAM: ^5{string.Join(", ", blueTeam.Select(GetNickname))}\"";
-
+                
                 // 2 minute delay message
-#pragma warning disable 4014
-                Task.Delay(TimeSpan.FromMinutes(2), cancellationToken).ContinueWith(async t =>
-                {
-                    await RCON.UDPSendCommand(command, "ra3.se", _rconPassword, _rconPort, true);
-                }, cancellationToken);
+                AsyncUtilities.DelayAction(TimeSpan.FromMinutes(2), async t => { await RCON.UDPSendCommand(command, "ra3.se", _rconPassword, _rconPort, true); });
 
                 // 4 minute delay message
-                Task.Delay(TimeSpan.FromMinutes(4), cancellationToken).ContinueWith(async t =>
-                {
-                    await RCON.UDPSendCommand(command, "ra3.se", _rconPassword, _rconPort, true);
-                }, cancellationToken);
-#pragma warning restore 4014
+                AsyncUtilities.DelayAction(TimeSpan.FromMinutes(4), async t => { await RCON.UDPSendCommand(command, "ra3.se", _rconPassword, _rconPort, true); });
             }
             catch (Exception e)
             {
@@ -548,12 +539,11 @@ namespace PickupBot.Commands.Modules
             }
         }
 
-
         [Command("stop")]
         [Summary("Triggers the end of the game by removing voice channels and removing the queue")]
         public async Task Stop([Name("Queue name"), Summary("Queue name")]string queueName)
         {
-            if(!IsInPickupChannel((IGuildChannel)Context.Channel))
+            if (!IsInPickupChannel((IGuildChannel)Context.Channel))
                 return;
 
             var queue = await VerifyQueueByName(queueName);
@@ -583,7 +573,7 @@ namespace PickupBot.Commands.Modules
         [Summary("Returns a list of server addresses.")]
         public async Task Servers()
         {
-            if(!IsInPickupChannel((IGuildChannel)Context.Channel))
+            if (!IsInPickupChannel((IGuildChannel)Context.Channel))
                 return;
 
             await ReplyAsync(embed: new EmbedBuilder
@@ -599,7 +589,7 @@ namespace PickupBot.Commands.Modules
         [Command("serverstatus")]
         public async Task ServerStatus([Remainder]string host = null)
         {
-            if(!IsInPickupChannel((IGuildChannel)Context.Channel))
+            if (!IsInPickupChannel((IGuildChannel)Context.Channel))
                 return;
 
             if (string.IsNullOrWhiteSpace(host)) host = "ra3.se";
@@ -644,7 +634,7 @@ namespace PickupBot.Commands.Modules
         [Command("clientinfo")]
         public async Task ClientInfo(string player)
         {
-            if(!IsInPickupChannel((IGuildChannel)Context.Channel))
+            if (!IsInPickupChannel((IGuildChannel)Context.Channel))
                 return;
 
             var host = "ra3.se";

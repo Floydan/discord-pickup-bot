@@ -10,6 +10,7 @@ using Discord.WebSocket;
 using Google.Apis.Auth.OAuth2;
 using Google.Cloud.Translation.V2;
 using Microsoft.Extensions.DependencyInjection;
+using PickupBot.Commands.Utilities;
 
 namespace PickupBot.Commands
 {
@@ -51,20 +52,23 @@ namespace PickupBot.Commands
             var translations = (await GetTranslation(targetLanguage, messageText, "Original message") ?? 
                               await GetTranslation(targetLanguage, messageText, "Original message")).ToList();
 
-            if (translations == null || !translations.Any()) return;
+            if (!translations.Any()) return;
 
             var userName = (msg.Author as IGuildUser)?.Nickname ??
                            (msg.Author as IGuildUser)?.Username ??
                            msg.Author.Username;
 
-            await channel.SendMessageAsync(embed: new EmbedBuilder
+            var sentMessage = await channel.SendMessageAsync(embed: new EmbedBuilder
             {
                 Author = new EmbedAuthorBuilder { IconUrl = msg.Author.GetAvatarUrl(), Name = userName },
                 Description = $"{translations.FirstOrDefault()?.TranslatedText}{Environment.NewLine + Environment.NewLine}" +
                               $"[{translations.LastOrDefault()?.TranslatedText} :arrow_up:]({msg.GetJumpUrl()})",
                 Color = Color.DarkBlue,
-                Footer = new EmbedFooterBuilder { Text = "Translation provided by Google Translate and pickup-bot" }
+                Footer = new EmbedFooterBuilder { Text = $"Translation provided by Google Translate and pickup-bot.{Environment.NewLine}" +
+                                                         $"This message will self destruct in 30 seconds." }
             }.Build());
+
+            AsyncUtilities.DelayAction(TimeSpan.FromSeconds(30), async t => { await sentMessage.DeleteAsync(); });
         }
 
         private async Task<IEnumerable<TranslationResult>> GetTranslation(string targetLanguage, params string[] texts)

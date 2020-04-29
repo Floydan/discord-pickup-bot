@@ -37,7 +37,7 @@ namespace PickupBot
 
                 // Here we initialize the logic required to register our commands.
                 await services.GetRequiredService<CommandHandlerService>().InitializeAsync();
-                
+
                 await Task.Delay(-1);
             }
         }
@@ -55,8 +55,8 @@ namespace PickupBot
                 }
 
                 // create applicable roles if missing
-                if(guild.Roles.All(w => w.Name != "pickup-promote")) 
-                    await guild.CreateRoleAsync("pickup-promote", GuildPermissions.None, Color.Orange, false);
+                if (guild.Roles.All(w => w.Name != "pickup-promote"))
+                    await guild.CreateRoleAsync("pickup-promote", GuildPermissions.None, Color.Orange, isHoisted: false, isMentionable: true);
             }
             catch (Exception e)
             {
@@ -70,7 +70,7 @@ namespace PickupBot
             //await LogAsync(new LogMessage(LogSeverity.Info, "OnMessageUpdated", $"{message} -> {after}"));
 
             var commandHandler = ServiceLocator.Current.GetInstance<CommandHandlerService>();
-            if(commandHandler != null)
+            if (commandHandler != null)
                 await commandHandler.MessageReceivedAsync(after);
         }
 
@@ -79,7 +79,7 @@ namespace PickupBot
             Console.WriteLine(msg.ToString());
             return Task.CompletedTask;
         }
-        
+
         private static ServiceProvider ConfigureServices()
         {
             var storageConnectionString = Environment.GetEnvironmentVariable("StorageConnectionString");
@@ -91,14 +91,16 @@ namespace PickupBot
                 .AddSingleton<CommandService>()
                 .AddSingleton<CommandHandlerService>()
                 .AddSingleton<HttpClient>()
-                .AddScoped<IAzureTableStorage<PickupQueue>>(provider => new AzureTableStorage<PickupQueue>(new AzureTableSettings(
-                    storageConnectionString,
-                    nameof(PickupQueue)
-                )))
-                .AddScoped<IAzureTableStorage<FlaggedSubscriber>>(provider => new AzureTableStorage<FlaggedSubscriber>(new AzureTableSettings(
-                    storageConnectionString,
-                    nameof(FlaggedSubscriber)
-                )))
+                .AddScoped<IAzureTableStorage<PickupQueue>>(provider => 
+                    new AzureTableStorage<PickupQueue>(
+                        new AzureTableSettings(storageConnectionString, nameof(PickupQueue))
+                    )
+                )
+                .AddScoped<IAzureTableStorage<FlaggedSubscriber>>(provider =>
+                    new AzureTableStorage<FlaggedSubscriber>(
+                        new AzureTableSettings(storageConnectionString, nameof(FlaggedSubscriber))
+                    )
+                )
                 .AddScoped<IQueueRepository, PickupQueueRepository>()
                 .AddScoped<IFlaggedSubscribersRepository, FlaggedSubscribersRepository>()
                 .BuildServiceProvider();

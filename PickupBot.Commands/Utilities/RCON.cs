@@ -1,11 +1,9 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace PickupBot.Commands
+namespace PickupBot.Commands.Utilities
 {
     // ReSharper disable once InconsistentNaming
     public static class RCON

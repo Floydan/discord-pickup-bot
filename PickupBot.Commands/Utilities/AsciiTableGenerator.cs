@@ -1,13 +1,12 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Data;
 using System.Globalization;
 using System.Linq;
 using System.Text;
 
-namespace PickupBot.Commands
+namespace PickupBot.Commands.Utilities
 {
-    public class AsciiTableGenerator
+    public static class AsciiTableGenerator
     {
         public static StringBuilder CreateAsciiTableFromDataTable(DataTable table)
         {
