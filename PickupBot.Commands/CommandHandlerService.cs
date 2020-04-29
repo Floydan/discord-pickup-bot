@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
@@ -40,37 +42,39 @@ namespace PickupBot.Commands
             var msg = await message.GetOrDownloadAsync();
 
             var messageText = msg?.Resolve();
-            
-            if(string.IsNullOrWhiteSpace(_googleTranslateApiKey) || string.IsNullOrWhiteSpace(messageText)) return;
+
+            if (string.IsNullOrWhiteSpace(_googleTranslateApiKey) || string.IsNullOrWhiteSpace(messageText)) return;
             var targetLanguage = GetTargetLanguage(reaction.Emote.Name);
 
-            if(string.IsNullOrEmpty(targetLanguage)) return;
+            if (string.IsNullOrEmpty(targetLanguage)) return;
 
-            var translation = await GetTranslation(messageText, targetLanguage) ?? await GetTranslation(messageText, targetLanguage);
+            var translations = (await GetTranslation(targetLanguage, messageText, "Original message") ?? 
+                              await GetTranslation(targetLanguage, messageText, "Original message")).ToList();
 
-            if(translation == null) return;
+            if (translations == null || !translations.Any()) return;
 
             var userName = (msg.Author as IGuildUser)?.Nickname ??
-                           (msg.Author as IGuildUser)?.Username ?? 
+                           (msg.Author as IGuildUser)?.Username ??
                            msg.Author.Username;
 
             await channel.SendMessageAsync(embed: new EmbedBuilder
             {
                 Author = new EmbedAuthorBuilder { IconUrl = msg.Author.GetAvatarUrl(), Name = userName },
-                Description = $"{translation.TranslatedText}{Environment.NewLine + Environment.NewLine}",
+                Description = $"{translations.FirstOrDefault()?.TranslatedText}{Environment.NewLine + Environment.NewLine}" +
+                              $"[{translations.LastOrDefault()?.TranslatedText} :arrow_up:]({msg.GetJumpUrl()})",
                 Color = Color.DarkBlue,
                 Footer = new EmbedFooterBuilder { Text = "Translation provided by Google Translate and pickup-bot" }
             }.Build());
         }
 
-        private async Task<TranslationResult> GetTranslation(string messageText, string targetLanguage)
+        private async Task<IEnumerable<TranslationResult>> GetTranslation(string targetLanguage, params string[] texts)
         {
             using var client = TranslationClient.CreateFromApiKey(_googleTranslateApiKey, TranslationModel.Base);
             client.Service.HttpClient.DefaultRequestHeaders.Add("referer", "127.0.0.1");
 
             try
             {
-                return await client.TranslateTextAsync(messageText, targetLanguage);
+                return await client.TranslateTextAsync(texts, targetLanguage);
             }
             catch (Exception e)
             {
@@ -106,6 +110,10 @@ namespace PickupBot.Commands
                     return "it";
                 case "🇬🇷":
                     return "el";
+                case "🇵🇹":
+                    return "pt";
+                case "🇷🇺":
+                    return "ru";
                 case "🇬🇧":
                 case "🇺🇸":
                     return "en";
@@ -117,7 +125,7 @@ namespace PickupBot.Commands
         public async Task InitializeAsync()
         {
             // Register modules that are public and inherit ModuleBase<T>.
-            
+
             await _commands.AddModulesAsync(Assembly.GetEntryAssembly(), _services);
             await _commands.AddModulesAsync(GetType().Assembly, _services);
         }
@@ -138,7 +146,7 @@ namespace PickupBot.Commands
             // Perform the execution of the command. In this method,
             // the command service will perform precondition and parsing check
             // then execute the command if one is matched.
-            await _commands.ExecuteAsync(context, argPos, _services); 
+            await _commands.ExecuteAsync(context, argPos, _services);
         }
 
         private static async Task CommandExecutedAsync(Optional<CommandInfo> command, ICommandContext context, IResult result)
