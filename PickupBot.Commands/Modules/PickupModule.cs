@@ -26,6 +26,7 @@ namespace PickupBot.Commands.Modules
         private readonly IQueueRepository _queueRepository;
         private readonly IFlaggedSubscribersRepository _flagRepository;
         private readonly string _rconPassword;
+        private readonly string _rconHost;
         private readonly int _rconPort;
 
         public PickupModule(IQueueRepository queueRepository, IFlaggedSubscribersRepository flagRepository)
@@ -33,7 +34,8 @@ namespace PickupBot.Commands.Modules
             _queueRepository = queueRepository;
             _flagRepository = flagRepository;
             _rconPassword = Environment.GetEnvironmentVariable("RCONServerPassword") ?? "";
-            _rconPort = 27960;
+            _rconHost = Environment.GetEnvironmentVariable("RCONHost") ?? "";
+            int.TryParse(Environment.GetEnvironmentVariable("RCONPort") ?? "0", out _rconPort);
         }
 
         [Command("create")]
@@ -517,8 +519,7 @@ namespace PickupBot.Commands.Modules
 
             try
             {
-                const string host = "ra3.se";
-                if (string.IsNullOrWhiteSpace(_rconPassword) || !host.Contains("ra3.se", StringComparison.OrdinalIgnoreCase)) return;
+                if (string.IsNullOrWhiteSpace(_rconPassword) || string.IsNullOrWhiteSpace(_rconHost) || _rconPort == 0) return;
 
                 var cancellationTokenSource = new CancellationTokenSource();
                 var cancellationToken = cancellationTokenSource.Token;
@@ -528,10 +529,10 @@ namespace PickupBot.Commands.Modules
                               $"^4BLUE TEAM: ^5{string.Join(", ", blueTeam.Select(GetNickname))}\"";
                 
                 // 2 minute delay message
-                AsyncUtilities.DelayAction(TimeSpan.FromMinutes(2), async t => { await RCON.UDPSendCommand(command, "ra3.se", _rconPassword, _rconPort, true); });
+                AsyncUtilities.DelayAction(TimeSpan.FromMinutes(2), async t => { await RCON.UDPSendCommand(command, _rconHost, _rconPassword, _rconPort, true); });
 
                 // 4 minute delay message
-                AsyncUtilities.DelayAction(TimeSpan.FromMinutes(4), async t => { await RCON.UDPSendCommand(command, "ra3.se", _rconPassword, _rconPort, true); });
+                AsyncUtilities.DelayAction(TimeSpan.FromMinutes(4), async t => { await RCON.UDPSendCommand(command, _rconHost, _rconPassword, _rconPort, true); });
             }
             catch (Exception e)
             {
@@ -587,23 +588,21 @@ namespace PickupBot.Commands.Modules
         }
 
         [Command("serverstatus")]
-        public async Task ServerStatus([Remainder]string host = null)
+        public async Task ServerStatus()
         {
             if (!IsInPickupChannel((IGuildChannel)Context.Channel))
                 return;
 
-            if (string.IsNullOrWhiteSpace(host)) host = "ra3.se";
-
-            if (string.IsNullOrWhiteSpace(_rconPassword) || !host.Contains("ra3.se", StringComparison.OrdinalIgnoreCase)) return;
+            if (string.IsNullOrWhiteSpace(_rconPassword) || string.IsNullOrWhiteSpace(_rconHost) || _rconPort == 0) return;
 
             try
             {
-                var response = await RCON.UDPSendCommand("status", host, _rconPassword, _rconPort);
+                var response = await RCON.UDPSendCommand("status", _rconHost, _rconPassword, _rconPort);
                 var serverStatus = new ServerStatus(response);
 
                 var embed = new EmbedBuilder
                 {
-                    Title = $"Server status for {host}",
+                    Title = $"Server status for {_rconHost}",
                     Description = $"**Map:** _{serverStatus.Map} _" +
                                   $"{Environment.NewLine}" +
                                   "**Players**" +
@@ -636,18 +635,15 @@ namespace PickupBot.Commands.Modules
         {
             if (!IsInPickupChannel((IGuildChannel)Context.Channel))
                 return;
+            
+            if (string.IsNullOrWhiteSpace(_rconPassword) || string.IsNullOrWhiteSpace(_rconHost) || _rconPort == 0) return;
 
-            var host = "ra3.se";
-
-            if (string.IsNullOrWhiteSpace(_rconPassword) || !host.Contains("ra3.se", StringComparison.OrdinalIgnoreCase)) return;
-
-            var clientInfo = new ClientInfo(await RCON.UDPSendCommand($"dumpuser {player}", host, _rconPassword, _rconPort));
+            var clientInfo = new ClientInfo(await RCON.UDPSendCommand($"dumpuser {player}", _rconHost, _rconPassword, _rconPort));
 
             await ReplyAsync(
                 $"```{Environment.NewLine}" +
                 $"{clientInfo.ToTable()}" +
-                $"{Environment.NewLine}```"
-                );
+                $"{Environment.NewLine}```");
         }
 
         private async Task NotifyUsers(PickupQueue queue, string serverName, params SocketGuildUser[] users)
