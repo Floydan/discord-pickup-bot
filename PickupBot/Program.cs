@@ -54,6 +54,10 @@ namespace PickupBot
                 // create applicable roles if missing
                 if (guild.Roles.All(w => w.Name != "pickup-promote"))
                     await guild.CreateRoleAsync("pickup-promote", GuildPermissions.None, Color.Orange, isHoisted: false, isMentionable: true);
+
+                // create voice channel category if missing
+                if (guild.CategoryChannels.FirstOrDefault(c => c.Name.Equals("Pickup voice channels", StringComparison.OrdinalIgnoreCase)) == null)
+                    await guild.CreateCategoryChannelAsync("Pickup voice channels");
             }
             catch (Exception e)
             {
@@ -88,7 +92,7 @@ namespace PickupBot
                 .AddSingleton<CommandService>()
                 .AddSingleton<CommandHandlerService>()
                 .AddSingleton<HttpClient>()
-                .AddScoped<IAzureTableStorage<PickupQueue>>(provider => 
+                .AddScoped<IAzureTableStorage<PickupQueue>>(provider =>
                     new AzureTableStorage<PickupQueue>(
                         new AzureTableSettings(storageConnectionString, nameof(PickupQueue))
                     )

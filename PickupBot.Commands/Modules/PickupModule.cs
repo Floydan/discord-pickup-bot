@@ -11,6 +11,7 @@ using System.Threading.Tasks;
 using Discord;
 using Discord.Commands;
 using Discord.WebSocket;
+using PickupBot.Commands.Extensions;
 using PickupBot.Commands.Models;
 using PickupBot.Commands.Utilities;
 using PickupBot.Data.Models;
@@ -41,9 +42,10 @@ namespace PickupBot.Commands.Modules
         [Command("create")]
         [Summary("Creates a pickup queue")]
         public async Task Create(
-            [Name("Queue name"), Summary("Queue name")] string queueName,
-            [Name("Team size"), Summary("Team size (how many are in each team **NOT** total number of players)")]
-            int? teamSize = null)
+            [Name("Queue name")] string queueName,
+            [Name("Team size")]
+            int? teamSize = null,
+            [Remainder, Name("Operator flags")] string operators = "")
         {
             if (!IsInPickupChannel((IGuildChannel)Context.Channel))
                 return;
@@ -57,6 +59,8 @@ namespace PickupBot.Commands.Modules
             if (!await VerifyUserFlaggedStatus())
                 return;
 
+            var ops = OperatorParser.Parse(operators);
+
             //find queue with name {queueName}
             var queue = await _queueRepository.FindQueue(queueName, Context.Guild.Id.ToString());
 
@@ -65,6 +69,10 @@ namespace PickupBot.Commands.Modules
                 await Context.Channel.SendMessageAsync($"`Queue with the name '{queueName}' already exists!`");
                 return;
             }
+
+            var rconEnabled = ops?.ContainsKey("-rcon") ?? true;
+            if (ops?.ContainsKey("-norcon") == true)
+                rconEnabled = false;
 
             await _queueRepository.AddQueue(new PickupQueue(Context.Guild.Id.ToString(), queueName)
             {
@@ -75,6 +83,8 @@ namespace PickupBot.Commands.Modules
                 Created = DateTime.UtcNow,
                 Updated = DateTime.UtcNow,
                 TeamSize = teamSize.Value,
+                IsCoop = ops?.ContainsKey("-coop") ?? false,
+                Rcon = rconEnabled,
                 Subscribers = new List<Subscriber> { new Subscriber { Id = Context.User.Id, Name = GetNickname(Context.User) } }
             });
 
@@ -113,7 +123,9 @@ namespace PickupBot.Commands.Modules
                     Updated = DateTime.UtcNow,
                     TeamSize = queue.TeamSize,
                     Subscribers = queue.Subscribers,
-                    WaitingList = queue.WaitingList
+                    WaitingList = queue.WaitingList,
+                    IsCoop = queue.IsCoop,
+                    Rcon = queue.Rcon
                 };
 
                 var result = await _queueRepository.AddQueue(newQueue);
@@ -319,7 +331,12 @@ namespace PickupBot.Commands.Modules
             var description = string.Join(
                 Environment.NewLine,
                 ordered.Select((q, i) =>
-                    $"{i + 1}. **{q.Name}** by _{q.OwnerName}_ [{q.Subscribers.Count}/{q.MaxInQueue}] - {ParseSubscribers(q)} {(q.WaitingList.Any() ? $"- waiting: **{q.WaitingList.Count}**" : "")}"
+                    $"**{q.Name}** by _{q.OwnerName}_ {(q.IsCoop ? "(_coop_)" : "")}{Environment.NewLine}" +
+                    $"```{Environment.NewLine}" +
+                    $"[{q.Subscribers.Count}/{q.MaxInQueue}] - {ParseSubscribers(q)} {Environment.NewLine}" +
+                    $"{Environment.NewLine}```"+
+                    $"{(q.WaitingList.Any() ? $"In waitlist: **{q.WaitingList.Count}**{Environment.NewLine}" : "")}" +
+                    $"`!add {q.Name}` to join"
                 ));
 
             embed = new EmbedBuilder()
@@ -471,16 +488,15 @@ namespace PickupBot.Commands.Modules
 
             var pickupCategory = (ICategoryChannel)Context.Guild.CategoryChannels.FirstOrDefault(c =>
                               c.Name.Equals("Pickup voice channels", StringComparison.OrdinalIgnoreCase))
-                           ?? await Context.Guild.CreateCategoryChannelAsync("Pickup voice channels",
-                               properties => properties.Position = int.MaxValue);
-
+                           ?? await Context.Guild.CreateCategoryChannelAsync("Pickup voice channels");
+            
             var vcRedTeamName = $"{queue.Name} \uD83D\uDD34";
             var vcBlueTeamName = $"{queue.Name} \uD83D\uDD35";
 
             var vcRed = (IVoiceChannel)Context.Guild.VoiceChannels.FirstOrDefault(c => c.Name.Equals(vcRedTeamName, StringComparison.OrdinalIgnoreCase))
                           ?? await Context.Guild.CreateVoiceChannelAsync(vcRedTeamName, properties => properties.CategoryId = pickupCategory.Id);
 
-            var vcBlue = (IVoiceChannel)Context.Guild.VoiceChannels.FirstOrDefault(c => c.Name.Equals(vcBlueTeamName, StringComparison.OrdinalIgnoreCase))
+            var vcBlue = queue.IsCoop ? null : (IVoiceChannel)Context.Guild.VoiceChannels.FirstOrDefault(c => c.Name.Equals(vcBlueTeamName, StringComparison.OrdinalIgnoreCase))
                           ?? await Context.Guild.CreateVoiceChannelAsync(vcBlueTeamName, properties => properties.CategoryId = pickupCategory.Id);
 
             var halfPoint = (int)Math.Ceiling(queue.Subscribers.Count / (double)2);
@@ -488,12 +504,12 @@ namespace PickupBot.Commands.Modules
             var rnd = new Random();
             var users = queue.Subscribers.OrderBy(s => rnd.Next()).Select(u => Context.Guild.GetUser(Convert.ToUInt64(u.Id))).ToList();
 
-            var redTeam = users.Take(halfPoint).ToList();
-            var blueTeam = users.Skip(halfPoint).ToList();
+            var redTeam = queue.IsCoop ? users : users.Take(halfPoint).ToList();
+            var blueTeam = queue.IsCoop ? Enumerable.Empty<SocketGuildUser>() : users.Skip(halfPoint).ToList();
 
             await ReplyAsync(embed: new EmbedBuilder
             {
-                Title = "Red Team \uD83D\uDD34",
+                Title = $"{(queue.IsCoop ? "Coop" : "Red")} Team \uD83D\uDD34",
                 Description = "**Teammates:**" +
                               $"{Environment.NewLine}" +
                               $"{string.Join(Environment.NewLine, redTeam.Select(GetMention))}" +
@@ -504,19 +520,24 @@ namespace PickupBot.Commands.Modules
                 Color = Color.Red
             }.Build());
 
-            await ReplyAsync(embed: new EmbedBuilder
+            if (!blueTeam.IsNullOrEmpty())
             {
-                Title = "Blue Team \uD83D\uDD35",
-                Description = "**Teammates:**" +
-                              $"{Environment.NewLine}" +
-                              $"{string.Join(Environment.NewLine, blueTeam.Select(GetMention))}" +
-                              $"{Environment.NewLine}{Environment.NewLine}" +
-                              $"Your designated voice channel:" +
-                              $"{Environment.NewLine}" +
-                              $"[<#{vcBlue.Id}>](https://discordapp.com/channels/{Context.Guild.Id}/{vcBlue.Id})",
-                Color = Color.Blue
-            }.Build());
+                await ReplyAsync(embed: new EmbedBuilder
+                {
+                    Title = "Blue Team \uD83D\uDD35",
+                    Description = "**Teammates:**" +
+                                  $"{Environment.NewLine}" +
+                                  $"{string.Join(Environment.NewLine, blueTeam.Select(GetMention))}" +
+                                  $"{Environment.NewLine}{Environment.NewLine}" +
+                                  $"Your designated voice channel:" +
+                                  $"{Environment.NewLine}" +
+                                  $"[<#{vcBlue.Id}>](https://discordapp.com/channels/{Context.Guild.Id}/{vcBlue.Id})",
+                    Color = Color.Blue
+                }.Build());
+            }
 
+            if(!queue.Rcon) return;
+            
             try
             {
                 if (string.IsNullOrWhiteSpace(_rconPassword) || string.IsNullOrWhiteSpace(_rconHost) || _rconPort == 0) return;

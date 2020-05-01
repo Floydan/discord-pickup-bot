@@ -27,6 +27,9 @@ namespace PickupBot.Data.Models
         public int TeamSize { get; set; }
         public DateTime Created { get; set; }
         public DateTime Updated { get; set; }
+        public bool IsCoop { get; set; }
+        public bool Rcon { get; set; }
+
         public string SubscribersJson
         {
             get => JsonConvert.SerializeObject(Subscribers ?? Enumerable.Empty<Subscriber>(), Formatting.None);
@@ -47,6 +50,6 @@ namespace PickupBot.Data.Models
         public List<Subscriber> WaitingList { get; set; }
 
         public decimal Readiness => Math.Ceiling((decimal)Subscribers.Count / MaxInQueue * 100);
-        public int MaxInQueue => TeamSize * 2;
+        public int MaxInQueue => IsCoop ? TeamSize : TeamSize * 2;
     }
 }
