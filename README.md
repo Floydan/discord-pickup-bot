@@ -24,7 +24,8 @@ Then add this to the json file substituting the values
                 "RCONHost": "ip/host",
                 "RCONPort": "portnumber",
                 "RCONPassword": "password",
-                "GoogleTranslateAPIKey": "Google API Key"
+                "GoogleTranslateAPIKey": "Google API Key",
+                "CommandPrefix": "!",
             }
         }
     }
@@ -35,6 +36,8 @@ Then add this to the json file substituting the values
 - Google translate API Key enables the bot to translate messages in discord
   + To translate a message just add a **reaction** in the form of a country flag that represents the language you wish the message to be translated to.
   + Supported languages are the Scandinavian languages, major european languages and russian.
+- CommandPrefix sets what character/characters mus precede a command
+  + This is very useful to have a different `CommandPrefix` for different environments.
 
 The `settings.job` can be ignored since this discord bot needs to be run continuously.
 
