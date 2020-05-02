@@ -75,7 +75,7 @@ namespace PickupBot.Commands
             {
                 var status = await RCON.UDPSendCommand("status", _rconHost, _rconPassword, _rconPort);
                 var serverStatus = new ServerStatus(status);
-                var activity = new Game($"Pickup bot | Active: {serverStatus.Players.Count}",
+                var activity = new Game($"{serverStatus.Players.Count}",
                     ActivityType.Playing,
                     ActivityProperties.Play);
 
