@@ -1,16 +1,14 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
-using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Discord;
 using Discord.Commands;
 using Discord.WebSocket;
-using Google.Apis.Auth.OAuth2;
-using Google.Cloud.Translation.V2;
 using Microsoft.Extensions.DependencyInjection;
+using PickupBot.Commands.Models;
 using PickupBot.Commands.Utilities;
+using PickupBot.Translation.Services;
 
 namespace PickupBot.Commands
 {
@@ -21,14 +19,24 @@ namespace PickupBot.Commands
         private readonly IServiceProvider _services;
         private readonly string _commandPrefix;
         private readonly string _googleTranslateApiKey;
+        private readonly ITranslationService _translationService;
+        private IActivity _currentActivity;
+        private readonly string _rconPassword;
+        private readonly string _rconHost;
+        private readonly int _rconPort;
 
         public CommandHandlerService(IServiceProvider services)
         {
             _commands = services.GetRequiredService<CommandService>();
             _discord = services.GetRequiredService<DiscordSocketClient>();
+            _translationService = services.GetService<ITranslationService>();
             _services = services;
             _commandPrefix = Environment.GetEnvironmentVariable("CommandPrefix") ?? "!";
             _googleTranslateApiKey = Environment.GetEnvironmentVariable("GoogleTranslateAPIKey") ?? "";
+
+            _rconPassword = Environment.GetEnvironmentVariable("RCONServerPassword") ?? "";
+            _rconHost = Environment.GetEnvironmentVariable("RCONHost") ?? "";
+            int.TryParse(Environment.GetEnvironmentVariable("RCONPort") ?? "0", out _rconPort);
 
             // Hook CommandExecuted to handle post-command-execution logic.
             _commands.CommandExecuted += CommandExecutedAsync;
@@ -36,21 +44,66 @@ namespace PickupBot.Commands
             // if it qualifies as a command.
             _discord.MessageReceived += MessageReceivedAsync;
             _discord.ReactionAdded += ReactionAddedAsync;
+
+            GetActivityStats().GetAwaiter().GetResult();
+            UpdateActvity();
+        }
+
+        private void UpdateActvity()
+        {
+            if (string.IsNullOrWhiteSpace(_rconPassword) ||
+               string.IsNullOrWhiteSpace(_rconHost) ||
+               _rconPort <= 0) return;
+
+            _currentActivity = _discord.Activity;
+
+            AsyncUtilities.DelayAction(TimeSpan.FromSeconds(15), async _ =>
+            {
+                await _discord.SetActivityAsync(_currentActivity);
+                UpdateActvity();
+            });
+
+        }
+
+        private async Task GetActivityStats()
+        {
+            if (string.IsNullOrWhiteSpace(_rconPassword) ||
+                string.IsNullOrWhiteSpace(_rconHost) ||
+                _rconPort <= 0) return;
+
+            try
+            {
+                var status = await RCON.UDPSendCommand("status", _rconHost, _rconPassword, _rconPort);
+                var serverStatus = new ServerStatus(status);
+                var activity = new Game($"Pickup bot | Active: {serverStatus.Players.Count}",
+                    ActivityType.Playing,
+                    ActivityProperties.Play);
+
+                await _discord.SetActivityAsync(activity);
+
+                _currentActivity = activity;
+
+                AsyncUtilities.DelayAction(TimeSpan.FromMinutes(1), async _ => { await GetActivityStats(); });
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e);
+            }
         }
 
         private async Task ReactionAddedAsync(Cacheable<IUserMessage, ulong> message, ISocketMessageChannel channel, SocketReaction reaction)
         {
+            if (_translationService == null) return;
+
             var msg = await message.GetOrDownloadAsync();
 
             var messageText = msg?.Resolve();
+            var targetLanguage = _translationService.GetTargetLanguage(reaction.Emote.Name);
 
-            if (string.IsNullOrWhiteSpace(_googleTranslateApiKey) || string.IsNullOrWhiteSpace(messageText)) return;
-            var targetLanguage = GetTargetLanguage(reaction.Emote.Name);
+            if (string.IsNullOrWhiteSpace(messageText) || string.IsNullOrEmpty(targetLanguage)) return;
 
-            if (string.IsNullOrEmpty(targetLanguage)) return;
-
-            var translations = (await GetTranslation(targetLanguage, messageText, "Original message") ?? 
-                              await GetTranslation(targetLanguage, messageText, "Original message")).ToList();
+            var translations = (await _translationService.Translate(targetLanguage, messageText, "Original message") ??
+                              await _translationService.Translate(targetLanguage, messageText, "Original message")).ToList();
 
             if (!translations.Any()) return;
 
@@ -64,66 +117,14 @@ namespace PickupBot.Commands
                 Description = $"{translations.FirstOrDefault()?.TranslatedText}{Environment.NewLine + Environment.NewLine}" +
                               $"[{translations.LastOrDefault()?.TranslatedText} :arrow_up:]({msg.GetJumpUrl()})",
                 Color = Color.DarkBlue,
-                Footer = new EmbedFooterBuilder { Text = $"Translation provided by Google Translate and pickup-bot.{Environment.NewLine}" +
-                                                         $"This message will self destruct in 30 seconds." }
+                Footer = new EmbedFooterBuilder
+                {
+                    Text = $"Translation provided by Google Translate and pickup-bot.{Environment.NewLine}" +
+                                                         $"This message will self destruct in 30 seconds."
+                }
             }.Build());
 
             AsyncUtilities.DelayAction(TimeSpan.FromSeconds(30), async t => { await sentMessage.DeleteAsync(); });
-        }
-
-        private async Task<IEnumerable<TranslationResult>> GetTranslation(string targetLanguage, params string[] texts)
-        {
-            using var client = TranslationClient.CreateFromApiKey(_googleTranslateApiKey, TranslationModel.Base);
-            client.Service.HttpClient.DefaultRequestHeaders.Add("referer", "127.0.0.1");
-
-            try
-            {
-                return await client.TranslateTextAsync(texts, targetLanguage);
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine(e);
-
-                return null;
-            }
-        }
-
-        private static string GetTargetLanguage(string emote)
-        {
-            switch (emote)
-            {
-                case "🇸🇪":
-                    return "sv";
-                case "🇫🇷":
-                    return "fr";
-                case "🇩🇪":
-                    return "de";
-                case "🇳🇱":
-                    return "nl";
-                case "🇳🇴":
-                    return "no";
-                case "🇫🇮":
-                    return "fi";
-                case "🇩🇰":
-                    return "da";
-                case "🇵🇱":
-                    return "pl";
-                case "🇪🇸":
-                    return "es";
-                case "🇮🇹":
-                    return "it";
-                case "🇬🇷":
-                    return "el";
-                case "🇵🇹":
-                    return "pt";
-                case "🇷🇺":
-                    return "ru";
-                case "🇬🇧":
-                case "🇺🇸":
-                    return "en";
-                default:
-                    return null;
-            }
         }
 
         public async Task InitializeAsync()

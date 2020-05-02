@@ -9,6 +9,7 @@ using Microsoft.Extensions.DependencyInjection;
 using PickupBot.Commands;
 using PickupBot.Data.Models;
 using PickupBot.Data.Repositories;
+using PickupBot.Translation.Services;
 
 namespace PickupBot
 {
@@ -35,6 +36,14 @@ namespace PickupBot
 
             // Here we initialize the logic required to register our commands.
             await services.GetRequiredService<CommandHandlerService>().InitializeAsync();
+
+            //await client.SetGameAsync("Pickup bot", null, ActivityType.Playing);
+            var prefix = Environment.GetEnvironmentVariable("CommandPrefix") ?? "!";
+            await client.SetActivityAsync(
+                new Game($"Pickup bot | {prefix}help",
+                    ActivityType.Playing,
+                    ActivityProperties.Play,
+                    $"Current players on ra3.se: 3"));
 
             await Task.Delay(-1);
         }
@@ -90,6 +99,7 @@ namespace PickupBot
             return new ServiceCollection()
                 .AddSingleton<DiscordSocketClient>(provider => new DiscordSocketClient(discordSocketConfig))
                 .AddSingleton<CommandService>()
+                .AddSingleton<ITranslationService, GoogleTranslationService>()
                 .AddSingleton<CommandHandlerService>()
                 .AddSingleton<HttpClient>()
                 .AddScoped<IAzureTableStorage<PickupQueue>>(provider =>
