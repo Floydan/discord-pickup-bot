@@ -333,30 +333,23 @@ namespace PickupBot.Commands.Modules
             }
 
             var ordered = pickupQueues.OrderByDescending(w => w.Readiness);
-
-            var description = string.Join(
-                $"{Environment.NewLine}---------------------------{Environment.NewLine}",
-                ordered.Select((q, i) =>
-                    $"**{q.Name}** by _{q.OwnerName}_ {(q.IsCoop ? "(_coop_)" : "")}{Environment.NewLine}" +
-                    $"```{Environment.NewLine}" +
-                    $"[{q.Subscribers.Count}/{q.MaxInQueue}] - {ParseSubscribers(q)} {Environment.NewLine}" +
-                    $"{Environment.NewLine}```"+
-                    $"{(q.WaitingList.Any() ? $"In waitlist: **{q.WaitingList.Count}**{Environment.NewLine}" : "")}" +
-                    $"`!add \"{q.Name}\"` to join" +
-                    $"{Environment.NewLine}" +
-                    $"{(!q.Games.IsNullOrEmpty() ? $"**Game(s): ** _{string.Join(", ", q.Games)}_" : "")}" +
-                    $"{Environment.NewLine}" +
-                    $"{(!string.IsNullOrWhiteSpace(q.Host) ? $"**Server**: _{q.Host ?? "ra3.se"}:{(q.Port > 0 ? q.Port : 27960)}_" : "")}" +
-                    $"{Environment.NewLine}"
-                ));
-
-            embed = new EmbedBuilder()
+            foreach (var q in ordered)
             {
-                Title = "Active queues",
-                Description = description,
-                Color = Color.Orange
-            }.Build();
-            await Context.Channel.SendMessageAsync(embed: embed);
+                embed = new EmbedBuilder()
+                {
+                    Title = q.Name,
+                    Description = $"`!add \"{q.Name}\"` to join!{Environment.NewLine}{Environment.NewLine}" +
+                                  $"Created by _{q.OwnerName}_ {(q.IsCoop ? "(_coop_)" : "")}{Environment.NewLine}" +
+                                  $"```{Environment.NewLine}" +
+                                  $"[{q.Subscribers.Count}/{q.MaxInQueue}] - {ParseSubscribers(q)} {Environment.NewLine}" +
+                                  $"{Environment.NewLine}```" +
+                                  $"{(q.WaitingList.Any() ? $"In waitlist: **{q.WaitingList.Count}**{Environment.NewLine}" : "")}" +
+                                  $"{(!q.Games.IsNullOrEmpty() ? $"{Environment.NewLine}**Game(s): ** _{string.Join(", ", q.Games)}_" : "")}" +
+                                  $"{(!string.IsNullOrWhiteSpace(q.Host) ? $"{Environment.NewLine}**Server**: _{q.Host ?? "ra3.se"}:{(q.Port > 0 ? q.Port : 27960)}_" : "")}",
+                    Color = Color.Orange
+                }.Build();
+                await Context.Channel.SendMessageAsync(embed: embed);
+            }
         }
 
         [Command("waitlist")]
@@ -504,7 +497,7 @@ namespace PickupBot.Commands.Modules
             var pickupCategory = (ICategoryChannel)Context.Guild.CategoryChannels.FirstOrDefault(c =>
                               c.Name.Equals("Pickup voice channels", StringComparison.OrdinalIgnoreCase))
                            ?? await Context.Guild.CreateCategoryChannelAsync("Pickup voice channels");
-            
+
             var vcRedTeamName = $"{queue.Name} \uD83D\uDD34";
             var vcBlueTeamName = $"{queue.Name} \uD83D\uDD35";
 
@@ -551,11 +544,11 @@ namespace PickupBot.Commands.Modules
                 }.Build());
             }
 
-            if(!queue.Rcon) return;
+            if (!queue.Rcon) return;
             if (!string.IsNullOrWhiteSpace(queue.Host) &&
                 !queue.Host.Equals(_rconHost, StringComparison.OrdinalIgnoreCase))
                 return;
-            
+
             try
             {
                 if (string.IsNullOrWhiteSpace(_rconPassword) || string.IsNullOrWhiteSpace(_rconHost) || _rconPort == 0) return;
@@ -566,7 +559,7 @@ namespace PickupBot.Commands.Modules
                 var command = $"say \"^2Pickup '^3{queue.Name}^2' has started! " +
                               $"^1RED TEAM: ^5{string.Join(", ", redTeam.Select(GetNickname))} ^7- " +
                               $"^4BLUE TEAM: ^5{string.Join(", ", blueTeam.Select(GetNickname))}\"";
-                
+
                 // 2 minute delay message
                 AsyncUtilities.DelayAction(TimeSpan.FromMinutes(2), async t => { await RCON.UDPSendCommand(command, _rconHost, _rconPassword, _rconPort, true); });
 
@@ -676,7 +669,7 @@ namespace PickupBot.Commands.Modules
         {
             if (!IsInPickupChannel((IGuildChannel)Context.Channel))
                 return;
-            
+
             if (string.IsNullOrWhiteSpace(_rconPassword) || string.IsNullOrWhiteSpace(_rconHost) || _rconPort == 0) return;
 
             var clientInfo = new ClientInfo(await RCON.UDPSendCommand($"dumpuser {player}", _rconHost, _rconPassword, _rconPort));
