@@ -17,7 +17,10 @@ namespace PickupBot.Commands.Utilities
             "-gamemode",
             "-gmode",
             "-rcon",
-            "-norcon"
+            "-norcon",
+            "-host",
+            "-port",
+            "-game"
         };
         private static readonly Regex OperatorsRegex = new Regex(@"(?<operator>-\w+)+[:]?(?<value>[^-]*)");
 

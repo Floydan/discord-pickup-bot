@@ -29,6 +29,8 @@ namespace PickupBot.Data.Models
         public DateTime Updated { get; set; }
         public bool IsCoop { get; set; }
         public bool Rcon { get; set; }
+        public string Host { get; set; }
+        public int Port { get; set; }
 
         public string SubscribersJson
         {
@@ -46,8 +48,17 @@ namespace PickupBot.Data.Models
                     TypeNameAssemblyFormatHandling = TypeNameAssemblyFormatHandling.Full
                 });
         }
+        public string GamesListJson
+        {
+            get => JsonConvert.SerializeObject(Games ?? Enumerable.Empty<string>(), Formatting.None);
+            set => Games = string.IsNullOrWhiteSpace(value) ? Enumerable.Empty<string>() : JsonConvert.DeserializeObject<IEnumerable<string>>(value, new JsonSerializerSettings {
+                    TypeNameHandling = TypeNameHandling.Auto,
+                    TypeNameAssemblyFormatHandling = TypeNameAssemblyFormatHandling.Full
+                });
+        }
         public List<Subscriber> Subscribers { get; set; }
         public List<Subscriber> WaitingList { get; set; }
+        public IEnumerable<string> Games { get; set; }
 
         public decimal Readiness => Math.Ceiling((decimal)Subscribers.Count / MaxInQueue * 100);
         public int MaxInQueue => IsCoop ? TeamSize : TeamSize * 2;

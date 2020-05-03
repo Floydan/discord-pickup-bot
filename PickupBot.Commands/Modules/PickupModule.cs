@@ -85,7 +85,10 @@ namespace PickupBot.Commands.Modules
                 TeamSize = teamSize.Value,
                 IsCoop = ops?.ContainsKey("-coop") ?? false,
                 Rcon = rconEnabled,
-                Subscribers = new List<Subscriber> { new Subscriber { Id = Context.User.Id, Name = GetNickname(Context.User) } }
+                Subscribers = new List<Subscriber> { new Subscriber { Id = Context.User.Id, Name = GetNickname(Context.User) } },
+                Host = ops?.ContainsKey("-host") ?? false ? ops["-host"]?.FirstOrDefault() : null,
+                Port = int.Parse((ops?.ContainsKey("-port") ?? false ? ops["-port"]?.FirstOrDefault() : null) ?? "0"),
+                Games = ops?.ContainsKey("-game") ?? false ? ops["-game"] : Enumerable.Empty<string>(),
             });
 
             await Context.Channel.SendMessageAsync($"`Queue '{queueName}' was added by {GetNickname(Context.User)}`");
@@ -125,7 +128,10 @@ namespace PickupBot.Commands.Modules
                     Subscribers = queue.Subscribers,
                     WaitingList = queue.WaitingList,
                     IsCoop = queue.IsCoop,
-                    Rcon = queue.Rcon
+                    Rcon = queue.Rcon,
+                    Host = queue.Host,
+                    Port = queue.Port,
+                    Games = queue.Games
                 };
 
                 var result = await _queueRepository.AddQueue(newQueue);
@@ -329,14 +335,19 @@ namespace PickupBot.Commands.Modules
             var ordered = pickupQueues.OrderByDescending(w => w.Readiness);
 
             var description = string.Join(
-                Environment.NewLine,
+                $"{Environment.NewLine}---------------------------{Environment.NewLine}",
                 ordered.Select((q, i) =>
                     $"**{q.Name}** by _{q.OwnerName}_ {(q.IsCoop ? "(_coop_)" : "")}{Environment.NewLine}" +
                     $"```{Environment.NewLine}" +
                     $"[{q.Subscribers.Count}/{q.MaxInQueue}] - {ParseSubscribers(q)} {Environment.NewLine}" +
                     $"{Environment.NewLine}```"+
                     $"{(q.WaitingList.Any() ? $"In waitlist: **{q.WaitingList.Count}**{Environment.NewLine}" : "")}" +
-                    $"`!add {q.Name}` to join"
+                    $"`!add \"{q.Name}\"` to join" +
+                    $"{Environment.NewLine}" +
+                    $"{(!q.Games.IsNullOrEmpty() ? $"**Game(s): ** _{string.Join(", ", q.Games)}_" : "")}" +
+                    $"{Environment.NewLine}" +
+                    $"{(!string.IsNullOrWhiteSpace(q.Host) ? $"**Server**: _{q.Host ?? "ra3.se"}:{(q.Port > 0 ? q.Port : 27960)}_" : "")}" +
+                    $"{Environment.NewLine}"
                 ));
 
             embed = new EmbedBuilder()
@@ -461,8 +472,12 @@ namespace PickupBot.Commands.Modules
                                   $"{Environment.NewLine}" +
                                   $"**Team size**: {queue.TeamSize}" +
                                   $"{Environment.NewLine}{Environment.NewLine}" +
-                                  $"Just run `!add {queue.Name}` in channel <#{Context.Channel.Id}> on the **{Context.Guild.Name}** server to join!"
-                                  /*$"voice channel [<#{voiceChannel?.Id}>](https://discordapp.com/channels/{Context.Guild.Id}/{voiceChannel?.Id})"*/,
+                                  $"Just run `!add \"{queue.Name}\"` in channel <#{Context.Channel.Id}> on the **{Context.Guild.Name}** server to join!" +
+                                  $"{Environment.NewLine}" +
+                                  $"{(!queue.Games.IsNullOrEmpty() ? $"**Game(s): ** _{string.Join(", ", queue.Games)}_" : "")}" +
+                                  $"{Environment.NewLine}" +
+                                  $"{(!string.IsNullOrWhiteSpace(queue.Host) ? $"**Server**: _{queue.Host ?? "ra3.se"}:{(queue.Port > 0 ? queue.Port : 27960)}_" : "")}" +
+                                  $"{Environment.NewLine}",
                     Author = new EmbedAuthorBuilder { Name = "pickup-bot" },
                     Color = Color.Orange
                 }.Build();
@@ -537,6 +552,9 @@ namespace PickupBot.Commands.Modules
             }
 
             if(!queue.Rcon) return;
+            if (!string.IsNullOrWhiteSpace(queue.Host) &&
+                !queue.Host.Equals(_rconHost, StringComparison.OrdinalIgnoreCase))
+                return;
             
             try
             {
@@ -603,7 +621,9 @@ namespace PickupBot.Commands.Modules
                 Title = "Server addresses",
                 Description = "ra3.se" +
                               $"{Environment.NewLine}" +
-                              "pickup.ra3.se",
+                              "pickup.ra3.se" +
+                              $"{Environment.NewLine}**US West**{Environment.NewLine}" +
+                              $"70.190.244.70:27950",
                 Color = Color.Green
             }.Build());
         }
