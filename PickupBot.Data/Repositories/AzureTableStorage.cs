@@ -60,6 +60,32 @@ namespace PickupBot.Data.Repositories
             return results;
         }
         
+        public async Task<List<T>> GetTopListByField(string partitionKey, string propertyName, int count)
+        {
+            //Table
+            var table = await GetTableAsync();
+
+            //Query
+            var query = new TableQuery<T>()
+                .Where(TableQuery.GenerateFilterCondition("PartitionKey", QueryComparisons.Equal, partitionKey))
+                .OrderBy(propertyName)
+                .Take(count);
+
+            var results = new List<T>();
+            TableContinuationToken continuationToken = null;
+            do
+            {
+                var queryResults = await table.ExecuteQuerySegmentedAsync(query, continuationToken);
+
+                continuationToken = queryResults.ContinuationToken;
+
+                results.AddRange(queryResults.Results);
+
+            } while (continuationToken != null);
+
+            return results;
+        }
+        
         public async Task<T> GetItem(string partitionKey, string rowKey)
         {
             //Table
@@ -81,6 +107,32 @@ namespace PickupBot.Data.Repositories
 
             //Operation
             var operation = TableOperation.Insert(item);
+
+            //Execute
+            var result = await table.ExecuteAsync(operation);
+            return result.Result is PickupQueue;
+        }
+        
+        public async Task<bool> InsertOrReplace(T item)
+        {
+            //Table
+            var table = await GetTableAsync();
+
+            //Operation
+            var operation = TableOperation.InsertOrReplace(item);
+
+            //Execute
+            var result = await table.ExecuteAsync(operation);
+            return result.Result is PickupQueue;
+        }
+        
+        public async Task<bool> InsertOrMerge(T item)
+        {
+            //Table
+            var table = await GetTableAsync();
+
+            //Operation
+            var operation = TableOperation.InsertOrMerge(item);
 
             //Execute
             var result = await table.ExecuteAsync(operation);

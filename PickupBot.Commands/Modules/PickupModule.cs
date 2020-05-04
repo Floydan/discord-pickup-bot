@@ -26,14 +26,19 @@ namespace PickupBot.Commands.Modules
     {
         private readonly IQueueRepository _queueRepository;
         private readonly IFlaggedSubscribersRepository _flagRepository;
+        private readonly ISubscriberActivitiesRepository _activitiesRepository;
         private readonly string _rconPassword;
         private readonly string _rconHost;
         private readonly int _rconPort;
 
-        public PickupModule(IQueueRepository queueRepository, IFlaggedSubscribersRepository flagRepository)
+        public PickupModule(
+            IQueueRepository queueRepository, 
+            IFlaggedSubscribersRepository flagRepository,
+            ISubscriberActivitiesRepository activitiesRepository)
         {
             _queueRepository = queueRepository;
             _flagRepository = flagRepository;
+            _activitiesRepository = activitiesRepository;
             _rconPassword = Environment.GetEnvironmentVariable("RCONServerPassword") ?? "";
             _rconHost = Environment.GetEnvironmentVariable("RCONHost") ?? "";
             int.TryParse(Environment.GetEnvironmentVariable("RCONPort") ?? "0", out _rconPort);
@@ -69,6 +74,10 @@ namespace PickupBot.Commands.Modules
                 await Context.Channel.SendMessageAsync($"`Queue with the name '{queueName}' already exists!`");
                 return;
             }
+
+            var activity = await _activitiesRepository.Find((IGuildUser) Context.User);
+            activity.PickupCreate += 1;
+            await _activitiesRepository.Update(activity);
 
             var rconEnabled = ops?.ContainsKey("-rcon") ?? true;
             if (ops?.ContainsKey("-norcon") == true)
@@ -184,6 +193,10 @@ namespace PickupBot.Commands.Modules
                 await Context.Channel.SendMessageAsync($"`{queue.Name} - {ParseSubscribers(queue)}`");
                 return;
             }
+
+            var activity = await _activitiesRepository.Find((IGuildUser) Context.User);
+            activity.PickupAdd += 1;
+            await _activitiesRepository.Update(activity);
 
             if (queue.Subscribers.Count >= queue.MaxInQueue)
             {
@@ -412,6 +425,10 @@ namespace PickupBot.Commands.Modules
         {
             if (!IsInPickupChannel((IGuildChannel)Context.Channel))
                 return;
+            
+            var activity = await _activitiesRepository.Find((IGuildUser) Context.User);
+            activity.PickupPromote += 1;
+            await _activitiesRepository.Update(activity);
 
             PickupQueue queue = null;
             if (!string.IsNullOrWhiteSpace(queueName))

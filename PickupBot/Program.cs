@@ -112,8 +112,14 @@ namespace PickupBot
                         new AzureTableSettings(storageConnectionString, nameof(FlaggedSubscriber))
                     )
                 )
+                .AddScoped<IAzureTableStorage<SubscriberActivities>>(provider =>
+                    new AzureTableStorage<SubscriberActivities>(
+                        new AzureTableSettings(storageConnectionString, nameof(SubscriberActivities))
+                    )
+                )
                 .AddScoped<IQueueRepository, PickupQueueRepository>()
                 .AddScoped<IFlaggedSubscribersRepository, FlaggedSubscribersRepository>()
+                .AddScoped<ISubscriberActivitiesRepository, SubscriberActivitiesRepository>()
                 .BuildServiceProvider();
         }
     }
