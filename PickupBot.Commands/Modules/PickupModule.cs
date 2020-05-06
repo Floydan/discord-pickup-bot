@@ -286,6 +286,7 @@ namespace PickupBot.Commands.Modules
         }
 
         [Command("clear")]
+        [Alias("clean")]
         [Summary("Leave all queues you have subscribed to, including waiting lists")]
         public async Task Clear()
         {

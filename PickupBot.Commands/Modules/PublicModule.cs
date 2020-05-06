@@ -17,9 +17,7 @@ namespace PickupBot.Commands.Modules
     {
         private readonly CommandService _commandService;
         private readonly ISubscriberActivitiesRepository _activitiesRepository;
-
-        private static string Pluralize(int amount, string str) => amount <= 1 ? str : $"{str}s";
-
+        
         public PublicModule(
             CommandService commandService,
             ISubscriberActivitiesRepository activitiesRepository)
@@ -79,7 +77,7 @@ namespace PickupBot.Commands.Modules
                     counter++;
                     var user = users.FirstOrDefault(u => u.Id == Convert.ToUInt64(c.RowKey));
                     if (user == null) continue;
-                    sb.AppendLine($"{counter}. {user.Nickname ?? user.Username} - {c.PickupCreate} {Pluralize(c.PickupPromote, "create")}");
+                    sb.AppendLine($"{counter}. {user.Nickname ?? user.Username} - {c.PickupCreate} {"create".Pluralize(c.PickupPromote)}");
                 }
 
                 sb.AppendLine("");
@@ -94,7 +92,7 @@ namespace PickupBot.Commands.Modules
                     counter++;
                     var user = users.FirstOrDefault(u => u.Id == Convert.ToUInt64(c.RowKey));
                     if (user == null) continue;
-                    sb.AppendLine($"{counter}. {user.Nickname ?? user.Username} - {c.PickupAdd} {Pluralize(c.PickupPromote, "add")}");
+                    sb.AppendLine($"{counter}. {user.Nickname ?? user.Username} - {c.PickupAdd} {"add".Pluralize(c.PickupAdd)}");
                 }
 
                 sb.AppendLine("");
@@ -110,7 +108,7 @@ namespace PickupBot.Commands.Modules
                     counter++;
                     var user = users.FirstOrDefault(u => u.Id == Convert.ToUInt64(c.RowKey));
                     if (user == null) continue;
-                    sb.AppendLine($"{counter}. {user.Nickname ?? user.Username} - {c.PickupPromote} {Pluralize(c.PickupPromote, "promote")}");
+                    sb.AppendLine($"{counter}. {user.Nickname ?? user.Username} - {c.PickupPromote} {"promote".Pluralize(c.PickupPromote)}");
                 }
             }
 
