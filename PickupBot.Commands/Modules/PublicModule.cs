@@ -3,7 +3,6 @@ using System.Linq;
 using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
-using Discord;
 using Discord.Addons.CommandsExtension;
 using Discord.Commands;
 using PickupBot.Commands.Extensions;
@@ -18,6 +17,8 @@ namespace PickupBot.Commands.Modules
     {
         private readonly CommandService _commandService;
         private readonly ISubscriberActivitiesRepository _activitiesRepository;
+
+        private static string Pluralize(int amount, string str) => amount <= 1 ? str : $"{str}s";
 
         public PublicModule(
             CommandService commandService,
@@ -77,8 +78,8 @@ namespace PickupBot.Commands.Modules
                 {
                     counter++;
                     var user = users.FirstOrDefault(u => u.Id == Convert.ToUInt64(c.RowKey));
-                    if(user == null) continue;
-                    sb.AppendLine($"{counter}. {user.Nickname ?? user.Username} - {c.PickupCreate} create(s)");
+                    if (user == null) continue;
+                    sb.AppendLine($"{counter}. {user.Nickname ?? user.Username} - {c.PickupCreate} {Pluralize(c.PickupPromote, "create")}");
                 }
 
                 sb.AppendLine("");
@@ -92,8 +93,8 @@ namespace PickupBot.Commands.Modules
                 {
                     counter++;
                     var user = users.FirstOrDefault(u => u.Id == Convert.ToUInt64(c.RowKey));
-                    if(user == null) continue;
-                    sb.AppendLine($"{counter}. {user.Nickname ?? user.Username} - {c.PickupAdd} add(s)");
+                    if (user == null) continue;
+                    sb.AppendLine($"{counter}. {user.Nickname ?? user.Username} - {c.PickupAdd} {Pluralize(c.PickupPromote, "add")}");
                 }
 
                 sb.AppendLine("");
@@ -108,8 +109,8 @@ namespace PickupBot.Commands.Modules
                 {
                     counter++;
                     var user = users.FirstOrDefault(u => u.Id == Convert.ToUInt64(c.RowKey));
-                    if(user == null) continue;
-                    sb.AppendLine($"{counter}. {user.Nickname ?? user.Username} - {c.PickupPromote} promote(s)");
+                    if (user == null) continue;
+                    sb.AppendLine($"{counter}. {user.Nickname ?? user.Username} - {c.PickupPromote} {Pluralize(c.PickupPromote, "promote")}");
                 }
             }
 
