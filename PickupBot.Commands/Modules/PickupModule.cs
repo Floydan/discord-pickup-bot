@@ -32,7 +32,7 @@ namespace PickupBot.Commands.Modules
         private readonly int _rconPort;
 
         public PickupModule(
-            IQueueRepository queueRepository, 
+            IQueueRepository queueRepository,
             IFlaggedSubscribersRepository flagRepository,
             ISubscriberActivitiesRepository activitiesRepository)
         {
@@ -75,7 +75,7 @@ namespace PickupBot.Commands.Modules
                 return;
             }
 
-            var activity = await _activitiesRepository.Find((IGuildUser) Context.User);
+            var activity = await _activitiesRepository.Find((IGuildUser)Context.User);
             activity.PickupCreate += 1;
             await _activitiesRepository.Update(activity);
 
@@ -194,7 +194,7 @@ namespace PickupBot.Commands.Modules
                 return;
             }
 
-            var activity = await _activitiesRepository.Find((IGuildUser) Context.User);
+            var activity = await _activitiesRepository.Find((IGuildUser)Context.User);
             activity.PickupAdd += 1;
             await _activitiesRepository.Update(activity);
 
@@ -346,19 +346,28 @@ namespace PickupBot.Commands.Modules
             }
 
             var ordered = pickupQueues.OrderByDescending(w => w.Readiness);
+            var sb = new StringBuilder();
             foreach (var q in ordered)
             {
+                sb.Clear()
+                  .AppendLine($"`!add \"{q.Name}\"` to join!")
+                  .AppendLine("")
+                  .AppendLine($"Created by _{q.OwnerName}_ {(q.IsCoop ? "(_coop_)" : "")}")
+                  .AppendLine("```")
+                  .AppendLine($"[{q.Subscribers.Count}/{q.MaxInQueue}] - {ParseSubscribers(q)}")
+                  .AppendLine("```");
+
+                if (!q.WaitingList.IsNullOrEmpty())
+                    sb.AppendLine($"In waitlist: **{q.WaitingList.Count}**");
+                if (!q.Games.IsNullOrEmpty())
+                    sb.AppendLine($"**Game(s): ** _{string.Join(", ", q.Games)}_");
+                if (!string.IsNullOrWhiteSpace(q.Host))
+                    sb.AppendLine($"**Server**: _{q.Host ?? "ra3.se"}:{(q.Port > 0 ? q.Port : 27960)}_");
+
                 embed = new EmbedBuilder()
                 {
                     Title = q.Name,
-                    Description = $"`!add \"{q.Name}\"` to join!{Environment.NewLine}{Environment.NewLine}" +
-                                  $"Created by _{q.OwnerName}_ {(q.IsCoop ? "(_coop_)" : "")}{Environment.NewLine}" +
-                                  $"```{Environment.NewLine}" +
-                                  $"[{q.Subscribers.Count}/{q.MaxInQueue}] - {ParseSubscribers(q)} {Environment.NewLine}" +
-                                  $"{Environment.NewLine}```" +
-                                  $"{(q.WaitingList.Any() ? $"In waitlist: **{q.WaitingList.Count}**{Environment.NewLine}" : "")}" +
-                                  $"{(!q.Games.IsNullOrEmpty() ? $"{Environment.NewLine}**Game(s): ** _{string.Join(", ", q.Games)}_" : "")}" +
-                                  $"{(!string.IsNullOrWhiteSpace(q.Host) ? $"{Environment.NewLine}**Server**: _{q.Host ?? "ra3.se"}:{(q.Port > 0 ? q.Port : 27960)}_" : "")}",
+                    Description = sb.ToString(),
                     Color = Color.Orange
                 }.Build();
                 await Context.Channel.SendMessageAsync(embed: embed);
@@ -425,8 +434,8 @@ namespace PickupBot.Commands.Modules
         {
             if (!IsInPickupChannel((IGuildChannel)Context.Channel))
                 return;
-            
-            var activity = await _activitiesRepository.Find((IGuildUser) Context.User);
+
+            var activity = await _activitiesRepository.Find((IGuildUser)Context.User);
             activity.PickupPromote += 1;
             await _activitiesRepository.Update(activity);
 
@@ -470,24 +479,26 @@ namespace PickupBot.Commands.Modules
             }
             else if (queue != null)
             {
-                var voiceChannel = Context.Guild.VoiceChannels.OrderBy(c => c.Position).FirstOrDefault();
+                var sb = new StringBuilder()
+                    .AppendLine("**Current queue**")
+                    .AppendLine($"`{ParseSubscribers(queue)}`")
+                    .AppendLine("")
+                    .AppendLine($"**Spots left**: {queue.MaxInQueue - queue.Subscribers.Count}")
+                    .AppendLine($"**Team size**: {queue.TeamSize}")
+                    .AppendLine("")
+                    .AppendLine($"Just run `!add \"{queue.Name}\"` in channel <#{Context.Channel.Id}> on the **{Context.Guild.Name}** server to join!")
+                    .AppendLine("");
+
+                if (!queue.Games.IsNullOrEmpty())
+                    sb.AppendLine($"**Game(s): ** _{string.Join(", ", queue.Games)}_");
+
+                if (!string.IsNullOrWhiteSpace(queue.Host))
+                    sb.AppendLine($"**Server**: _{queue.Host ?? "ra3.se"}:{(queue.Port > 0 ? queue.Port : 27960)}_");
+
                 var embed = new EmbedBuilder
                 {
                     Title = $"Pickup queue {queue.Name} needs more players",
-                    Description = "**Current queue**" +
-                                  $"{Environment.NewLine} " +
-                                  $"{ParseSubscribers(queue)}" +
-                                  $"{Environment.NewLine}{Environment.NewLine}" +
-                                  $"**Spots left**: {queue.MaxInQueue - queue.Subscribers.Count}" +
-                                  $"{Environment.NewLine}" +
-                                  $"**Team size**: {queue.TeamSize}" +
-                                  $"{Environment.NewLine}{Environment.NewLine}" +
-                                  $"Just run `!add \"{queue.Name}\"` in channel <#{Context.Channel.Id}> on the **{Context.Guild.Name}** server to join!" +
-                                  $"{Environment.NewLine}" +
-                                  $"{(!queue.Games.IsNullOrEmpty() ? $"**Game(s): ** _{string.Join(", ", queue.Games)}_" : "")}" +
-                                  $"{Environment.NewLine}" +
-                                  $"{(!string.IsNullOrWhiteSpace(queue.Host) ? $"**Server**: _{queue.Host ?? "ra3.se"}:{(queue.Port > 0 ? queue.Port : 27960)}_" : "")}" +
-                                  $"{Environment.NewLine}",
+                    Description = sb.ToString(),
                     Author = new EmbedAuthorBuilder { Name = "pickup-bot" },
                     Color = Color.Orange
                 }.Build();
@@ -532,31 +543,33 @@ namespace PickupBot.Commands.Modules
             var redTeam = queue.IsCoop ? users : users.Take(halfPoint).ToList();
             var blueTeam = queue.IsCoop ? Enumerable.Empty<SocketGuildUser>() : users.Skip(halfPoint).ToList();
 
+            var sb = new StringBuilder()
+                .AppendLine("**Teammates:**")
+                .AppendLine($"{string.Join(Environment.NewLine, redTeam.Select(GetMention))}")
+                .AppendLine("")
+                .AppendLine("Your designated voice channel:")
+                .AppendLine($"[<#{vcRed.Id}>](https://discordapp.com/channels/{Context.Guild.Id}/{vcRed.Id})");
+
             await ReplyAsync(embed: new EmbedBuilder
             {
                 Title = $"{(queue.IsCoop ? "Coop" : "Red")} Team \uD83D\uDD34",
-                Description = "**Teammates:**" +
-                              $"{Environment.NewLine}" +
-                              $"{string.Join(Environment.NewLine, redTeam.Select(GetMention))}" +
-                              $"{Environment.NewLine}{Environment.NewLine}" +
-                              $"Your designated voice channel:" +
-                              $"{Environment.NewLine}" +
-                              $"[<#{vcRed.Id}>](https://discordapp.com/channels/{Context.Guild.Id}/{vcRed.Id})",
+                Description = sb.ToString(),
                 Color = Color.Red
             }.Build());
 
-            if (!blueTeam.IsNullOrEmpty())
+            if (!blueTeam.IsNullOrEmpty() && vcBlue != null)
             {
+                sb.Clear()
+                  .AppendLine("**Teammates:**")
+                  .AppendLine($"{string.Join(Environment.NewLine, blueTeam.Select(GetMention))}")
+                  .AppendLine("")
+                  .AppendLine("Your designated voice channel:")
+                  .AppendLine($"[<#{vcBlue.Id}>](https://discordapp.com/channels/{Context.Guild.Id}/{vcBlue.Id})");
+
                 await ReplyAsync(embed: new EmbedBuilder
                 {
                     Title = "Blue Team \uD83D\uDD35",
-                    Description = "**Teammates:**" +
-                                  $"{Environment.NewLine}" +
-                                  $"{string.Join(Environment.NewLine, blueTeam.Select(GetMention))}" +
-                                  $"{Environment.NewLine}{Environment.NewLine}" +
-                                  $"Your designated voice channel:" +
-                                  $"{Environment.NewLine}" +
-                                  $"[<#{vcBlue.Id}>](https://discordapp.com/channels/{Context.Guild.Id}/{vcBlue.Id})",
+                    Description = sb.ToString(),
                     Color = Color.Blue
                 }.Build());
             }
@@ -626,14 +639,18 @@ namespace PickupBot.Commands.Modules
             if (!IsInPickupChannel((IGuildChannel)Context.Channel))
                 return;
 
+            var sb = new StringBuilder()
+                .AppendLine("**Scandinavia**")
+                .AppendLine("ra3.se")
+                .AppendLine("pickup.ra3.se")
+                .AppendLine("")
+                .AppendLine("**US West**")
+                .AppendLine("70.190.244.70:27950");
+
             await ReplyAsync(embed: new EmbedBuilder
             {
                 Title = "Server addresses",
-                Description = "ra3.se" +
-                              $"{Environment.NewLine}" +
-                              "pickup.ra3.se" +
-                              $"{Environment.NewLine}**US West**{Environment.NewLine}" +
-                              $"70.190.244.70:27950",
+                Description = sb.ToString(),
                 Color = Color.Green
             }.Build());
         }
@@ -786,14 +803,15 @@ namespace PickupBot.Commands.Modules
             var flagged = await _flagRepository.IsFlagged((IGuildUser)Context.User);
             if (flagged == null) return true;
 
+            var sb = new StringBuilder()
+                .AppendLine("You have been flagged which means that you can't join or create queues.")
+                .AppendLine("**Reason**")
+                .AppendLine($"_{flagged.Reason}_");
+
             var embed = new EmbedBuilder
             {
                 Title = "You are flagged",
-                Description = "You have been flagged which means that you can't join or create queues." +
-                              $"{Environment.NewLine}" +
-                              $"**Reason**" +
-                              $"{Environment.NewLine}" +
-                              $"_{flagged.Reason}_",
+                Description = sb.ToString(),
                 Color = Color.Orange
             }.Build();
             await ReplyAsync(embed: embed);
@@ -820,7 +838,7 @@ namespace PickupBot.Commands.Modules
             };
 
         private static bool IsInPickupChannel(IGuildChannel channel) =>
-            channel.Name.Equals("pickup", StringComparison.OrdinalIgnoreCase);
+            channel.Name.StartsWith("pickup", StringComparison.OrdinalIgnoreCase);
 
     }
 }
