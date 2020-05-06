@@ -3,11 +3,14 @@ using System.Linq;
 using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
+using Discord;
 using Discord.Addons.CommandsExtension;
 using Discord.Commands;
 using PickupBot.Commands.Extensions;
 using PickupBot.Data.Models;
 using PickupBot.Data.Repositories;
+using PickupBot.GitHub;
+using PickupBot.GitHub.Models;
 
 namespace PickupBot.Commands.Modules
 {
@@ -17,13 +20,16 @@ namespace PickupBot.Commands.Modules
     {
         private readonly CommandService _commandService;
         private readonly ISubscriberActivitiesRepository _activitiesRepository;
-        
+        private readonly GitHubService _githubService;
+
         public PublicModule(
             CommandService commandService,
-            ISubscriberActivitiesRepository activitiesRepository)
+            ISubscriberActivitiesRepository activitiesRepository,
+            GitHubService gitHubService)
         {
             _commandService = commandService;
             _activitiesRepository = activitiesRepository;
+            _githubService = gitHubService;
         }
 
         [Command("ping")]
@@ -113,6 +119,34 @@ namespace PickupBot.Commands.Modules
             }
 
             await ReplyAsync(sb.ToString());
+        }
+
+        [Command("releases")]
+        [Summary("Retrieves the 3 latest releases from github")]
+        public async Task Releases()
+        {
+            using (Context.Channel.EnterTypingState())
+            {
+                var releases = await _githubService.GetReleases();
+
+                var gitHubReleases = releases as GitHubRelease[] ?? releases.ToArray();
+
+                foreach (var release in gitHubReleases.Take(3))
+                {
+                    var embed = new EmbedBuilder
+                    {
+                        Author = new EmbedAuthorBuilder()
+                            .WithIconUrl(release.Author?.AvatarUrl)
+                            .WithName(release.Author?.Name),
+                        Title = release.Name,
+                        Description = release.Body,
+                        Url = release.Url
+
+                    }.Build();
+                    
+                    await ReplyAsync(embed:embed);
+                }
+            }
         }
     }
 }

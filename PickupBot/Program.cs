@@ -6,28 +6,67 @@ using Discord;
 using Discord.Commands;
 using Discord.WebSocket;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using PickupBot.Commands;
 using PickupBot.Data.Models;
 using PickupBot.Data.Repositories;
+using PickupBot.GitHub;
 using PickupBot.Translation.Services;
 
 namespace PickupBot
 {
     public class Program
     {
-        public static void Main(string[] args) => new Program().MainAsync().GetAwaiter().GetResult();
-
-        private async Task MainAsync()
+        private static IHost _host;
+        private static async Task Main(string[] args)
         {
-            await using var services = ConfigureServices();
+            var storageConnectionString = Environment.GetEnvironmentVariable("StorageConnectionString");
 
-            ServiceLocator.SetLocatorProvider(services);
-            var client = services.GetRequiredService<DiscordSocketClient>();
+            var builder = new HostBuilder()
+                .ConfigureServices((hostContext, services) =>
+                {
+                    var discordSocketConfig = new DiscordSocketConfig { MessageCacheSize = 100, LogLevel = LogSeverity.Info };
+
+                    services
+                        .AddHttpClient()
+                        .AddSingleton<DiscordSocketClient>(provider => new DiscordSocketClient(discordSocketConfig))
+                        .AddSingleton<CommandService>()
+                        .AddSingleton<ITranslationService, GoogleTranslationService>()
+                        .AddSingleton<CommandHandlerService>()
+                        .AddSingleton<HttpClient>()
+                        .AddScoped<IAzureTableStorage<PickupQueue>>(provider =>
+                            new AzureTableStorage<PickupQueue>(
+                                new AzureTableSettings(storageConnectionString, nameof(PickupQueue))
+                            )
+                        )
+                        .AddScoped<IAzureTableStorage<FlaggedSubscriber>>(provider =>
+                            new AzureTableStorage<FlaggedSubscriber>(
+                                new AzureTableSettings(storageConnectionString, nameof(FlaggedSubscriber))
+                            )
+                        )
+                        .AddScoped<IAzureTableStorage<SubscriberActivities>>(provider =>
+                            new AzureTableStorage<SubscriberActivities>(
+                                new AzureTableSettings(storageConnectionString, nameof(SubscriberActivities))
+                            )
+                        )
+                        .AddScoped<IQueueRepository, PickupQueueRepository>()
+                        .AddScoped<IFlaggedSubscribersRepository, FlaggedSubscribersRepository>()
+                        .AddScoped<ISubscriberActivitiesRepository, SubscriberActivitiesRepository>();
+
+
+                    services.AddHttpClient<GitHubService>();
+
+                }).UseConsoleLifetime();
+
+            _host = builder.Build();
+
+            var client = _host.Services.GetRequiredService<DiscordSocketClient>();
 
             client.Log += LogAsync;
             client.JoinedGuild += OnJoinedGuild;
             client.MessageUpdated += OnMessageUpdated;
-            services.GetRequiredService<CommandService>().Log += LogAsync;
+            _host.Services.GetRequiredService<CommandService>().Log += LogAsync;
 
             // Tokens should be considered secret data and never hard-coded.
             // We can read from the environment variable to avoid hardcoding.
@@ -35,15 +74,14 @@ namespace PickupBot
             await client.StartAsync();
 
             // Here we initialize the logic required to register our commands.
-            await services.GetRequiredService<CommandHandlerService>().InitializeAsync();
+            await _host.Services.GetRequiredService<CommandHandlerService>().InitializeAsync();
 
             //await client.SetGameAsync("Pickup bot", null, ActivityType.Playing);
             var prefix = Environment.GetEnvironmentVariable("CommandPrefix") ?? "!";
             await client.SetActivityAsync(
                 new Game($"Pickup bot | {prefix}help",
                     ActivityType.Playing,
-                    ActivityProperties.Play,
-                    $"Current players on ra3.se: 3"));
+                    ActivityProperties.Play));
 
             await Task.Delay(-1);
         }
@@ -76,10 +114,7 @@ namespace PickupBot
 
         private static async Task OnMessageUpdated(Cacheable<IMessage, ulong> before, SocketMessage after, ISocketMessageChannel channel)
         {
-            //var message = await before.GetOrDownloadAsync();
-            //await LogAsync(new LogMessage(LogSeverity.Info, "OnMessageUpdated", $"{message} -> {after}"));
-
-            var commandHandler = ServiceLocator.Current.GetInstance<CommandHandlerService>();
+            var commandHandler = _host.Services.GetService<CommandHandlerService>();
             if (commandHandler != null)
                 await commandHandler.MessageReceivedAsync(after);
         }
@@ -88,39 +123,6 @@ namespace PickupBot
         {
             Console.WriteLine(msg.ToString());
             return Task.CompletedTask;
-        }
-
-        private static ServiceProvider ConfigureServices()
-        {
-            var storageConnectionString = Environment.GetEnvironmentVariable("StorageConnectionString");
-
-            var discordSocketConfig = new DiscordSocketConfig { MessageCacheSize = 100, LogLevel = LogSeverity.Info };
-
-            return new ServiceCollection()
-                .AddSingleton<DiscordSocketClient>(provider => new DiscordSocketClient(discordSocketConfig))
-                .AddSingleton<CommandService>()
-                .AddSingleton<ITranslationService, GoogleTranslationService>()
-                .AddSingleton<CommandHandlerService>()
-                .AddSingleton<HttpClient>()
-                .AddScoped<IAzureTableStorage<PickupQueue>>(provider =>
-                    new AzureTableStorage<PickupQueue>(
-                        new AzureTableSettings(storageConnectionString, nameof(PickupQueue))
-                    )
-                )
-                .AddScoped<IAzureTableStorage<FlaggedSubscriber>>(provider =>
-                    new AzureTableStorage<FlaggedSubscriber>(
-                        new AzureTableSettings(storageConnectionString, nameof(FlaggedSubscriber))
-                    )
-                )
-                .AddScoped<IAzureTableStorage<SubscriberActivities>>(provider =>
-                    new AzureTableStorage<SubscriberActivities>(
-                        new AzureTableSettings(storageConnectionString, nameof(SubscriberActivities))
-                    )
-                )
-                .AddScoped<IQueueRepository, PickupQueueRepository>()
-                .AddScoped<IFlaggedSubscribersRepository, FlaggedSubscribersRepository>()
-                .AddScoped<ISubscriberActivitiesRepository, SubscriberActivitiesRepository>()
-                .BuildServiceProvider();
         }
     }
 }

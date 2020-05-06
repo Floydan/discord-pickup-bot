@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>netcoreapp3.1</TargetFramework>
@@ -13,6 +13,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\PickupBot.Data\PickupBot.Data.csproj" />
+    <ProjectReference Include="..\PickupBot.GitHub\PickupBot.GitHub.csproj" />
     <ProjectReference Include="..\PickupBot.Translation\PickupBot.Translation.csproj" />
   </ItemGroup>
 
