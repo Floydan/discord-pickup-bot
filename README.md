@@ -1,5 +1,6 @@
 ![build](https://github.com/Floydan/discord-pickup-bot/workflows/build/badge.svg?branch=master) 
 [![Join the chat at https://gitter.im/discord-pickup-bot/community](https://badges.gitter.im/discord-pickup-bot/community.svg)](https://gitter.im/discord-pickup-bot/community?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+[![Maintainability](https://api.codeclimate.com/v1/badges/66275c62b74e27401e3b/maintainability)](https://codeclimate.com/github/Floydan/discord-pickup-bot/maintainability)
 
 # Discord pickup game bot
 

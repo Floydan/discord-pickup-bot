@@ -462,51 +462,53 @@ namespace PickupBot.Commands.Modules
             if (role == null)
                 return; //Failed to get or create role;
 
-            await Context.Channel.TriggerTypingAsync();
-
-            var users = Context.Guild.Users.Where(w => w.Roles.Any(r => r.Id == role.Id)).ToList();
-            if (!users.Any())
+            using (Context.Channel.EnterTypingState())
             {
-                await ReplyAsync("No users have subscribed using the `!subscribe` command.");
-                return;
-            }
 
-            if (string.IsNullOrWhiteSpace(queueName))
-            {
-                var queues = await _queueRepository.AllQueues(Context.Guild.Id.ToString());
-                var filtered = queues.Where(q => q.MaxInQueue > q.Subscribers.Count).ToArray();
-                if (filtered.Any())
-                    await ReplyAsync($"There are {filtered.Length} pickup queues with spots left, check out the `!list`! - {role.Mention}");
-            }
-            else if (queue != null)
-            {
-                var sb = new StringBuilder()
-                    .AppendLine("**Current queue**")
-                    .AppendLine($"`{ParseSubscribers(queue)}`")
-                    .AppendLine("")
-                    .AppendLine($"**Spots left**: {queue.MaxInQueue - queue.Subscribers.Count}")
-                    .AppendLine($"**Team size**: {queue.TeamSize}")
-                    .AppendLine("")
-                    .AppendLine($"Just run `!add \"{queue.Name}\"` in channel <#{Context.Channel.Id}> on the **{Context.Guild.Name}** server to join!")
-                    .AppendLine("");
-
-                if (!queue.Games.IsNullOrEmpty())
-                    sb.AppendLine($"**Game(s): ** _{string.Join(", ", queue.Games)}_");
-
-                if (!string.IsNullOrWhiteSpace(queue.Host))
-                    sb.AppendLine($"**Server**: _{queue.Host ?? "ra3.se"}:{(queue.Port > 0 ? queue.Port : 27960)}_");
-
-                var embed = new EmbedBuilder
+                var users = Context.Guild.Users.Where(w => w.Roles.Any(r => r.Id == role.Id)).ToList();
+                if (!users.Any())
                 {
-                    Title = $"Pickup queue {queue.Name} needs more players",
-                    Description = sb.ToString(),
-                    Author = new EmbedAuthorBuilder { Name = "pickup-bot" },
-                    Color = Color.Orange
-                }.Build();
+                    await ReplyAsync("No users have subscribed using the `!subscribe` command.");
+                    return;
+                }
 
-                var tasks = users.Select(user => user.SendMessageAsync(embed: embed));
+                if (string.IsNullOrWhiteSpace(queueName))
+                {
+                    var queues = await _queueRepository.AllQueues(Context.Guild.Id.ToString());
+                    var filtered = queues.Where(q => q.MaxInQueue > q.Subscribers.Count).ToArray();
+                    if (filtered.Any())
+                        await ReplyAsync($"There are {filtered.Length} pickup queues with spots left, check out the `!list`! - {role.Mention}");
+                }
+                else if (queue != null)
+                {
+                    var sb = new StringBuilder()
+                        .AppendLine("**Current queue**")
+                        .AppendLine($"`{ParseSubscribers(queue)}`")
+                        .AppendLine("")
+                        .AppendLine($"**Spots left**: {queue.MaxInQueue - queue.Subscribers.Count}")
+                        .AppendLine($"**Team size**: {queue.TeamSize}")
+                        .AppendLine("")
+                        .AppendLine($"Just run `!add \"{queue.Name}\"` in channel <#{Context.Channel.Id}> on the **{Context.Guild.Name}** server to join!")
+                        .AppendLine("");
 
-                await Task.WhenAll(tasks);
+                    if (!queue.Games.IsNullOrEmpty())
+                        sb.AppendLine($"**Game(s): ** _{string.Join(", ", queue.Games)}_");
+
+                    if (!string.IsNullOrWhiteSpace(queue.Host))
+                        sb.AppendLine($"**Server**: _{queue.Host ?? "ra3.se"}:{(queue.Port > 0 ? queue.Port : 27960)}_");
+
+                    var embed = new EmbedBuilder
+                    {
+                        Title = $"Pickup queue {queue.Name} needs more players",
+                        Description = sb.ToString(),
+                        Author = new EmbedAuthorBuilder { Name = "pickup-bot" },
+                        Color = Color.Orange
+                    }.Build();
+
+                    var tasks = users.Select(user => user.SendMessageAsync(embed: embed));
+
+                    await Task.WhenAll(tasks);
+                }
             }
         }
 
