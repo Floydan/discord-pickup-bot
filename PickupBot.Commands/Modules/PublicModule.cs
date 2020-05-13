@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using System.Text;
@@ -6,7 +7,9 @@ using System.Threading.Tasks;
 using Discord;
 using Discord.Addons.CommandsExtension;
 using Discord.Commands;
+using Discord.WebSocket;
 using PickupBot.Commands.Extensions;
+using PickupBot.Commands.Utilities;
 using PickupBot.Data.Models;
 using PickupBot.Data.Repositories;
 using PickupBot.GitHub;
@@ -34,15 +37,15 @@ namespace PickupBot.Commands.Modules
 
         [Command("ping")]
         [Alias("pong", "hello")]
-        public Task PingAsync()
-            => ReplyAsync("pong!");
+        public async Task PingAsync() => await ReplyAsync("pong!").AutoRemoveMessage();
 
-        [Command("help"), Alias("assist"), Summary("Shows help menu.")]
+        [Command("help"), Alias("assist", "commands"), Summary("Shows help menu via a Direct Message (DM).")]
         public async Task Help([Remainder] string command = null)
         {
             const string botPrefix = "!";
             var helpEmbed = _commandService.GetDefaultHelpEmbed(command, botPrefix);
-            await Context.Channel.SendMessageAsync(embed: helpEmbed);
+            await Context.User.SendMessageAsync(embed: helpEmbed);
+            await ReplyAsync($"Check your DM's {Context.User.Mention}").AutoRemoveMessage(10);
         }
 
         [Command("version")]
@@ -50,7 +53,7 @@ namespace PickupBot.Commands.Modules
         public async Task Version()
         {
             var version = Assembly.GetEntryAssembly()?.GetName().Version;
-            await ReplyAsync($"**Version:** `{version}`");
+            BotMessageHelper.AutoRemoveMessage(await ReplyAsync($"**Version:** `{version}`"), 10);
         }
 
         [Command("top10")]
@@ -61,7 +64,7 @@ namespace PickupBot.Commands.Modules
             var activities = list as SubscriberActivities[] ?? list.ToArray();
             if (activities.IsNullOrEmpty())
             {
-                await ReplyAsync("No data yet, get active!");
+                BotMessageHelper.AutoRemoveMessage(await ReplyAsync("No data yet, get active!"), 10);
                 return;
             }
 
@@ -69,56 +72,49 @@ namespace PickupBot.Commands.Modules
                 .Where(w => activities.Select(x => Convert.ToUInt64(x.RowKey)).Contains(w.Id))
                 .ToList();
 
-            var top10Create = activities.Where(w => w.PickupCreate > 0).OrderByDescending(w => w.PickupCreate).Take(10).ToList();
-            var top10Add = activities.Where(w => w.PickupAdd > 0).OrderByDescending(w => w.PickupAdd).Take(10).ToList();
-            var top10Promote = activities.Where(w => w.PickupPromote > 0).OrderByDescending(w => w.PickupPromote).Take(10).ToList();
+            var top10Create = activities.Where(w => w.PickupCreate > 0)
+                .OrderByDescending(w => w.PickupCreate)
+                .Take(10)
+                .ToList();
+
+            var top10Add = activities.Where(w => w.PickupAdd > 0)
+                .OrderByDescending(w => w.PickupAdd)
+                .Take(10)
+                .ToList();
+
+            var top10Promote = activities.Where(w => w.PickupPromote > 0)
+                .OrderByDescending(w => w.PickupPromote)
+                .Take(10)
+                .ToList();
 
             var sb = new StringBuilder();
+            AddTopPlayers(sb, users, top10Create, "create");
+            AddTopPlayers(sb, users, top10Add, "add");
+            AddTopPlayers(sb, users, top10Promote, "promote", "spammers");
+
+            await ReplyAsync(sb.ToString()).AutoRemoveMessage();
+        }
+
+        private static void AddTopPlayers(
+            StringBuilder sb, 
+            ICollection<SocketGuildUser> users, 
+            ICollection<SubscriberActivities> activities, 
+            string type, 
+            string headlineAdditions = "")
+        {
+            if (!activities.Any()) return;
+
             var counter = 0;
-            if (top10Create.Any())
+            sb.AppendLine($"**Top 10{(string.IsNullOrEmpty(headlineAdditions) ? " " : $" {headlineAdditions}")} !{type}**");
+            foreach (var c in activities)
             {
-                sb.AppendLine("**Top 10 pickup !create**");
-                foreach (var c in top10Create)
-                {
-                    counter++;
-                    var user = users.FirstOrDefault(u => u.Id == Convert.ToUInt64(c.RowKey));
-                    if (user == null) continue;
-                    sb.AppendLine($"{counter}. {user.Nickname ?? user.Username} - {c.PickupCreate} {"create".Pluralize(c.PickupPromote)}");
-                }
-
-                sb.AppendLine("");
+                counter++;
+                var user = users.FirstOrDefault(u => u.Id == Convert.ToUInt64(c.RowKey));
+                if (user == null) continue;
+                sb.AppendLine($"{counter}. {user.Nickname ?? user.Username} - {c.PickupCreate} {type.Pluralize(c.PickupPromote)}");
             }
 
-            if (top10Add.Any())
-            {
-                sb.AppendLine("**Top 10 pickup !add**");
-                counter = 0;
-                foreach (var c in top10Add)
-                {
-                    counter++;
-                    var user = users.FirstOrDefault(u => u.Id == Convert.ToUInt64(c.RowKey));
-                    if (user == null) continue;
-                    sb.AppendLine($"{counter}. {user.Nickname ?? user.Username} - {c.PickupAdd} {"add".Pluralize(c.PickupAdd)}");
-                }
-
-                sb.AppendLine("");
-            }
-
-            if (top10Promote.Any())
-            {
-                sb.AppendLine("**Top 10 pickup spammers (!promote)**");
-
-                counter = 0;
-                foreach (var c in top10Promote)
-                {
-                    counter++;
-                    var user = users.FirstOrDefault(u => u.Id == Convert.ToUInt64(c.RowKey));
-                    if (user == null) continue;
-                    sb.AppendLine($"{counter}. {user.Nickname ?? user.Username} - {c.PickupPromote} {"promote".Pluralize(c.PickupPromote)}");
-                }
-            }
-
-            await ReplyAsync(sb.ToString());
+            sb.AppendLine("");
         }
 
         [Command("releases")]
@@ -144,7 +140,7 @@ namespace PickupBot.Commands.Modules
 
                     }.Build();
                     
-                    await ReplyAsync(embed:embed);
+                    await ReplyAsync(embed:embed).AutoRemoveMessage();
                 }
             }
         }

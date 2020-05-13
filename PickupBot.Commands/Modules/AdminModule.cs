@@ -3,6 +3,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Discord;
 using Discord.Commands;
+using PickupBot.Commands.Utilities;
 using PickupBot.Data.Repositories;
 
 namespace PickupBot.Commands.Modules
@@ -24,10 +25,10 @@ namespace PickupBot.Commands.Modules
         [Summary("Flags a user so they can't enter queues")]
         public async Task FlagUser([Summary("User to flag")]IGuildUser user, [Summary("Optional reason text"), Remainder] string reason)
         {
-            if(user == null) return;
+            if (user == null) return;
 
             await _flagRepository.Flag(user, reason);
-            
+
             //flag user so they can't be added to pickup queues
             await ReplyAsync(
                 $"User {user.Mention} has been flagged by {Context.User.Mention} and can no longer subscribe to pickup queues {Environment.NewLine} {(!string.IsNullOrEmpty(reason) ? $" - _{reason}_" : "")}");
@@ -38,12 +39,13 @@ namespace PickupBot.Commands.Modules
         [Summary("Un-flags a user so they can enter queues")]
         public async Task UnFlagUser([Summary("User to un-flag")]IGuildUser user)
         {
-            if(user == null) return;
+            if (user == null) return;
 
             await _flagRepository.UnFlag(user);
-            
-            //flag user so they can't be added to pickup queues
-            await ReplyAsync($"User {user.Mention} has been un-flagged by {Context.User.Mention} and can now subscribe to pickup queues");
+            BotMessageHelper.AutoRemoveMessage(
+                //flag user so they can't be added to pickup queues
+                await ReplyAsync($"User {user.Mention} has been un-flagged by {Context.User.Mention} and can now subscribe to pickup queues")
+            );
         }
 
         [Command("flaglist")]
@@ -52,9 +54,11 @@ namespace PickupBot.Commands.Modules
         public async Task GetAll()
         {
             var flaggedUsers = await _flagRepository.List(Context.Guild.Id.ToString());
-            
-            //flag user so they can't be added to pickup queues
-            await ReplyAsync($"**Flagged users:**{Environment.NewLine}{string.Join(", ", flaggedUsers.Select((u, i) => $"{i+1}. {u.Name}`"))}");
+
+            BotMessageHelper.AutoRemoveMessage(
+                //flag user so they can't be added to pickup queues
+                await ReplyAsync($"**Flagged users:**{Environment.NewLine}{string.Join(", ", flaggedUsers.Select((u, i) => $"{i + 1}. {u.Name}`"))}")
+            );
         }
     }
 }

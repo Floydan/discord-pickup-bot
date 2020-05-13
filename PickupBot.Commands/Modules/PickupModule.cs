@@ -71,7 +71,7 @@ namespace PickupBot.Commands.Modules
 
             if (queue != null)
             {
-                await Context.Channel.SendMessageAsync($"`Queue with the name '{queueName}' already exists!`");
+                await Context.Channel.SendMessageAsync($"`Queue with the name '{queueName}' already exists!`").AutoRemoveMessage(10);
                 return;
             }
 
@@ -110,10 +110,9 @@ namespace PickupBot.Commands.Modules
             if (!IsInPickupChannel((IGuildChannel)Context.Channel))
                 return;
 
-            var queue = await _queueRepository.FindQueue(queueName, Context.Guild.Id.ToString());
+            var queue = await VerifyQueueByName(queueName);
             if (queue == null)
             {
-                await ReplyAsync($"`Queue '{queueName}' could not be found check your spelling.`");
                 return;
             }
 
@@ -123,7 +122,7 @@ namespace PickupBot.Commands.Modules
                 var newQueueCheck = await _queueRepository.FindQueue(newName, Context.Guild.Id.ToString());
                 if (newQueueCheck != null)
                 {
-                    await ReplyAsync($"`A queue with the name '{newName}' already exists.`");
+                    await ReplyAsync($"`A queue with the name '{newName}' already exists.`").AutoRemoveMessage(10);
                     return;
                 }
 
@@ -152,12 +151,11 @@ namespace PickupBot.Commands.Modules
                     return;
                 }
 
-                await ReplyAsync("An error occured when trying to update the queue name, try again.");
+                await ReplyAsync("An error occured when trying to update the queue name, try again.").AutoRemoveMessage(10);
                 return;
             }
 
-            await ReplyAsync(
-                "`You do not have permission to rename this queue, you have to be either the owner or a server admin`");
+            await ReplyAsync("`You do not have permission to rename this queue, you have to be either the owner or a server admin`").AutoRemoveMessage(10);
         }
 
         [Command("add")]
@@ -181,7 +179,7 @@ namespace PickupBot.Commands.Modules
 
             if (queue == null)
             {
-                await Context.Channel.SendMessageAsync($"`Queue with the name '{queueName}' doesn't exists!`");
+                await Context.Channel.SendMessageAsync($"`Queue with the name '{queueName}' doesn't exists!`").AutoRemoveMessage(10);
                 return;
             }
 
@@ -207,11 +205,11 @@ namespace PickupBot.Commands.Modules
 
                     await _queueRepository.UpdateQueue(queue);
 
-                    await ReplyAsync($"`You have been added to the '{queue.Name}' waiting list`");
+                    await ReplyAsync($"`You have been added to the '{queue.Name}' waiting list`").AutoRemoveMessage(10);
                 }
                 else
                 {
-                    await ReplyAsync($"`You are already on the '{queue.Name}' waiting list`");
+                    await ReplyAsync($"`You are already on the '{queue.Name}' waiting list`").AutoRemoveMessage(10);
                 }
 
                 return;
@@ -246,10 +244,9 @@ namespace PickupBot.Commands.Modules
             }
 
             //find queue with name {queueName}
-            var queue = await _queueRepository.FindQueue(queueName, Context.Guild.Id.ToString());
+            var queue = await VerifyQueueByName(queueName);
             if (queue == null)
             {
-                await Context.Channel.SendMessageAsync($"`Queue with the name '{queueName}' doesn't exists!`");
                 return;
             }
 
@@ -263,11 +260,10 @@ namespace PickupBot.Commands.Modules
         {
             if (!IsInPickupChannel((IGuildChannel)Context.Channel))
                 return;
-
-            var queue = await _queueRepository.FindQueue(queueName, Context.Guild.Id.ToString());
+            
+            var queue = await VerifyQueueByName(queueName);
             if (queue == null)
             {
-                await Context.Channel.SendMessageAsync($"`Queue '{queueName}' has been canceled`");
                 return;
             }
 
@@ -278,11 +274,11 @@ namespace PickupBot.Commands.Modules
                 var message = result ?
                     $"`Queue '{queueName}' has been canceled`" :
                     $"`Queue with the name '{queueName}' doesn't exists or you are not the owner of the queue!`";
-                await Context.Channel.SendMessageAsync(message);
+                await Context.Channel.SendMessageAsync(message).AutoRemoveMessage(10);
                 return;
             }
 
-            await Context.Channel.SendMessageAsync("You do not have permission to remove the queue.");
+            await Context.Channel.SendMessageAsync("You do not have permission to remove the queue.").AutoRemoveMessage(10);
         }
 
         [Command("clear")]
@@ -317,7 +313,7 @@ namespace PickupBot.Commands.Modules
                 }
 
                 //if queues found and user is in queue
-                await Context.Channel.SendMessageAsync($"{GetMention(Context.User)} - You have been removed from all queues");
+                await Context.Channel.SendMessageAsync($"{GetMention(Context.User)} - You have been removed from all queues").AutoRemoveMessage(10);
             }
         }
 
@@ -335,14 +331,14 @@ namespace PickupBot.Commands.Modules
             var pickupQueues = queues as PickupQueue[] ?? queues.ToArray();
             if (!pickupQueues.Any())
             {
-                embed = new EmbedBuilder()
+                embed = new EmbedBuilder
                 {
                     Title = "Active queues",
                     Description = "There are no active pickup queues at this time, maybe you should `!create` one \uD83D\uDE09",
                     Color = Color.Orange
                 }.Build();
 
-                await Context.Channel.SendMessageAsync(embed: embed);
+                await Context.Channel.SendMessageAsync(embed: embed).AutoRemoveMessage(10);
                 return;
             }
 
@@ -365,13 +361,13 @@ namespace PickupBot.Commands.Modules
                 if (!string.IsNullOrWhiteSpace(q.Host))
                     sb.AppendLine($"**Server**: _{q.Host ?? "ra3.se"}:{(q.Port > 0 ? q.Port : 27960)}_");
 
-                embed = new EmbedBuilder()
+                embed = new EmbedBuilder
                 {
                     Title = q.Name,
                     Description = sb.ToString(),
                     Color = Color.Orange
                 }.Build();
-                await Context.Channel.SendMessageAsync(embed: embed);
+                await Context.Channel.SendMessageAsync(embed: embed).AutoRemoveMessage();
             }
         }
 
@@ -386,7 +382,7 @@ namespace PickupBot.Commands.Modules
 
             if (queue == null)
             {
-                await Context.Channel.SendMessageAsync($"`Queue with the name '{queueName}' doesn't exists!`");
+                await Context.Channel.SendMessageAsync($"`Queue with the name '{queueName}' doesn't exists!`").AutoRemoveMessage(10);
                 return;
             }
 
@@ -394,13 +390,13 @@ namespace PickupBot.Commands.Modules
             if (string.IsNullOrWhiteSpace(waitlist))
                 waitlist = "No players in the waiting list";
 
-            var embed = new EmbedBuilder()
+            var embed = new EmbedBuilder
             {
                 Title = $"Players in waiting list for queue {queue.Name}",
                 Description = waitlist,
                 Color = Color.Orange
             }.Build();
-            await Context.Channel.SendMessageAsync(embed: embed);
+            await Context.Channel.SendMessageAsync(embed: embed).AutoRemoveMessage(15);
         }
 
         [Command("subscribe")]
@@ -420,12 +416,12 @@ namespace PickupBot.Commands.Modules
             if (user.RoleIds.Any(w => w == role.Id))
             {
                 await user.RemoveRoleAsync(role);
-                await ReplyAsync($"{GetMention(user)} - you are no longer subscribed to get notifications on `!promote`");
+                await ReplyAsync($"{GetMention(user)} - you are no longer subscribed to get notifications on `!promote`").AutoRemoveMessage(10);
             }
             else
             {
                 await user.AddRoleAsync(role);
-                await ReplyAsync($"{GetMention(user)} - you are now subscribed to get notifications on `!promote`");
+                await ReplyAsync($"{GetMention(user)} - you are now subscribed to get notifications on `!promote`").AutoRemoveMessage(10);
             }
         }
 
@@ -446,13 +442,13 @@ namespace PickupBot.Commands.Modules
                 queue = await _queueRepository.FindQueue(queueName, Context.Guild.Id.ToString());
                 if (queue == null)
                 {
-                    await Context.Channel.SendMessageAsync($"`Queue with the name '{queueName}' doesn't exists!`");
+                    await Context.Channel.SendMessageAsync($"`Queue with the name '{queueName}' doesn't exists!`").AutoRemoveMessage(10);
                     return;
                 }
 
                 if (queue.MaxInQueue <= queue.Subscribers.Count)
                 {
-                    await ReplyAsync("Queue is full, why the spam?");
+                    await ReplyAsync("Queue is full, why the spam?").AutoRemoveMessage(10);
                     return;
                 }
             }
@@ -468,7 +464,7 @@ namespace PickupBot.Commands.Modules
                 var users = Context.Guild.Users.Where(w => w.Roles.Any(r => r.Id == role.Id)).ToList();
                 if (!users.Any())
                 {
-                    await ReplyAsync("No users have subscribed using the `!subscribe` command.");
+                    await ReplyAsync("No users have subscribed using the `!subscribe` command.").AutoRemoveMessage(10);
                     return;
                 }
 
@@ -477,7 +473,7 @@ namespace PickupBot.Commands.Modules
                     var queues = await _queueRepository.AllQueues(Context.Guild.Id.ToString());
                     var filtered = queues.Where(q => q.MaxInQueue > q.Subscribers.Count).ToArray();
                     if (filtered.Any())
-                        await ReplyAsync($"There are {filtered.Length} pickup queues with spots left, check out the `!list`! - {role.Mention}");
+                        await ReplyAsync($"There are {filtered.Length} pickup queues with spots left, check out the `!list`! - {role.Mention}").AutoRemoveMessage();
                 }
                 else if (queue != null)
                 {
@@ -755,7 +751,7 @@ namespace PickupBot.Commands.Modules
 
             if (queue != null) return queue;
 
-            await Context.Channel.SendMessageAsync($"`Queue with the name '{queueName}' doesn't exists!`");
+            await Context.Channel.SendMessageAsync($"`Queue with the name '{queueName}' doesn't exists!`").AutoRemoveMessage(10);
             return null;
         }
 
@@ -789,14 +785,14 @@ namespace PickupBot.Commands.Modules
                     await _queueRepository.RemoveQueue(queue.Name, queue.GuildId); //Try to remove queue if its empty
                     if (notify)
                     {
-                        await Context.Channel.SendMessageAsync($"`{queue.Name} has been removed since everyone left.`");
+                        await Context.Channel.SendMessageAsync($"`{queue.Name} has been removed since everyone left.`").AutoRemoveMessage(10);
                         notify = false;
                     }
                 }
             }
 
             if (notify)
-                await Context.Channel.SendMessageAsync($"`{queue.Name} - {ParseSubscribers(queue)}`");
+                await Context.Channel.SendMessageAsync($"`{queue.Name} - {ParseSubscribers(queue)}`").AutoRemoveMessage(10);
 
             return queue;
         }
@@ -817,7 +813,7 @@ namespace PickupBot.Commands.Modules
                 Description = sb.ToString(),
                 Color = Color.Orange
             }.Build();
-            await ReplyAsync(embed: embed);
+            await ReplyAsync(embed: embed).AutoRemoveMessage(10);
 
             return false;
         }
