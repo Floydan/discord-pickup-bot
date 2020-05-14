@@ -88,9 +88,9 @@ namespace PickupBot.Commands.Modules
                 .ToList();
 
             var sb = new StringBuilder();
-            AddTopPlayers(sb, users, top10Create, "create");
-            AddTopPlayers(sb, users, top10Add, "add");
-            AddTopPlayers(sb, users, top10Promote, "promote", "spammers");
+            AddTopPlayers(sb, users, top10Create, a => a.PickupCreate, "create");
+            AddTopPlayers(sb, users, top10Add, a => a.PickupAdd, "add");
+            AddTopPlayers(sb, users, top10Promote, a => a.PickupPromote, "promote", "spammers");
 
             await ReplyAsync(sb.ToString()).AutoRemoveMessage();
         }
@@ -99,6 +99,7 @@ namespace PickupBot.Commands.Modules
             StringBuilder sb, 
             ICollection<SocketGuildUser> users, 
             ICollection<SubscriberActivities> activities, 
+            Func<SubscriberActivities, int> key,
             string type, 
             string headlineAdditions = "")
         {
@@ -111,7 +112,7 @@ namespace PickupBot.Commands.Modules
                 counter++;
                 var user = users.FirstOrDefault(u => u.Id == Convert.ToUInt64(c.RowKey));
                 if (user == null) continue;
-                sb.AppendLine($"{counter}. {user.Nickname ?? user.Username} - {c.PickupCreate} {type.Pluralize(c.PickupPromote)}");
+                sb.AppendLine($"{counter}. {user.Nickname ?? user.Username} - {key.Invoke(c)} {type.Pluralize(key.Invoke(c))}");
             }
 
             sb.AppendLine("");
