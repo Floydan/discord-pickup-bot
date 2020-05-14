@@ -3,7 +3,7 @@
         <OutputType>Exe</OutputType>
         <TargetFramework>netcoreapp3.1</TargetFramework>
         <UserSecretsId>a7bb364b-0d73-420c-a3b9-18270f20e20f</UserSecretsId>
-        <Version>1.7.1</Version>
+        <Version>1.8.0</Version>
     </PropertyGroup>
     <ItemGroup>
         <PackageReference Include="Discord.Net" Version="2.2.0" />

@@ -72,25 +72,10 @@ namespace PickupBot.Commands.Modules
                 .Where(w => activities.Select(x => Convert.ToUInt64(x.RowKey)).Contains(w.Id))
                 .ToList();
 
-            var top10Create = activities.Where(w => w.PickupCreate > 0)
-                .OrderByDescending(w => w.PickupCreate)
-                .Take(10)
-                .ToList();
-
-            var top10Add = activities.Where(w => w.PickupAdd > 0)
-                .OrderByDescending(w => w.PickupAdd)
-                .Take(10)
-                .ToList();
-
-            var top10Promote = activities.Where(w => w.PickupPromote > 0)
-                .OrderByDescending(w => w.PickupPromote)
-                .Take(10)
-                .ToList();
-
             var sb = new StringBuilder();
-            AddTopPlayers(sb, users, top10Create, a => a.PickupCreate, "create");
-            AddTopPlayers(sb, users, top10Add, a => a.PickupAdd, "add");
-            AddTopPlayers(sb, users, top10Promote, a => a.PickupPromote, "promote", "spammers");
+            AddTopPlayers(sb, users, activities, a => a.PickupCreate, "create");
+            AddTopPlayers(sb, users, activities, a => a.PickupAdd, "add");
+            AddTopPlayers(sb, users, activities, a => a.PickupPromote, "promote", "spammers");
 
             await ReplyAsync(sb.ToString()).AutoRemoveMessage();
         }
@@ -99,27 +84,36 @@ namespace PickupBot.Commands.Modules
             StringBuilder sb, 
             ICollection<SocketGuildUser> users, 
             ICollection<SubscriberActivities> activities, 
-            Func<SubscriberActivities, int> key,
+            Func<SubscriberActivities, int> keySelector,
             string type, 
             string headlineAdditions = "")
         {
             if (!activities.Any()) return;
 
+            var top10 = activities.Where(w => keySelector.Invoke(w) > 0)
+                .OrderByDescending(keySelector)
+                .Take(10)
+                .ToList();
+            
+            if (!top10.Any()) return;
+
             var counter = 0;
-            sb.AppendLine($"**Top 10{(string.IsNullOrEmpty(headlineAdditions) ? " " : $" {headlineAdditions}")} !{type}**");
-            foreach (var c in activities)
+            sb.AppendLine($"**Top 10 `!{type}` {headlineAdditions}**");
+
+            foreach (var c in top10)
             {
                 counter++;
                 var user = users.FirstOrDefault(u => u.Id == Convert.ToUInt64(c.RowKey));
                 if (user == null) continue;
-                sb.AppendLine($"{counter}. {user.Nickname ?? user.Username} - {key.Invoke(c)} {type.Pluralize(key.Invoke(c))}");
+                var val = keySelector.Invoke(c);
+                sb.AppendLine($"{counter}. {user.Nickname ?? user.Username} - {val} {type.Pluralize(val)}");
             }
 
             sb.AppendLine("");
         }
 
         [Command("releases")]
-        [Summary("Retrieves the 3 latest releases from github")]
+        [Summary("Retrieves the 2 latest releases from github")]
         public async Task Releases()
         {
             using (Context.Channel.EnterTypingState())
@@ -128,7 +122,7 @@ namespace PickupBot.Commands.Modules
 
                 var gitHubReleases = releases as GitHubRelease[] ?? releases.ToArray();
 
-                foreach (var release in gitHubReleases.Take(3))
+                foreach (var release in gitHubReleases.Take(2))
                 {
                     var embed = new EmbedBuilder
                     {
