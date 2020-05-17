@@ -10,6 +10,7 @@ using Discord.WebSocket;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Hosting.Internal;
 using Microsoft.Extensions.Logging;
 using PickupBot.Commands;
 using PickupBot.Commands.Extensions;
@@ -23,7 +24,7 @@ namespace PickupBot
 {
     public class Program
     {
-        private static IHost _host;
+        private static IServiceProvider _serviceProvider;
 
         private static async Task<int> Main(string[] args)
         {
@@ -113,11 +114,12 @@ namespace PickupBot
                 })
                 .UseConsoleLifetime();
 
-            using (_host = builder.Build())
+            using (var host = builder.Build())
             {
-
-                var client = _host.Services.GetRequiredService<DiscordSocketClient>();
-                var pickupBotSettings = _host.Services.GetRequiredService<PickupBotSettings>();
+                _serviceProvider = host.Services;
+                using var scope = _serviceProvider.CreateScope();
+                var client = scope.ServiceProvider.GetRequiredService<DiscordSocketClient>();
+                var pickupBotSettings = scope.ServiceProvider.GetRequiredService<PickupBotSettings>();
 
                 client.JoinedGuild += OnJoinedGuild;
                 client.MessageUpdated += OnMessageUpdated;
@@ -128,7 +130,7 @@ namespace PickupBot
                         ActivityType.Playing,
                         ActivityProperties.Play));
 
-                await _host.RunReliablyAsync();
+                await host.RunReliablyAsync();
             }
 
             return 0;
@@ -162,7 +164,8 @@ namespace PickupBot
 
         private static async Task OnMessageUpdated(Cacheable<IMessage, ulong> before, SocketMessage after, ISocketMessageChannel channel)
         {
-            var commandHandler = _host.Services.GetRequiredService<CommandHandlerService>();
+            using var scope = _serviceProvider.CreateScope();
+            var commandHandler = scope.ServiceProvider.GetRequiredService<CommandHandlerService>();
             if (commandHandler != null)
                 await commandHandler.MessageReceivedAsync(after);
         }
