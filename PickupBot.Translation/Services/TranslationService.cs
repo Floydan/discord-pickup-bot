@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Google.Cloud.Translation.V2;
+using PickupBot.Data.Models;
 using TranslationResult = PickupBot.Translation.Models.TranslationResult;
 
 namespace PickupBot.Translation.Services
@@ -10,9 +11,9 @@ namespace PickupBot.Translation.Services
     public class GoogleTranslationService : ITranslationService
     {
         private readonly string _googleTranslateApiKey;
-        public GoogleTranslationService()
+        public GoogleTranslationService(PickupBotSettings pickupBotSettings)
         {
-            _googleTranslateApiKey = Environment.GetEnvironmentVariable("GoogleTranslateAPIKey") ?? "";
+            _googleTranslateApiKey = pickupBotSettings.GoogleTranslateAPIKey ?? "";
         }
 
         public async Task<List<TranslationResult>> Translate(string targetLanguage, params string[] texts)

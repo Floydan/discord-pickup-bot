@@ -10,6 +10,7 @@ using Discord.WebSocket;
 using Microsoft.Extensions.DependencyInjection;
 using PickupBot.Commands.Models;
 using PickupBot.Commands.Utilities;
+using PickupBot.Data.Models;
 using PickupBot.Translation.Services;
 
 namespace PickupBot.Commands
@@ -26,17 +27,17 @@ namespace PickupBot.Commands
         private readonly string _rconHost;
         private readonly int _rconPort;
 
-        public CommandHandlerService(IServiceProvider services)
+        public CommandHandlerService(IServiceProvider services, PickupBotSettings pickupBotSettings)
         {
             _commands = services.GetRequiredService<CommandService>();
             _discord = services.GetRequiredService<DiscordSocketClient>();
             _translationService = services.GetService<ITranslationService>();
             _services = services;
-            _commandPrefix = Environment.GetEnvironmentVariable("CommandPrefix") ?? "!";
+            _commandPrefix = pickupBotSettings.CommandPrefix ?? "!";
 
-            _rconPassword = Environment.GetEnvironmentVariable("RCONServerPassword") ?? "";
-            _rconHost = Environment.GetEnvironmentVariable("RCONHost") ?? "";
-            int.TryParse(Environment.GetEnvironmentVariable("RCONPort") ?? "0", out _rconPort);
+            _rconPassword = pickupBotSettings.RCONServerPassword ?? "";
+            _rconHost = pickupBotSettings.RCONHost ?? "";
+            int.TryParse(pickupBotSettings.RCONPort ?? "0", out _rconPort);
 
             // Hook CommandExecuted to handle post-command-execution logic.
             _commands.CommandExecuted += CommandExecutedAsync;

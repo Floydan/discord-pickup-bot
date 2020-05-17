@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using System.Threading;
 using System.Threading.Tasks;
 using Discord;
 using Discord.Commands;
@@ -29,14 +28,15 @@ namespace PickupBot.Commands.Modules
         public PickupModule(
             IQueueRepository queueRepository,
             IFlaggedSubscribersRepository flagRepository,
-            ISubscriberActivitiesRepository activitiesRepository)
+            ISubscriberActivitiesRepository activitiesRepository,
+            PickupBotSettings pickupBotSettings)
         {
             _queueRepository = queueRepository;
             _flagRepository = flagRepository;
             _activitiesRepository = activitiesRepository;
-            _rconPassword = Environment.GetEnvironmentVariable("RCONServerPassword") ?? "";
-            _rconHost = Environment.GetEnvironmentVariable("RCONHost") ?? "";
-            int.TryParse(Environment.GetEnvironmentVariable("RCONPort") ?? "0", out _rconPort);
+            _rconPassword = pickupBotSettings.RCONServerPassword ?? "";
+            _rconHost = pickupBotSettings.RCONHost ?? "";
+            int.TryParse(pickupBotSettings.RCONPort ?? "0", out _rconPort);
         }
 
         [Command("create")]

@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-
-namespace PickupBot.Commands.Extensions
+﻿namespace PickupBot.Commands.Extensions
 {
     public static class StringExtensions
     {

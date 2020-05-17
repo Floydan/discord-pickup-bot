@@ -1,7 +1,5 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Threading.Tasks;
-using Discord;
 using PickupBot.Data.Models;
 
 namespace PickupBot.Data.Repositories

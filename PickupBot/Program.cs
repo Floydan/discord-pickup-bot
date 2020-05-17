@@ -6,17 +6,17 @@ using System.Threading.Tasks;
 using Discord;
 using Discord.Addons.Hosting;
 using Discord.Addons.Hosting.Reliability;
-using Discord.Commands;
 using Discord.WebSocket;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Console;
 using PickupBot.Commands;
+using PickupBot.Commands.Extensions;
 using PickupBot.Data.Models;
 using PickupBot.Data.Repositories;
 using PickupBot.GitHub;
+using PickupBot.Infrastructure;
 using PickupBot.Translation.Services;
 
 namespace PickupBot
@@ -25,12 +25,30 @@ namespace PickupBot
     {
         private static IHost _host;
 
-        private static async Task Main(string[] args)
+        private static async Task<int> Main(string[] args)
         {
-            var storageConnectionString = Environment.GetEnvironmentVariable("StorageConnectionString");
-            
+            var environment = Environments.Development;
+            if (!args.IsNullOrEmpty())
+            {
+                environment = args.FirstOrDefault();
+            }
+
             var builder = new HostBuilder()
                 .UseSystemd()
+                .UseEnvironment(environment)
+                .ConfigureHostConfiguration(configHost =>
+                {
+                    configHost.AddEnvironmentVariables(prefix: "ASPNETCORE_");
+                    configHost.AddCommandLine(args);
+                })
+                .ConfigureAppConfiguration((hostContext, configBuilder) =>
+                    {
+                        configBuilder
+                            .AddEnvironmentVariables(prefix: "ASPNETCORE_")
+                            .SetBasePath(Path.GetDirectoryName(hostContext.HostingEnvironment.ContentRootPath))
+                            .AddJsonFile("appSettings.json", optional: false, reloadOnChange: true)
+                            .AddJsonFile($"appSettings.{hostContext.HostingEnvironment.EnvironmentName}.json", false);
+                    })
                 .ConfigureDiscordHost<DiscordSocketClient>((context, configBuilder) =>
                 {
                     configBuilder.SetDiscordConfiguration(new DiscordSocketConfig
@@ -39,7 +57,7 @@ namespace PickupBot
                         AlwaysDownloadUsers = true,
                         MessageCacheSize = 100
                     });
-                    configBuilder.SetToken(Environment.GetEnvironmentVariable("DiscordToken"));
+                    configBuilder.SetToken(context.Configuration.GetSection("PickupBot:DiscordToken").Value);
                 })
                 .UseCommandService((context, conf) =>
                 {
@@ -47,8 +65,12 @@ namespace PickupBot
                 })
                 .ConfigureServices((hostContext, services) =>
                 {
+                    var storageConnectionString =
+                        hostContext.Configuration.GetConnectionString("StorageConnectionString");
+
                     services
                         .AddHttpClient()
+                        .ConfigureSettings<PickupBotSettings>(hostContext.Configuration.GetSection("PickupBot"))
                         .AddSingleton<ITranslationService, GoogleTranslationService>()
                         .AddSingleton<CommandHandlerService>() //added as singleton to be used in event registration below
                         .AddHostedService(p => p.GetService<CommandHandlerService>())
@@ -79,23 +101,28 @@ namespace PickupBot
                         b.ClearProviders();
 
                         b.AddConfiguration(hostContext.Configuration.GetSection("Logging"))
-                            .AddDebug()
                             .AddEventSourceLogger()
                             .AddConsole();
+
+                        if (hostContext.HostingEnvironment.IsDevelopment())
+                        {
+                            b.AddDebug();
+                        }
                     });
 
                 })
                 .UseConsoleLifetime();
 
-            using(_host = builder.Build())
+            using (_host = builder.Build())
             {
 
                 var client = _host.Services.GetRequiredService<DiscordSocketClient>();
+                var pickupBotSettings = _host.Services.GetRequiredService<PickupBotSettings>();
 
                 client.JoinedGuild += OnJoinedGuild;
                 client.MessageUpdated += OnMessageUpdated;
 
-                var prefix = Environment.GetEnvironmentVariable("CommandPrefix") ?? "!";
+                var prefix = pickupBotSettings.CommandPrefix ?? "!";
                 await client.SetActivityAsync(
                     new Game($"Pickup bot | {prefix}help",
                         ActivityType.Playing,
@@ -103,6 +130,8 @@ namespace PickupBot
 
                 await _host.RunReliablyAsync();
             }
+
+            return 0;
         }
 
         private static async Task OnJoinedGuild(SocketGuild guild)
