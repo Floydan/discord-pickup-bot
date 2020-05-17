@@ -23,7 +23,7 @@ jobs:
     - name: Test
       run: dotnet test --no-restore --verbosity normal
     - name: Publish
-      run: dotnet publish --configuration Release --no-restore --output ./publish --self-contained true --runtime linux-arm -p:PublishTrimmed=true
+      run: dotnet publish PickupBot.sln --configuration Release --no-restore --output ./publish --self-contained true --runtime linux-arm -p:PublishTrimmed=true
     - name: Zip artifacts
       uses: montudor/action-zip@v0.1.0
       with:
