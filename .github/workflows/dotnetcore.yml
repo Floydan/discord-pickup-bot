@@ -19,7 +19,7 @@ jobs:
     - name: Install dependencies
       run: dotnet restore
     - name: Build
-      run: dotnet build --configuration Release --no-restore -o ./artifacts --self-contained true -r linux-arm
+      run: dotnet build --configuration Release --no-restore -o ./artifacts -r linux-arm
     - name: Zip artifacts
       uses: montudor/action-zip@v0.1.0
       with:
