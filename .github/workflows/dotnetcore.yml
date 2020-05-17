@@ -1,12 +1,9 @@
-name: build
+name: .NET Core - Build and create Release
 
 on:
   push:
-    branches: [ master ]
-  pull_request:
-    branches: [ master ]
-  schedule:
-    - cron: "0 2 * * 1-5"
+    tags:
+      - 'v*'
 
 jobs:
   build:
@@ -25,3 +22,8 @@ jobs:
       run: dotnet build --configuration Release --no-restore
     - name: Test
       run: dotnet test --no-restore --verbosity normal
+    - name: Create release
+      uses: actions/create-release@v1
+      with:
+        tag_name: ${{github.GITHUB_REF}}
+        release_name: ${{github.GITHUB_REF}}
