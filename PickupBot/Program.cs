@@ -1,13 +1,18 @@
 ﻿using System;
+using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
 using Discord;
+using Discord.Addons.Hosting;
+using Discord.Addons.Hosting.Reliability;
 using Discord.Commands;
 using Discord.WebSocket;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Console;
 using PickupBot.Commands;
 using PickupBot.Data.Models;
 using PickupBot.Data.Repositories;
@@ -19,21 +24,34 @@ namespace PickupBot
     public class Program
     {
         private static IHost _host;
+
         private static async Task Main(string[] args)
         {
             var storageConnectionString = Environment.GetEnvironmentVariable("StorageConnectionString");
-
+            
             var builder = new HostBuilder()
+                .UseSystemd()
+                .ConfigureDiscordHost<DiscordSocketClient>((context, configBuilder) =>
+                {
+                    configBuilder.SetDiscordConfiguration(new DiscordSocketConfig
+                    {
+                        LogLevel = LogSeverity.Info,
+                        AlwaysDownloadUsers = true,
+                        MessageCacheSize = 100
+                    });
+                    configBuilder.SetToken(Environment.GetEnvironmentVariable("DiscordToken"));
+                })
+                .UseCommandService((context, conf) =>
+                {
+                    conf.LogLevel = LogSeverity.Warning;
+                })
                 .ConfigureServices((hostContext, services) =>
                 {
-                    var discordSocketConfig = new DiscordSocketConfig { MessageCacheSize = 100, LogLevel = LogSeverity.Info };
-
                     services
                         .AddHttpClient()
-                        .AddSingleton<DiscordSocketClient>(provider => new DiscordSocketClient(discordSocketConfig))
-                        .AddSingleton<CommandService>()
                         .AddSingleton<ITranslationService, GoogleTranslationService>()
-                        .AddSingleton<CommandHandlerService>()
+                        .AddSingleton<CommandHandlerService>() //added as singleton to be used in event registration below
+                        .AddHostedService(p => p.GetService<CommandHandlerService>())
                         .AddSingleton<HttpClient>()
                         .AddScoped<IAzureTableStorage<PickupQueue>>(provider =>
                             new AzureTableStorage<PickupQueue>(
@@ -54,36 +72,37 @@ namespace PickupBot
                         .AddScoped<IFlaggedSubscribersRepository, FlaggedSubscribersRepository>()
                         .AddScoped<ISubscriberActivitiesRepository, SubscriberActivitiesRepository>();
 
-
                     services.AddHttpClient<GitHubService>();
 
-                }).UseConsoleLifetime();
+                    services.AddLogging(b =>
+                    {
+                        b.ClearProviders();
 
-            _host = builder.Build();
+                        b.AddConfiguration(hostContext.Configuration.GetSection("Logging"))
+                            .AddDebug()
+                            .AddEventSourceLogger()
+                            .AddConsole();
+                    });
 
-            var client = _host.Services.GetRequiredService<DiscordSocketClient>();
+                })
+                .UseConsoleLifetime();
 
-            client.Log += LogAsync;
-            client.JoinedGuild += OnJoinedGuild;
-            client.MessageUpdated += OnMessageUpdated;
-            _host.Services.GetRequiredService<CommandService>().Log += LogAsync;
+            using(_host = builder.Build())
+            {
 
-            // Tokens should be considered secret data and never hard-coded.
-            // We can read from the environment variable to avoid hardcoding.
-            await client.LoginAsync(TokenType.Bot, Environment.GetEnvironmentVariable("DiscordToken"));
-            await client.StartAsync();
+                var client = _host.Services.GetRequiredService<DiscordSocketClient>();
 
-            // Here we initialize the logic required to register our commands.
-            await _host.Services.GetRequiredService<CommandHandlerService>().InitializeAsync();
+                client.JoinedGuild += OnJoinedGuild;
+                client.MessageUpdated += OnMessageUpdated;
 
-            //await client.SetGameAsync("Pickup bot", null, ActivityType.Playing);
-            var prefix = Environment.GetEnvironmentVariable("CommandPrefix") ?? "!";
-            await client.SetActivityAsync(
-                new Game($"Pickup bot | {prefix}help",
-                    ActivityType.Playing,
-                    ActivityProperties.Play));
+                var prefix = Environment.GetEnvironmentVariable("CommandPrefix") ?? "!";
+                await client.SetActivityAsync(
+                    new Game($"Pickup bot | {prefix}help",
+                        ActivityType.Playing,
+                        ActivityProperties.Play));
 
-            await Task.Delay(-1);
+                await _host.RunReliablyAsync();
+            }
         }
 
         private static async Task OnJoinedGuild(SocketGuild guild)
@@ -114,7 +133,7 @@ namespace PickupBot
 
         private static async Task OnMessageUpdated(Cacheable<IMessage, ulong> before, SocketMessage after, ISocketMessageChannel channel)
         {
-            var commandHandler = _host.Services.GetService<CommandHandlerService>();
+            var commandHandler = _host.Services.GetRequiredService<CommandHandlerService>();
             if (commandHandler != null)
                 await commandHandler.MessageReceivedAsync(after);
         }

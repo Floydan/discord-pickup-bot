@@ -1,8 +1,10 @@
 ﻿using System;
 using System.Linq;
 using System.Reflection;
+using System.Threading;
 using System.Threading.Tasks;
 using Discord;
+using Discord.Addons.Hosting;
 using Discord.Commands;
 using Discord.WebSocket;
 using Microsoft.Extensions.DependencyInjection;
@@ -12,13 +14,12 @@ using PickupBot.Translation.Services;
 
 namespace PickupBot.Commands
 {
-    public class CommandHandlerService
+    public class CommandHandlerService : InitializedService
     {
         private readonly CommandService _commands;
         private readonly DiscordSocketClient _discord;
         private readonly IServiceProvider _services;
         private readonly string _commandPrefix;
-        private readonly string _googleTranslateApiKey;
         private readonly ITranslationService _translationService;
         private IActivity _currentActivity;
         private readonly string _rconPassword;
@@ -32,7 +33,6 @@ namespace PickupBot.Commands
             _translationService = services.GetService<ITranslationService>();
             _services = services;
             _commandPrefix = Environment.GetEnvironmentVariable("CommandPrefix") ?? "!";
-            _googleTranslateApiKey = Environment.GetEnvironmentVariable("GoogleTranslateAPIKey") ?? "";
 
             _rconPassword = Environment.GetEnvironmentVariable("RCONServerPassword") ?? "";
             _rconHost = Environment.GetEnvironmentVariable("RCONHost") ?? "";
@@ -126,15 +126,7 @@ namespace PickupBot.Commands
 
             AsyncUtilities.DelayAction(TimeSpan.FromSeconds(30), async t => { await sentMessage.DeleteAsync(); });
         }
-
-        public async Task InitializeAsync()
-        {
-            // Register modules that are public and inherit ModuleBase<T>.
-
-            await _commands.AddModulesAsync(Assembly.GetEntryAssembly(), _services);
-            await _commands.AddModulesAsync(GetType().Assembly, _services);
-        }
-
+        
         public async Task MessageReceivedAsync(SocketMessage rawMessage)
         {
             // Ignore system messages, or messages from other bots
@@ -174,6 +166,12 @@ namespace PickupBot.Commands
 
             // the command failed, let's notify the user that something happened.
             await context.Channel.SendMessageAsync($"error: {result}");
+        }
+
+        public override async Task InitializeAsync(CancellationToken cancellationToken)
+        {
+            await _commands.AddModulesAsync(Assembly.GetEntryAssembly(), _services);
+            await _commands.AddModulesAsync(GetType().Assembly, _services);
         }
     }
 }

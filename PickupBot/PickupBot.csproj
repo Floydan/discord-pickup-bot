@@ -2,16 +2,19 @@
     <PropertyGroup>
         <OutputType>Exe</OutputType>
         <TargetFramework>netcoreapp3.1</TargetFramework>
+        <PublishTrimmed>true</PublishTrimmed>
         <UserSecretsId>a7bb364b-0d73-420c-a3b9-18270f20e20f</UserSecretsId>
-        <Version>1.8.0</Version>
+        <Version>1.9.1</Version>
     </PropertyGroup>
     <ItemGroup>
+        <PackageReference Include="Discord.Addons.Hosting" Version="2.1.0" />
         <PackageReference Include="Discord.Net" Version="2.2.0" />
         <PackageReference Include="Microsoft.Extensions.Azure" Version="1.0.0" />
-        <PackageReference Include="Microsoft.Extensions.Configuration.UserSecrets" Version="3.1.3" />
-        <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="3.1.3" />
-        <PackageReference Include="Microsoft.Extensions.Hosting" Version="3.1.3" />
-        <PackageReference Include="Microsoft.Extensions.Http" Version="3.1.3" />
+        <PackageReference Include="Microsoft.Extensions.Configuration.UserSecrets" Version="3.1.4" />
+        <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="3.1.4" />
+        <PackageReference Include="Microsoft.Extensions.Hosting" Version="3.1.4" />
+        <PackageReference Include="Microsoft.Extensions.Hosting.Systemd" Version="3.1.4" />
+        <PackageReference Include="Microsoft.Extensions.Http" Version="3.1.4" />
     </ItemGroup>
     <ItemGroup>
         <ProjectReference Include="..\PickupBot.Commands\PickupBot.Commands.csproj" />

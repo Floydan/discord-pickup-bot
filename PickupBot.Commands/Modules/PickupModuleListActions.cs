@@ -160,7 +160,7 @@ namespace PickupBot.Commands.Modules
         {
             if (!IsInPickupChannel((IGuildChannel)Context.Channel))
                 return;
-            
+
             var queue = await VerifyQueueByName(queueName);
             if (queue == null)
             {
@@ -380,7 +380,7 @@ namespace PickupBot.Commands.Modules
             queue.Teams.Add(new Team
             {
                 Name = redTeamName,
-                Subscribers = redTeam.Select(w => new Subscriber { Id = w.Id, Name = GetNickname(w)}).ToList(),
+                Subscribers = redTeam.Select(w => new Subscriber { Id = w.Id, Name = GetNickname(w) }).ToList(),
                 VoiceChannel = new KeyValuePair<string, ulong?>(vcRedTeamName, vcRed.Id)
             });
 
@@ -390,7 +390,7 @@ namespace PickupBot.Commands.Modules
                 queue.Teams.Add(new Team
                 {
                     Name = blueTeamName,
-                    Subscribers = blueTeam.Select(w => new Subscriber {Id = w.Id, Name = GetNickname(w)}).ToList(),
+                    Subscribers = blueTeam.Select(w => new Subscriber { Id = w.Id, Name = GetNickname(w) }).ToList(),
                     VoiceChannel = new KeyValuePair<string, ulong?>(vcBlueTeamName, vcBlue?.Id)
 
                 });
@@ -400,20 +400,22 @@ namespace PickupBot.Commands.Modules
             await _queueRepository.UpdateQueue(queue);
             await PrintTeams(queue);
 
-            TriggerRconNotification(queue);
+            TriggerDelayedRconNotification(queue);
         }
 
         [Command("teams"), Alias("team")]
         [Summary("Lists the teams of a started pickup queue")]
         public async Task Teams([Name("Queue name"), Remainder] string queueName)
         {
-            if (!IsInPickupChannel((IGuildChannel) Context.Channel))
+            if (!IsInPickupChannel((IGuildChannel)Context.Channel))
                 return;
 
             var queue = await VerifyQueueByName(queueName);
             if (queue == null) return;
 
             await PrintTeams(queue);
+
+            await TriggerRconNotification(queue);
         }
 
         [Command("stop")]
@@ -431,10 +433,10 @@ namespace PickupBot.Commands.Modules
             {
                 foreach (var voiceId in voiceIds)
                 {
-                    if(!voiceId.HasValue) continue;
+                    if (!voiceId.HasValue) continue;
 
-                    var vc = (IVoiceChannel) Context.Guild.GetVoiceChannel(voiceId.Value);
-                    if(vc == null) continue;
+                    var vc = (IVoiceChannel)Context.Guild.GetVoiceChannel(voiceId.Value);
+                    if (vc == null) continue;
                     await vc.DeleteAsync().ConfigureAwait(false);
                 }
             }
@@ -447,7 +449,7 @@ namespace PickupBot.Commands.Modules
             return (IVoiceChannel)Context.Guild.VoiceChannels.FirstOrDefault(c => c.Name.Equals(name, StringComparison.OrdinalIgnoreCase))
                    ?? await Context.Guild.CreateVoiceChannelAsync(name, properties => properties.CategoryId = categoryId);
         }
-        
+
         private async Task NotifyUsers(PickupQueue queue, string serverName, params SocketGuildUser[] users)
         {
             var usersList = string.Join(Environment.NewLine, queue.Subscribers.Where(u => u.Id != Context.User.Id).Select(u => $@"  - {u.Name}"));
@@ -513,7 +515,7 @@ namespace PickupBot.Commands.Modules
 
         private async Task PrintTeams(PickupQueue queue)
         {
-            if(!queue.Started || queue.Teams.IsNullOrEmpty()) return;
+            if (!queue.Started || queue.Teams.IsNullOrEmpty()) return;
 
             foreach (var team in queue.Teams)
             {
@@ -533,7 +535,16 @@ namespace PickupBot.Commands.Modules
             }
         }
 
-        private void TriggerRconNotification(PickupQueue queue)
+        private void TriggerDelayedRconNotification(PickupQueue queue)
+        {
+            // 2 minute delay message
+            AsyncUtilities.DelayAction(TimeSpan.FromMinutes(2), async t => { await TriggerRconNotification(queue); });
+
+            // 4 minute delay message
+            AsyncUtilities.DelayAction(TimeSpan.FromMinutes(4), async t => { await TriggerRconNotification(queue); });
+        }
+
+        private async Task TriggerRconNotification(PickupQueue queue)
         {
             if (!queue.Rcon) return;
             if (!string.IsNullOrWhiteSpace(queue.Host) &&
@@ -545,16 +556,13 @@ namespace PickupBot.Commands.Modules
                 var redTeam = queue.Teams.FirstOrDefault();
                 var blueTeam = queue.Teams.LastOrDefault();
                 if (string.IsNullOrWhiteSpace(_rconPassword) || string.IsNullOrWhiteSpace(_rconHost) || _rconPort == 0) return;
-                
+
                 var command = $"say \"^2Pickup '^3{queue.Name}^2' has started! " +
                               $"^1RED TEAM: ^5{string.Join(", ", redTeam.Subscribers.Select(w => w.Name))} ^7- " +
                               $"^4BLUE TEAM: ^5{string.Join(", ", blueTeam.Subscribers.Select(w => w.Name))}\"";
 
-                // 2 minute delay message
-                AsyncUtilities.DelayAction(TimeSpan.FromMinutes(2), async t => { await RCON.UDPSendCommand(command, _rconHost, _rconPassword, _rconPort, true); });
+                await RCON.UDPSendCommand(command, _rconHost, _rconPassword, _rconPort, true);
 
-                // 4 minute delay message
-                AsyncUtilities.DelayAction(TimeSpan.FromMinutes(4), async t => { await RCON.UDPSendCommand(command, _rconHost, _rconPassword, _rconPort, true); });
             }
             catch (Exception e)
             {
