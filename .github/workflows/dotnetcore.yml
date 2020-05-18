@@ -19,7 +19,7 @@ jobs:
     - name: Install dependencies
       run: dotnet restore -r linux-arm
     - name: Build
-      run: dotnet build --configuration Release -r linux-arm -o ./artifacts
+      run: dotnet build --configuration Release --no-restore -r linux-arm -o ./artifacts
     - name: Test
       run: dotnet test --no-restore --verbosity normal
     - name: Zip artifacts
