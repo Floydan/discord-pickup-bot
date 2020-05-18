@@ -26,10 +26,10 @@ jobs:
     - name: Zip artifacts
       uses: montudor/action-zip@v0.1.0
       with:
-        args: zip -qq -r ./release.zip ./artifacts/*
+        args: zip -qq -r ./release.zip ./artifacts
     - uses: actions/upload-artifact@v2
       with:
-        path: ./artifacts/*
+        path: ./artifacts/**/*
     - name: Create release
       id: create_release
       uses: actions/create-release@v1
