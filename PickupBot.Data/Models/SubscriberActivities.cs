@@ -22,5 +22,6 @@ namespace PickupBot.Data.Models
         public int PickupAdd { get; set; }
         public int PickupCreate { get; set; }
         public int PickupPromote { get; set; }
+        public int PickupTop10 { get; set; }
     }
 }

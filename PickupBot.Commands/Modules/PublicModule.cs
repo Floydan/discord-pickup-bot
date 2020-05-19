@@ -60,6 +60,10 @@ namespace PickupBot.Commands.Modules
         [Summary("Displays the currently top 10 of active players")]
         public async Task Top10()
         {
+            var activity = await _activitiesRepository.Find((IGuildUser)Context.User);
+            activity.PickupTop10 += 1;
+            await _activitiesRepository.Update(activity);
+
             var list = await _activitiesRepository.List(Context.Guild.Id);
             var activities = list as SubscriberActivities[] ?? list.ToArray();
             if (activities.IsNullOrEmpty())
@@ -76,6 +80,7 @@ namespace PickupBot.Commands.Modules
             AddTopPlayers(sb, users, activities, a => a.PickupCreate, "create");
             AddTopPlayers(sb, users, activities, a => a.PickupAdd, "add");
             AddTopPlayers(sb, users, activities, a => a.PickupPromote, "promote", "spammers");
+            AddTopPlayers(sb, users, activities, a => a.PickupTop10, "top10", "stats junkies");
 
             await ReplyAsync(sb.ToString()).AutoRemoveMessage();
         }
