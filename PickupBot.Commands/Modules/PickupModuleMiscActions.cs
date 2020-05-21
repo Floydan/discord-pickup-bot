@@ -1,9 +1,11 @@
 ﻿using System;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Discord;
 using Discord.Commands;
+using Microsoft.Extensions.Logging;
 using PickupBot.Commands.Models;
 using PickupBot.Commands.Utilities;
 
@@ -47,6 +49,8 @@ namespace PickupBot.Commands.Modules
             try
             {
                 var response = await RCON.UDPSendCommand("status", _rconHost, _rconPassword, _rconPort);
+                
+                _logger.LogInformation($"serverstatus response: {response}");
                 var serverStatus = new ServerStatus(response);
 
                 var embed = new EmbedBuilder
@@ -75,19 +79,30 @@ namespace PickupBot.Commands.Modules
             }
             catch (Exception e)
             {
-                Console.WriteLine(e);
+                _logger.LogError(e, e.Message);
             }
         }
 
         [Command("clientinfo")]
         public async Task ClientInfo(string player)
         {
+            _logger.LogInformation("clientinfo called");
             if (!IsInPickupChannel((IGuildChannel)Context.Channel))
                 return;
 
             if (string.IsNullOrWhiteSpace(_rconPassword) || string.IsNullOrWhiteSpace(_rconHost) || _rconPort == 0) return;
 
-            var clientInfo = new ClientInfo(await RCON.UDPSendCommand($"dumpuser {player}", _rconHost, _rconPassword, _rconPort));
+            var userdata = await RCON.UDPSendCommand($"dumpuser {player}", _rconHost, _rconPassword, _rconPort);
+            if(userdata.IndexOf("is not on the server", StringComparison.OrdinalIgnoreCase) != -1)
+            {
+                await ReplyAsync(
+                    $"```{Environment.NewLine}" +
+                    $"{userdata}" +
+                    $"{Environment.NewLine}```");
+                return;
+            }
+
+            var clientInfo = new ClientInfo(userdata);
 
             await ReplyAsync(
                 $"```{Environment.NewLine}" +

@@ -9,6 +9,8 @@ namespace PickupBot.Commands.Models
     {
         public ClientInfo(string data)
         {
+            if(string.IsNullOrEmpty(data))
+                throw new ArgumentException($"Argument can't be null '{nameof(data)}'");
             var lines = data.Split('\n', StringSplitOptions.RemoveEmptyEntries);
             foreach (var line in lines)
             {

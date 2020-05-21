@@ -22,6 +22,7 @@ namespace PickupBot.Commands.Utilities
             "-port",
             "-game"
         };
+
         private static readonly Regex OperatorsRegex = new Regex(@"(?<operator>-\w+)+[:]?(?<value>[^-]*)");
 
         public static Dictionary<string, List<string>> Parse(string operators)

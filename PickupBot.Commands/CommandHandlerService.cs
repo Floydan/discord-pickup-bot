@@ -8,6 +8,7 @@ using Discord.Addons.Hosting;
 using Discord.Commands;
 using Discord.WebSocket;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using PickupBot.Commands.Models;
 using PickupBot.Commands.Utilities;
 using PickupBot.Data.Models;
@@ -20,6 +21,7 @@ namespace PickupBot.Commands
         private readonly CommandService _commands;
         private readonly DiscordSocketClient _discord;
         private readonly IServiceProvider _services;
+        private readonly ILogger<CommandHandlerService> _logger;
         private readonly string _commandPrefix;
         private readonly ITranslationService _translationService;
         private IActivity _currentActivity;
@@ -27,12 +29,13 @@ namespace PickupBot.Commands
         private readonly string _rconHost;
         private readonly int _rconPort;
 
-        public CommandHandlerService(IServiceProvider services, PickupBotSettings pickupBotSettings)
+        public CommandHandlerService(IServiceProvider services, PickupBotSettings pickupBotSettings, ILogger<CommandHandlerService> logger)
         {
             _commands = services.GetRequiredService<CommandService>();
             _discord = services.GetRequiredService<DiscordSocketClient>();
             _translationService = services.GetService<ITranslationService>();
             _services = services;
+            _logger = logger;
             _commandPrefix = pickupBotSettings.CommandPrefix ?? "!";
 
             _rconPassword = pickupBotSettings.RCONServerPassword ?? "";
@@ -88,7 +91,7 @@ namespace PickupBot.Commands
             }
             catch (Exception e)
             {
-                Console.WriteLine(e);
+                _logger.LogError(e, e.Message);
             }
         }
 

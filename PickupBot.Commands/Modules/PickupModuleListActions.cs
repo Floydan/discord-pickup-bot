@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Discord;
 using Discord.Commands;
 using Discord.WebSocket;
+using Microsoft.Extensions.Logging;
 using PickupBot.Commands.Extensions;
 using PickupBot.Commands.Utilities;
 using PickupBot.Data.Models;
@@ -21,6 +22,7 @@ namespace PickupBot.Commands.Modules
         private readonly IQueueRepository _queueRepository;
         private readonly IFlaggedSubscribersRepository _flagRepository;
         private readonly ISubscriberActivitiesRepository _activitiesRepository;
+        private readonly ILogger<PickupModule> _logger;
         private readonly string _rconPassword;
         private readonly string _rconHost;
         private readonly int _rconPort;
@@ -29,11 +31,13 @@ namespace PickupBot.Commands.Modules
             IQueueRepository queueRepository,
             IFlaggedSubscribersRepository flagRepository,
             ISubscriberActivitiesRepository activitiesRepository,
-            PickupBotSettings pickupBotSettings)
+            PickupBotSettings pickupBotSettings, 
+            ILogger<PickupModule> logger)
         {
             _queueRepository = queueRepository;
             _flagRepository = flagRepository;
             _activitiesRepository = activitiesRepository;
+            _logger = logger;
             _rconPassword = pickupBotSettings.RCONServerPassword ?? "";
             _rconHost = pickupBotSettings.RCONHost ?? "";
             int.TryParse(pickupBotSettings.RCONPort ?? "0", out _rconPort);
@@ -566,7 +570,7 @@ namespace PickupBot.Commands.Modules
             }
             catch (Exception e)
             {
-                Console.WriteLine(e);
+                _logger.LogError(e, e.Message);
             }
         }
 

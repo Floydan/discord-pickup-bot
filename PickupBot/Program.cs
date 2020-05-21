@@ -10,8 +10,8 @@ using Discord.WebSocket;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Hosting.Internal;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Console;
 using PickupBot.Commands;
 using PickupBot.Commands.Extensions;
 using PickupBot.Data.Models;
@@ -108,6 +108,10 @@ namespace PickupBot
                         if (hostContext.HostingEnvironment.IsDevelopment())
                         {
                             b.AddDebug();
+                        }
+                        else
+                        {
+                            b.AddFilter<ConsoleLoggerProvider>((category, level) => category == "A" || level == LogLevel.Warning);
                         }
                     });
 

@@ -1,12 +1,18 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Data;
+using System.Linq;
 using System.Text.RegularExpressions;
 using PickupBot.Commands.Utilities;
 
 namespace PickupBot.Commands.Models
 {
-    public class ServerStatus {
+    public class ServerStatus
+    {
+        private static readonly Regex LineParserRegex =
+            new Regex(
+                @"(?<cl>(\d+))[ ]+(?<score>([-]?\d+))[ ]+(?<ping>(\d+))[ ]+(?<name>(.+))[ ]+(?<ip>(\^\d{2,4}\.\d{1,3}\.\d{1,3}\.\d{1,3}))[ ]+(?<rate>(\d+))");
+
         public ServerStatus()
         {
             Players = new List<Player>();
@@ -14,18 +20,19 @@ namespace PickupBot.Commands.Models
 
         public ServerStatus(string status) : this()
         {
-            var lines = status.Split('\n', StringSplitOptions.RemoveEmptyEntries);
-            var regex = new Regex(@"(?<cl>(\d+))[ ]+(?<score>([-]?\d+))[ ]+(?<ping>(\d+))[ ]+(?<name>(.+))[ ]+(?<ip>(\^\d{2,4}\.\d{2,3}\.\d{2,3}\.\d{2,3}))[ ]+(?<rate>(\d+))");
+            if(string.IsNullOrEmpty(status))
+                throw new ArgumentException($"Argument can't be null '{nameof(status)}'");
+            
+            var lines = status.Split('\n', StringSplitOptions.RemoveEmptyEntries).Select(l => l.Trim());
 
             foreach (var line in lines)
             {
-                if (line.StartsWith("\0")) break;
                 if (line.StartsWith("????") || line.StartsWith("cl ") || line.StartsWith("-- ")) continue;
 		
                 if (line.StartsWith("map: "))
                     Map = line.Substring(5);
 		
-                var match = regex.Match(line);
+                var match = LineParserRegex.Match(line);
                 if (!match.Success) continue;
 
                 var player = new Player {
