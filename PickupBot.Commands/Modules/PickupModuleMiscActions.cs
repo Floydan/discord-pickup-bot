@@ -1,13 +1,12 @@
 ﻿using System;
 using System.Linq;
 using System.Text;
-using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Discord;
 using Discord.Commands;
 using Microsoft.Extensions.Logging;
+using PickupBot.Commands.Infrastructure.Utilities;
 using PickupBot.Commands.Models;
-using PickupBot.Commands.Utilities;
 
 // ReSharper disable MemberCanBePrivate.Global
 namespace PickupBot.Commands.Modules

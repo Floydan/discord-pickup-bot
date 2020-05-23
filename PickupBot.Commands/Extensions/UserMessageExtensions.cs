@@ -3,7 +3,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Discord;
 using Discord.Rest;
-using PickupBot.Commands.Utilities;
+using PickupBot.Commands.Infrastructure.Utilities;
 
 namespace PickupBot.Commands.Extensions
 {

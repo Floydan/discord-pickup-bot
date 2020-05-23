@@ -9,7 +9,7 @@ using Discord.Addons.CommandsExtension;
 using Discord.Commands;
 using Discord.WebSocket;
 using PickupBot.Commands.Extensions;
-using PickupBot.Commands.Utilities;
+using PickupBot.Commands.Infrastructure.Utilities;
 using PickupBot.Data.Models;
 using PickupBot.Data.Repositories;
 using PickupBot.GitHub;

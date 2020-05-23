@@ -3,7 +3,7 @@ using System.Net.Sockets;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace PickupBot.Commands.Utilities
+namespace PickupBot.Commands.Infrastructure.Utilities
 {
     // ReSharper disable once InconsistentNaming
     public static class RCON

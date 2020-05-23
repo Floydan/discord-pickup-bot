@@ -8,7 +8,8 @@ using Discord.Commands;
 using Discord.WebSocket;
 using Microsoft.Extensions.Logging;
 using PickupBot.Commands.Extensions;
-using PickupBot.Commands.Utilities;
+using PickupBot.Commands.Infrastructure.Helpers;
+using PickupBot.Commands.Infrastructure.Utilities;
 using PickupBot.Data.Models;
 using PickupBot.Data.Repositories;
 // ReSharper disable MemberCanBePrivate.Global
@@ -52,15 +53,15 @@ namespace PickupBot.Commands.Modules
         private async Task SocketClient_ReactionAdded(Cacheable<IUserMessage, ulong> message, ISocketMessageChannel channel, SocketReaction reaction)
         {
             if (!(channel is IGuildChannel guildChannel) || guildChannel.Name != "active-pickups") return;
-            if(reaction.User.Value.IsBot) return;
-            
+            if (reaction.User.Value.IsBot) return;
+
             if (reaction.Emote.Name == "\u2705")
             {
                 var queue = await _queueRepository.FindQueueByMessageId(reaction.MessageId, guildChannel.GuildId.ToString());
 
                 if (queue != null)
                 {
-                    var pickupChannel = ((SocketGuild) guildChannel.Guild).Channels.FirstOrDefault(c => c.Name.Equals("pickup")) as SocketTextChannel;
+                    var pickupChannel = ((SocketGuild)guildChannel.Guild).Channels.FirstOrDefault(c => c.Name.Equals("pickup")) as SocketTextChannel;
                     await AddInternal(queue.Name, (SocketGuild)guildChannel.Guild, pickupChannel ?? (SocketTextChannel)guildChannel,
                         (SocketGuildUser)reaction.User);
                 }
@@ -70,7 +71,7 @@ namespace PickupBot.Commands.Modules
         private async Task SocketClient_ReactionRemoved(Cacheable<IUserMessage, ulong> message, ISocketMessageChannel channel, SocketReaction reaction)
         {
             if (!(channel is IGuildChannel guildChannel) || guildChannel.Name != "active-pickups") return;
-            if(reaction.User.Value.IsBot) return;
+            if (reaction.User.Value.IsBot) return;
 
             if (reaction.Emote.Name == "\u2705")
             {
@@ -78,8 +79,8 @@ namespace PickupBot.Commands.Modules
 
                 if (queue != null)
                 {
-                    var pickupChannel = ((SocketGuild) guildChannel.Guild).Channels.FirstOrDefault(c => c.Name.Equals("pickup")) as SocketTextChannel;
-                    await LeaveInternal(queue, (SocketGuild)guildChannel.Guild, pickupChannel ?? (SocketTextChannel)guildChannel,
+                    var pickupChannel = ((SocketGuild)guildChannel.Guild).Channels.FirstOrDefault(c => c.Name.Equals("pickup")) as SocketTextChannel;
+                    await LeaveInternal(queue, pickupChannel ?? (SocketTextChannel)guildChannel,
                         (SocketGuildUser)reaction.User);
                 }
             }
@@ -129,7 +130,7 @@ namespace PickupBot.Commands.Modules
             {
                 Name = queueName,
                 GuildId = Context.Guild.Id.ToString(),
-                OwnerName = GetNickname(Context.User),
+                OwnerName = PickupHelpers.GetNickname(Context.User),
                 OwnerId = Context.User.Id.ToString(),
                 Created = DateTime.UtcNow,
                 Updated = DateTime.UtcNow,
@@ -137,7 +138,7 @@ namespace PickupBot.Commands.Modules
                 IsCoop = ops?.ContainsKey("-coop") ?? false,
                 Rcon = rconEnabled,
                 Subscribers = new List<Subscriber>
-                    {new Subscriber {Id = Context.User.Id, Name = GetNickname(Context.User)}},
+                    {new Subscriber {Id = Context.User.Id, Name = PickupHelpers.GetNickname(Context.User)}},
                 Host = ops?.ContainsKey("-host") ?? false ? ops["-host"]?.FirstOrDefault() : null,
                 Port = int.Parse((ops?.ContainsKey("-port") ?? false ? ops["-port"]?.FirstOrDefault() : null) ?? "0"),
                 Games = ops?.ContainsKey("-game") ?? false ? ops["-game"] : Enumerable.Empty<string>(),
@@ -145,7 +146,7 @@ namespace PickupBot.Commands.Modules
 
             await _queueRepository.AddQueue(queue);
 
-            await Context.Channel.SendMessageAsync($"`Queue '{queueName}' was added by {GetNickname(Context.User)}`");
+            await Context.Channel.SendMessageAsync($"`Queue '{queueName}' was added by {PickupHelpers.GetNickname(Context.User)}`");
             queue = await SaveStaticQueueMessage(queue, Context.Guild);
             await _queueRepository.UpdateQueue(queue);
         }
@@ -194,7 +195,7 @@ namespace PickupBot.Commands.Modules
                 {
                     await _queueRepository.RemoveQueue(queue);
                     await ReplyAsync($"The queue '{queue.Name}' has been renamed to '{newQueue.Name}'");
-                    await ReplyAsync($"`{newQueue.Name} - {ParseSubscribers(newQueue)}`");
+                    await ReplyAsync($"`{newQueue.Name} - {PickupHelpers.ParseSubscribers(newQueue)}`");
                     return;
                 }
 
@@ -273,7 +274,7 @@ namespace PickupBot.Commands.Modules
                   .AppendLine("")
                   .AppendLine($"Created by _{q.OwnerName}_ {(q.IsCoop ? "(_coop_)" : "")}")
                   .AppendLine("```")
-                  .AppendLine($"[{q.Subscribers.Count}/{q.MaxInQueue}] - {ParseSubscribers(q)}")
+                  .AppendLine($"[{q.Subscribers.Count}/{q.MaxInQueue}] - {PickupHelpers.ParseSubscribers(q)}")
                   .AppendLine("```");
 
                 if (!q.WaitingList.IsNullOrEmpty())
@@ -375,7 +376,7 @@ namespace PickupBot.Commands.Modules
                 {
                     var sb = new StringBuilder()
                         .AppendLine("**Current queue**")
-                        .AppendLine($"`{ParseSubscribers(queue)}`")
+                        .AppendLine($"`{PickupHelpers.ParseSubscribers(queue)}`")
                         .AppendLine("")
                         .AppendLine($"**Spots left**: {queue.MaxInQueue - queue.Subscribers.Count}")
                         .AppendLine($"**Team size**: {queue.TeamSize}")
@@ -421,9 +422,9 @@ namespace PickupBot.Commands.Modules
             var vcRedTeamName = $"{queue.Name} \uD83D\uDD34";
             var vcBlueTeamName = $"{queue.Name} \uD83D\uDD35";
 
-            var vcRed = await GetOrCreateVoiceChannel(vcRedTeamName, pickupCategory.Id);
+            var vcRed = await PickupHelpers.GetOrCreateVoiceChannel(vcRedTeamName, pickupCategory.Id, Context.Guild);
 
-            var vcBlue = queue.IsCoop ? null : await GetOrCreateVoiceChannel(vcBlueTeamName, pickupCategory.Id);
+            var vcBlue = queue.IsCoop ? null : await PickupHelpers.GetOrCreateVoiceChannel(vcBlueTeamName, pickupCategory.Id, Context.Guild);
 
             var halfPoint = (int)Math.Ceiling(queue.Subscribers.Count / (double)2);
 
@@ -438,7 +439,7 @@ namespace PickupBot.Commands.Modules
             queue.Teams.Add(new Team
             {
                 Name = redTeamName,
-                Subscribers = redTeam.Select(w => new Subscriber { Id = w.Id, Name = GetNickname(w) }).ToList(),
+                Subscribers = redTeam.Select(w => new Subscriber { Id = w.Id, Name = PickupHelpers.GetNickname(w) }).ToList(),
                 VoiceChannel = new KeyValuePair<string, ulong?>(vcRedTeamName, vcRed.Id)
             });
 
@@ -448,7 +449,7 @@ namespace PickupBot.Commands.Modules
                 queue.Teams.Add(new Team
                 {
                     Name = blueTeamName,
-                    Subscribers = blueTeam.Select(w => new Subscriber { Id = w.Id, Name = GetNickname(w) }).ToList(),
+                    Subscribers = blueTeam.Select(w => new Subscriber { Id = w.Id, Name = PickupHelpers.GetNickname(w) }).ToList(),
                     VoiceChannel = new KeyValuePair<string, ulong?>(vcBlueTeamName, vcBlue?.Id)
 
                 });
@@ -502,18 +503,11 @@ namespace PickupBot.Commands.Modules
             await Delete(queueName);
         }
 
-        private async Task<IVoiceChannel> GetOrCreateVoiceChannel(string name, ulong categoryId)
-        {
-            return (IVoiceChannel)Context.Guild.VoiceChannels.FirstOrDefault(c => c.Name.Equals(name, StringComparison.OrdinalIgnoreCase))
-                   ?? await Context.Guild.CreateVoiceChannelAsync(name, properties => properties.CategoryId = categoryId);
-        }
-
         private async Task NotifyUsers(PickupQueue queue, string serverName, IUser guildUser, params SocketGuildUser[] users)
         {
             var usersList = string.Join(Environment.NewLine, queue.Subscribers.Where(u => u.Id != guildUser.Id).Select(u => $@"  - {u.Name}"));
             var header = $"**Contact your teammates on the \"{serverName}\" server and glhf!**";
-            var remember = "**Remember**" +
-                           $"{Environment.NewLine}" +
+            var remember = $"**Remember** {Environment.NewLine}" +
                            $"Remember to do `!leave {queue.Name}` if/when you leave the game to make room for those in the waiting list!";
 
             var embed = new EmbedBuilder
@@ -533,19 +527,9 @@ namespace PickupBot.Commands.Modules
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError($"Failed to send DM to {GetNickname(user)}", ex);
+                    _logger.LogError($"Failed to send DM to {PickupHelpers.GetNickname(user)}", ex);
                 }
             }
-        }
-
-        private static string ParseSubscribers(PickupQueue queue)
-        {
-            var subscribers = queue.Subscribers.Select(w => w.Name).ToList();
-            if ((queue.MaxInQueue) - queue.Subscribers.Count > 0)
-                subscribers.AddRange(Enumerable.Repeat("[?]", (queue.MaxInQueue) - queue.Subscribers.Count));
-
-            //if queue found and user is in queue
-            return string.Join(", ", subscribers);
         }
 
         private async Task<PickupQueue> VerifyQueueByName(string queueName)
@@ -640,7 +624,7 @@ namespace PickupBot.Commands.Modules
                 _logger.LogError(e, e.Message);
             }
         }
-        
+
         private static async Task<PickupQueue> SaveStaticQueueMessage(PickupQueue queue, SocketGuild guild)
         {
             var queuesChannel = await GetPickupQueuesChannel(guild);
@@ -676,33 +660,32 @@ namespace PickupBot.Commands.Modules
             var embed = new EmbedBuilder
             {
                 Title = queue.Name,
-                Author = new EmbedAuthorBuilder
-                    {Name = GetNickname(user), IconUrl = user.GetAvatarUrl() ?? user.GetDefaultAvatarUrl()},
-                Color = Color.Gold
+                Author = new EmbedAuthorBuilder { Name = PickupHelpers.GetNickname(user), IconUrl = user.GetAvatarUrl() ?? user.GetDefaultAvatarUrl() },
+                Color = Color.Gold, 
+                Fields = new List<EmbedFieldBuilder>
+                {
+                    new EmbedFieldBuilder { Name = "Created by", Value = PickupHelpers.GetNickname(user), IsInline = true },
+                    new EmbedFieldBuilder
+                    {
+                        Name = "Game(s)",
+                        Value = string.Join(", ", queue.Games.IsNullOrEmpty() ? new[] { "No game defined" } : queue.Games),
+                        IsInline = true
+                    },
+                    new EmbedFieldBuilder { Name = "Started", Value = queue.Started ? "Yes" : "No", IsInline = true },
+                    new EmbedFieldBuilder { Name = "Host", Value = queue.Host ?? "No host defined", IsInline = true },
+                    new EmbedFieldBuilder
+                    {
+                        Name = "Port",
+                        Value = queue.Port == 0 ? "No port defined" : queue.Port.ToString(),
+                        IsInline = true
+                    },
+                    new EmbedFieldBuilder { Name = "Team size", Value = queue.TeamSize, IsInline = true },
+                    new EmbedFieldBuilder { Name = "Coop", Value = queue.IsCoop ? "Yes" : "No", IsInline = true },
+                    new EmbedFieldBuilder { Name = "Created", Value = queue.Created.ToString("yyyy-MM-dd\r\nHH:mm:ss 'UTC'"), IsInline = true },
+                    new EmbedFieldBuilder { Name = "Last updated", Value = queue.Updated.ToString("yyyy-MM-dd\r\nHH:mm:ss 'UTC'"), IsInline = true }
+                }
             };
 
-            embed.WithFields(
-                new EmbedFieldBuilder {Name = "Created by", Value = GetNickname(user), IsInline = true},
-                new EmbedFieldBuilder
-                {
-                    Name = "Game(s)",
-                    Value = string.Join(", ", queue.Games.IsNullOrEmpty() ? new[] {"No game defined"} : queue.Games),
-                    IsInline = true
-                },
-                new EmbedFieldBuilder {Name = "Started", Value = queue.Started ? "Yes" : "No", IsInline = true},
-                new EmbedFieldBuilder {Name = "Host", Value = queue.Host ?? "No host defined", IsInline = true},
-                new EmbedFieldBuilder
-                {
-                    Name = "Port",
-                    Value = queue.Port == 0 ? "No port defined" : queue.Port.ToString(),
-                    IsInline = true
-                },
-                new EmbedFieldBuilder {Name = "Team size", Value = queue.TeamSize, IsInline = true},
-                new EmbedFieldBuilder {Name = "Coop", Value = queue.IsCoop ? "Yes" : "No", IsInline = true},
-                new EmbedFieldBuilder
-                    {Name = "Created", Value = queue.Created.ToString("yyyy-MM-dd\r\nHH:mm:ss 'UTC'"), IsInline = true},
-                new EmbedFieldBuilder
-                    {Name = "Last updated", Value = queue.Updated.ToString("yyyy-MM-dd\r\nHH:mm:ss 'UTC'"), IsInline = true});
             return embed;
         }
 
@@ -735,24 +718,6 @@ namespace PickupBot.Commands.Modules
 
             sb.Clear();
         }
-
-        private static string GetNickname(IUser user) =>
-            user switch
-            {
-                IGuildUser guildUser => guildUser.Nickname ?? guildUser.Username,
-                IGroupUser groupUser => groupUser.Username,
-                ISelfUser selfUser => selfUser.Username,
-                _ => user.Username
-            };
-
-        private static string GetMention(IMentionable user) =>
-            user switch
-            {
-                IGuildUser guildUser => guildUser.Mention,
-                IGroupUser groupUser => groupUser.Mention,
-                ISelfUser selfUser => selfUser.Mention,
-                _ => user.Mention
-            };
 
         private static bool IsInPickupChannel(IChannel channel) => channel.Name.StartsWith("pickup", StringComparison.OrdinalIgnoreCase);
 

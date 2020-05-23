@@ -1,7 +1,7 @@
 ﻿using Discord;
 using PickupBot.Commands.Extensions;
 
-namespace PickupBot.Commands.Utilities
+namespace PickupBot.Commands.Infrastructure.Utilities
 {
     public static class BotMessageHelper
     {

@@ -3,7 +3,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Discord;
 using Discord.Commands;
-using PickupBot.Commands.Utilities;
+using PickupBot.Commands.Infrastructure.Utilities;
 using PickupBot.Data.Repositories;
 
 namespace PickupBot.Commands.Modules
