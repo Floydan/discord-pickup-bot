@@ -3,6 +3,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Discord;
 using Discord.Commands;
+using Discord.WebSocket;
 using PickupBot.Commands.Extensions;
 using PickupBot.Data.Models;
 
@@ -20,67 +21,7 @@ namespace PickupBot.Commands.Modules
                 return;
 
             //find queue with name {queueName}
-            PickupQueue queue = null;
-            if (!string.IsNullOrWhiteSpace(queueName))
-            {
-                queue = await _queueRepository.FindQueue(queueName, Context.Guild.Id.ToString());
-            }
-            else
-            {
-                var queues = (await _queueRepository.AllQueues(Context.Guild.Id.ToString())).OrderByDescending(w => w.Readiness).ToList();
-                queue = queues.Any(q => q.Readiness < 100) ? queues.FirstOrDefault(q => q.Readiness < 100) : queues.FirstOrDefault();
-            }
-
-            if (queue == null)
-            {
-                await Context.Channel.SendMessageAsync($"`Queue with the name '{queueName}' doesn't exists!`").AutoRemoveMessage(10);
-                return;
-            }
-
-            if (!await VerifyUserFlaggedStatus())
-                return;
-
-            if (queue.Subscribers.Any(w => w.Id == Context.User.Id))
-            {
-                await Context.Channel.SendMessageAsync($"`{queue.Name} - {ParseSubscribers(queue)}`");
-                return;
-            }
-
-            var activity = await _activitiesRepository.Find((IGuildUser)Context.User);
-            activity.PickupAdd += 1;
-            await _activitiesRepository.Update(activity);
-
-            if (queue.Subscribers.Count >= queue.MaxInQueue)
-            {
-                if (queue.WaitingList.All(w => w.Id != Context.User.Id))
-                {
-                    queue.Updated = DateTime.UtcNow;
-                    queue.WaitingList.Add(new Subscriber { Id = Context.User.Id, Name = GetNickname(Context.User) });
-
-                    await _queueRepository.UpdateQueue(queue);
-
-                    await ReplyAsync($"`You have been added to the '{queue.Name}' waiting list`").AutoRemoveMessage(10);
-                }
-                else
-                {
-                    await ReplyAsync($"`You are already on the '{queue.Name}' waiting list`").AutoRemoveMessage(10);
-                }
-
-                return;
-            }
-
-            queue.Updated = DateTime.UtcNow;
-            queue.Subscribers.Add(new Subscriber { Id = Context.User.Id, Name = GetNickname(Context.User) });
-
-            //if queue found
-            await _queueRepository.UpdateQueue(queue);
-
-            if (queue.Subscribers.Count == queue.MaxInQueue)
-            {
-                await NotifyUsers(queue, Context.Guild.Name, queue.Subscribers.Select(subscriber => Context.Guild.GetUser(subscriber.Id)).ToArray());
-            }
-
-            await Context.Channel.SendMessageAsync($"`{queue.Name} - {ParseSubscribers(queue)}`");
+            await AddInternal(queueName, Context.Guild, Context.Channel, (IGuildUser) Context.User);
         }
 
         [Command("remove")]
@@ -104,7 +45,7 @@ namespace PickupBot.Commands.Modules
                 return;
             }
 
-            await LeaveInternal(queue);
+            await LeaveInternal(queue, Context.Guild, Context.Channel, (IGuildUser)Context.User);
         }
 
         [Command("clear")]
@@ -125,7 +66,7 @@ namespace PickupBot.Commands.Modules
             {
                 foreach (var queue in pickupQueues)
                 {
-                    var updatedQueue = await LeaveInternal(queue, false);
+                    var updatedQueue = await LeaveInternal(queue, Context.Guild, Context.Channel, (IGuildUser)Context.User, false);
 
                     updatedQueue ??= queue;
 
@@ -169,9 +110,9 @@ namespace PickupBot.Commands.Modules
             }
         }
 
-        private async Task<PickupQueue> LeaveInternal(PickupQueue queue, bool notify = true)
+        private async Task<PickupQueue> LeaveInternal(PickupQueue queue, SocketGuild guild, ISocketMessageChannel channel, IGuildUser user, bool notify = true)
         {
-            var subscriber = queue.Subscribers.FirstOrDefault(s => s.Id == Context.User.Id);
+            var subscriber = queue.Subscribers.FirstOrDefault(s => s.Id == user.Id);
             if (subscriber != null)
             {
                 queue.Updated = DateTime.UtcNow;
@@ -184,42 +125,121 @@ namespace PickupBot.Commands.Modules
 
                     queue.Subscribers.Add(next);
 
-                    var user = Context.Guild.GetUser(next.Id);
-                    if (user != null)
+                    var nextUser = guild.GetUser(next.Id);
+                    if (nextUser != null)
                     {
-                        await ReplyAsync($"{GetMention(user)} - you have been added to '{queue.Name}' since {subscriber.Name} has left.").AutoRemoveMessage();
+                        await ReplyAsync($"{GetMention(nextUser)} - you have been added to '{queue.Name}' since {subscriber.Name} has left.").AutoRemoveMessage();
                         if (queue.Started)
                         {
                             var team = queue.Teams.FirstOrDefault(w => w.Subscribers.Exists(s => s.Id == subscriber.Id));
                             if (team != null)
                             {
                                 team.Subscribers.Remove(team.Subscribers.Find(s => s.Id == subscriber.Id));
-                                team.Subscribers.Add(new Subscriber { Name = GetNickname(user), Id = user.Id});
-                                await ReplyAsync($"{GetMention(user)} - you are on the {team.Name}").AutoRemoveMessage();
+                                team.Subscribers.Add(new Subscriber { Name = GetNickname(nextUser), Id = nextUser.Id});
+                                await ReplyAsync($"{GetMention(nextUser)} - you are on the {team.Name}").AutoRemoveMessage();
                             }
                         }
 
-                        await NotifyUsers(queue, Context.Guild.Name, user);
+                        await NotifyUsers(queue, guild.Name, nextUser);
                     }
                 }
 
-                await _queueRepository.UpdateQueue(queue);
-
                 if (!queue.Subscribers.Any() && !queue.WaitingList.Any())
                 {
-                    await _queueRepository.RemoveQueue(queue.Name, queue.GuildId); //Try to remove queue if its empty
+
+                    var result = await _queueRepository.RemoveQueue(queue.Name, queue.GuildId); //Try to remove queue if its empty
+                    if (result)
+                    {
+                        var queuesChannel =  await GetPickupQueuesChannel(guild);
+                        if (!string.IsNullOrEmpty(queue.StaticMessageId))
+                            await queuesChannel.DeleteMessageAsync(Convert.ToUInt64(queue.StaticMessageId));
+                    }
+
                     if (notify)
                     {
-                        await Context.Channel.SendMessageAsync($"`{queue.Name} has been removed since everyone left.`").AutoRemoveMessage(10);
+                        await channel.SendMessageAsync($"`{queue.Name} has been removed since everyone left.`").AutoRemoveMessage(10);
                         notify = false;
                     }
+                }
+                else
+                {
+                    await SaveStaticQueueMessage(queue, guild);
+                    await _queueRepository.UpdateQueue(queue);
                 }
             }
 
             if (notify)
-                await Context.Channel.SendMessageAsync($"`{queue.Name} - {ParseSubscribers(queue)}`").AutoRemoveMessage(10);
+                await channel.SendMessageAsync($"`{queue.Name} - {ParseSubscribers(queue)}`").AutoRemoveMessage(10);
 
             return queue;
+        }
+
+
+        private async Task AddInternal(string queueName, SocketGuild guild, ISocketMessageChannel channel, IGuildUser user)
+        {
+            PickupQueue queue = null;
+            if (!string.IsNullOrWhiteSpace(queueName))
+            {
+                queue = await _queueRepository.FindQueue(queueName, guild.Id.ToString());
+            }
+            else
+            {
+                var queues = (await _queueRepository.AllQueues(guild.Id.ToString())).OrderByDescending(w => w.Readiness).ToList();
+                queue = queues.Any(q => q.Readiness < 100) ? queues.FirstOrDefault(q => q.Readiness < 100) : queues.FirstOrDefault();
+            }
+
+            if (queue == null)
+            {
+                await channel.SendMessageAsync($"`Queue with the name '{queueName}' doesn't exists!`").AutoRemoveMessage(10);
+                return;
+            }
+
+            if (!await VerifyUserFlaggedStatus(user))
+                return;
+
+            if (queue.Subscribers.Any(w => w.Id == user.Id))
+            {
+                await channel.SendMessageAsync($"`{queue.Name} - {ParseSubscribers(queue)}`");
+                return;
+            }
+
+            var activity = await _activitiesRepository.Find(user);
+            activity.PickupAdd += 1;
+            await _activitiesRepository.Update(activity);
+
+            if (queue.Subscribers.Count >= queue.MaxInQueue)
+            {
+                if (queue.WaitingList.All(w => w.Id != user.Id))
+                {
+                    queue.Updated = DateTime.UtcNow;
+                    queue.WaitingList.Add(new Subscriber { Id = user.Id, Name = GetNickname(user) });
+                    
+                    queue = await SaveStaticQueueMessage(queue, guild);
+                    await _queueRepository.UpdateQueue(queue);
+
+                    await channel.SendMessageAsync($"`You have been added to the '{queue.Name}' waiting list`").AutoRemoveMessage(10);
+                }
+                else
+                {
+                    await channel.SendMessageAsync($"`You are already on the '{queue.Name}' waiting list`").AutoRemoveMessage(10);
+                }
+
+                return;
+            }
+
+            queue.Updated = DateTime.UtcNow;
+            queue.Subscribers.Add(new Subscriber { Id = user.Id, Name = GetNickname(user) });
+
+            await SaveStaticQueueMessage(queue, guild);
+
+            await _queueRepository.UpdateQueue(queue);
+
+            if (queue.Subscribers.Count == queue.MaxInQueue)
+            {
+                await NotifyUsers(queue, guild.Name, user, queue.Subscribers.Select(s => guild.GetUser(s.Id)).Where(u => u != null).ToArray());
+            }
+
+            await channel.SendMessageAsync($"`{queue.Name} - {ParseSubscribers(queue)}`");
         }
     }
 }

@@ -17,12 +17,13 @@ namespace PickupBot.Commands.Modules
 {
     [Name("Pickup")]
     [Summary("Commands for handling pickup queues")]
-    public partial class PickupModule : ModuleBase<SocketCommandContext>
+    public partial class PickupModule : ModuleBase<SocketCommandContext>, IDisposable
     {
         private readonly IQueueRepository _queueRepository;
         private readonly IFlaggedSubscribersRepository _flagRepository;
         private readonly ISubscriberActivitiesRepository _activitiesRepository;
         private readonly ILogger<PickupModule> _logger;
+        private readonly DiscordSocketClient _client;
         private readonly string _rconPassword;
         private readonly string _rconHost;
         private readonly int _rconPort;
@@ -31,16 +32,55 @@ namespace PickupBot.Commands.Modules
             IQueueRepository queueRepository,
             IFlaggedSubscribersRepository flagRepository,
             ISubscriberActivitiesRepository activitiesRepository,
-            PickupBotSettings pickupBotSettings, 
-            ILogger<PickupModule> logger)
+            PickupBotSettings pickupBotSettings,
+            ILogger<PickupModule> logger,
+            DiscordSocketClient client)
         {
             _queueRepository = queueRepository;
             _flagRepository = flagRepository;
             _activitiesRepository = activitiesRepository;
             _logger = logger;
+            _client = client;
             _rconPassword = pickupBotSettings.RCONServerPassword ?? "";
             _rconHost = pickupBotSettings.RCONHost ?? "";
             int.TryParse(pickupBotSettings.RCONPort ?? "0", out _rconPort);
+
+            _client.ReactionAdded += SocketClient_ReactionAdded;
+            _client.ReactionRemoved += SocketClient_ReactionRemoved;
+        }
+
+        private async Task SocketClient_ReactionAdded(Cacheable<IUserMessage, ulong> message, ISocketMessageChannel channel, SocketReaction reaction)
+        {
+            if (!(channel is IGuildChannel guildChannel) || guildChannel.Name != "active-pickups") return;
+            
+            if (reaction.Emote.Name == "\u2705")
+            {
+                var queue = await _queueRepository.FindQueueByMessageId(reaction.MessageId, guildChannel.GuildId.ToString());
+
+                if (queue != null)
+                {
+                    var pickupChannel = ((SocketGuild) guildChannel.Guild).Channels.FirstOrDefault(c => c.Name.Equals("pickup")) as SocketTextChannel;
+                    await AddInternal(queue.Name, (SocketGuild)guildChannel.Guild, pickupChannel ?? (SocketTextChannel)guildChannel,
+                        (SocketGuildUser)reaction.User);
+                }
+            }
+        }
+
+        private async Task SocketClient_ReactionRemoved(Cacheable<IUserMessage, ulong> message, ISocketMessageChannel channel, SocketReaction reaction)
+        {
+            if (!(channel is IGuildChannel guildChannel) || guildChannel.Name != "active-pickups") return;
+
+            if (reaction.Emote.Name == "\u2705")
+            {
+                var queue = await _queueRepository.FindQueueByMessageId(reaction.MessageId, guildChannel.GuildId.ToString());
+
+                if (queue != null)
+                {
+                    var pickupChannel = ((SocketGuild) guildChannel.Guild).Channels.FirstOrDefault(c => c.Name.Equals("pickup")) as SocketTextChannel;
+                    await LeaveInternal(queue, (SocketGuild)guildChannel.Guild, pickupChannel ?? (SocketTextChannel)guildChannel,
+                        (SocketGuildUser)reaction.User);
+                }
+            }
         }
 
         [Command("create")]
@@ -76,13 +116,14 @@ namespace PickupBot.Commands.Modules
 
             var activity = await _activitiesRepository.Find((IGuildUser)Context.User);
             activity.PickupCreate += 1;
+            activity.PickupAdd += 1;
             await _activitiesRepository.Update(activity);
 
             var rconEnabled = ops?.ContainsKey("-rcon") ?? true;
             if (ops?.ContainsKey("-norcon") == true)
                 rconEnabled = false;
 
-            await _queueRepository.AddQueue(new PickupQueue(Context.Guild.Id.ToString(), queueName)
+            queue = new PickupQueue(Context.Guild.Id.ToString(), queueName)
             {
                 Name = queueName,
                 GuildId = Context.Guild.Id.ToString(),
@@ -93,13 +134,18 @@ namespace PickupBot.Commands.Modules
                 TeamSize = teamSize.Value,
                 IsCoop = ops?.ContainsKey("-coop") ?? false,
                 Rcon = rconEnabled,
-                Subscribers = new List<Subscriber> { new Subscriber { Id = Context.User.Id, Name = GetNickname(Context.User) } },
+                Subscribers = new List<Subscriber>
+                    {new Subscriber {Id = Context.User.Id, Name = GetNickname(Context.User)}},
                 Host = ops?.ContainsKey("-host") ?? false ? ops["-host"]?.FirstOrDefault() : null,
                 Port = int.Parse((ops?.ContainsKey("-port") ?? false ? ops["-port"]?.FirstOrDefault() : null) ?? "0"),
                 Games = ops?.ContainsKey("-game") ?? false ? ops["-game"] : Enumerable.Empty<string>(),
-            });
+            };
+
+            await _queueRepository.AddQueue(queue);
 
             await Context.Channel.SendMessageAsync($"`Queue '{queueName}' was added by {GetNickname(Context.User)}`");
+            queue = await SaveStaticQueueMessage(queue, Context.Guild);
+            await _queueRepository.UpdateQueue(queue);
         }
 
         [Command("rename")]
@@ -174,11 +220,17 @@ namespace PickupBot.Commands.Modules
             var isAdmin = (Context.User as IGuildUser)?.GuildPermissions.Has(GuildPermission.Administrator) ?? false;
             if (isAdmin || queue.OwnerId == Context.User.Id.ToString())
             {
+                var queuesChannel = await GetPickupQueuesChannel(Context.Guild);
+
                 var result = await _queueRepository.RemoveQueue(queueName, Context.Guild.Id.ToString());
                 var message = result ?
                     $"`Queue '{queueName}' has been canceled`" :
                     $"`Queue with the name '{queueName}' doesn't exists or you are not the owner of the queue!`";
                 await Context.Channel.SendMessageAsync(message).AutoRemoveMessage(10);
+
+                if (!string.IsNullOrEmpty(queue.StaticMessageId))
+                    await queuesChannel.DeleteMessageAsync(Convert.ToUInt64(queue.StaticMessageId));
+
                 return;
             }
 
@@ -454,9 +506,9 @@ namespace PickupBot.Commands.Modules
                    ?? await Context.Guild.CreateVoiceChannelAsync(name, properties => properties.CategoryId = categoryId);
         }
 
-        private async Task NotifyUsers(PickupQueue queue, string serverName, params SocketGuildUser[] users)
+        private async Task NotifyUsers(PickupQueue queue, string serverName, IUser guildUser, params SocketGuildUser[] users)
         {
-            var usersList = string.Join(Environment.NewLine, queue.Subscribers.Where(u => u.Id != Context.User.Id).Select(u => $@"  - {u.Name}"));
+            var usersList = string.Join(Environment.NewLine, queue.Subscribers.Where(u => u.Id != guildUser.Id).Select(u => $@"  - {u.Name}"));
             var header = $"**Contact your teammates on the \"{serverName}\" server and glhf!**";
             var remember = "**Remember**" +
                            $"{Environment.NewLine}" +
@@ -472,7 +524,15 @@ namespace PickupBot.Commands.Modules
 
             foreach (var user in users)
             {
-                await user.SendMessageAsync(embed: embed);
+                try
+                {
+                    await user.SendMessageAsync(embed: embed);
+                    await Task.Delay(500);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError($"Failed to send DM to {GetNickname(user)}", ex);
+                }
             }
         }
 
@@ -498,7 +558,12 @@ namespace PickupBot.Commands.Modules
 
         private async Task<bool> VerifyUserFlaggedStatus()
         {
-            var flagged = await _flagRepository.IsFlagged((IGuildUser)Context.User);
+            return await VerifyUserFlaggedStatus((IGuildUser)Context.User);
+        }
+
+        private async Task<bool> VerifyUserFlaggedStatus(IGuildUser user)
+        {
+            var flagged = await _flagRepository.IsFlagged(user);
             if (flagged == null) return true;
 
             var sb = new StringBuilder()
@@ -573,6 +638,101 @@ namespace PickupBot.Commands.Modules
                 _logger.LogError(e, e.Message);
             }
         }
+        
+        private static async Task<PickupQueue> SaveStaticQueueMessage(PickupQueue queue, SocketGuild guild)
+        {
+            var queuesChannel = await GetPickupQueuesChannel(guild);
+
+            //var denyAll = OverwritePermissions.DenyAll(queuesChannel);
+            //await queuesChannel.AddPermissionOverwriteAsync(Context.Guild.EveryoneRole, denyAll);
+
+            var user = guild.GetUser(Convert.ToUInt64(queue.OwnerId));
+
+            var embed = CreateStaticQueueMessageEmbed(queue, user);
+
+            AddSubscriberFieldsToStaticQueueMessageFields(queue, embed);
+            AddWaitingListFieldsToStaticQueueMessageFields(queue, embed);
+
+            if (string.IsNullOrEmpty(queue.StaticMessageId))
+            {
+                var message = await queuesChannel.SendMessageAsync(embed: embed.Build());
+                await message.AddReactionsAsync(new IEmote[] { new Emoji("\u2705") }); // timer , new Emoji("\u23F2")
+
+                queue.StaticMessageId = message.Id.ToString();
+            }
+            else
+            {
+                if (await queuesChannel.GetMessageAsync(Convert.ToUInt64(queue.StaticMessageId)) is IUserMessage message)
+                    await message.ModifyAsync(m => { m.Embed = embed.Build(); });
+            }
+
+            return queue;
+        }
+
+        private static EmbedBuilder CreateStaticQueueMessageEmbed(PickupQueue queue, IUser user)
+        {
+            var embed = new EmbedBuilder
+            {
+                Title = queue.Name,
+                Author = new EmbedAuthorBuilder
+                    {Name = GetNickname(user), IconUrl = user.GetAvatarUrl() ?? user.GetDefaultAvatarUrl()},
+                Color = Color.Gold
+            };
+
+            embed.WithFields(
+                new EmbedFieldBuilder {Name = "Created by", Value = GetNickname(user), IsInline = true},
+                new EmbedFieldBuilder
+                {
+                    Name = "Game(s)",
+                    Value = string.Join(", ", queue.Games.IsNullOrEmpty() ? new[] {"No game defined"} : queue.Games),
+                    IsInline = true
+                },
+                new EmbedFieldBuilder {Name = "Started", Value = queue.Started ? "Yes" : "No", IsInline = true},
+                new EmbedFieldBuilder {Name = "Host", Value = queue.Host ?? "No host defined", IsInline = true},
+                new EmbedFieldBuilder
+                {
+                    Name = "Port",
+                    Value = queue.Port == 0 ? "No port defined" : queue.Port.ToString(),
+                    IsInline = true
+                },
+                new EmbedFieldBuilder {Name = "Team size", Value = queue.TeamSize, IsInline = true},
+                new EmbedFieldBuilder {Name = "Coop", Value = queue.IsCoop ? "Yes" : "No", IsInline = true},
+                new EmbedFieldBuilder
+                    {Name = "Created", Value = queue.Created.ToString("yyyy-MM-dd\r\nHH:mm:ss 'UTC'"), IsInline = true},
+                new EmbedFieldBuilder
+                    {Name = "Last updated", Value = queue.Updated.ToString("yyyy-MM-dd\r\nHH:mm:ss 'UTC'"), IsInline = true});
+            return embed;
+        }
+
+        private static void AddSubscriberFieldsToStaticQueueMessageFields(PickupQueue queue, EmbedBuilder embed)
+        {
+            var sb = new StringBuilder();
+            queue.Subscribers.ForEach(p => sb.AppendLine(p.Name));
+
+            embed.WithFields(new EmbedFieldBuilder
+            {
+                Name = $"Players in queue [{queue.Subscribers.Count}/{queue.MaxInQueue}]",
+                Value = queue.Subscribers.IsNullOrEmpty() ? "No players in queue" : sb.ToString(),
+                IsInline = true
+            });
+
+            sb.Clear();
+        }
+
+        private static void AddWaitingListFieldsToStaticQueueMessageFields(PickupQueue queue, EmbedBuilder embed)
+        {
+            var sb = new StringBuilder();
+            queue.WaitingList.Select((p, i) => $"{i}. {p.Name}").ToList().ForEach(p => sb.AppendLine(p));
+
+            embed.WithFields(new EmbedFieldBuilder
+            {
+                Name = $"Players in waiting list [{queue.WaitingList.Count}]",
+                Value = queue.WaitingList.IsNullOrEmpty() ? "No players in waiting list" : sb.ToString(),
+                IsInline = true
+            });
+
+            sb.Clear();
+        }
 
         private static string GetNickname(IUser user) =>
             user switch
@@ -592,8 +752,21 @@ namespace PickupBot.Commands.Modules
                 _ => user.Mention
             };
 
-        private static bool IsInPickupChannel(IChannel channel) =>
-            channel.Name.StartsWith("pickup", StringComparison.OrdinalIgnoreCase);
+        private static bool IsInPickupChannel(IChannel channel) => channel.Name.StartsWith("pickup", StringComparison.OrdinalIgnoreCase);
 
+        private static async Task<ITextChannel> GetPickupQueuesChannel(SocketGuild guild)
+        {
+            var queuesChannel = (ITextChannel)guild.TextChannels.FirstOrDefault(c =>
+                                   c.Name.Equals("active-pickups", StringComparison.OrdinalIgnoreCase)) ??
+                                await guild.CreateTextChannelAsync("active-pickups",
+                                    properties => { properties.Topic = "Active pickups, use reactions to signup"; });
+            return queuesChannel;
+        }
+
+        public void Dispose()
+        {
+            _client.ReactionAdded -= SocketClient_ReactionAdded;
+            _client?.Dispose();
+        }
     }
 }

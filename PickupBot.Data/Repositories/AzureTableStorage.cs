@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Azure.Cosmos.Table;
 using PickupBot.Data.Models;
@@ -86,6 +87,29 @@ namespace PickupBot.Data.Repositories
             return results;
         }
         
+        public async Task<T> GetItemPropertyEquals(string partitionKey, string propertyName, string value)
+        {
+            //Table
+            var table = await GetTableAsync();
+            //Query
+            var query = new TableQuery<T>()
+                .Where(TableQuery.GenerateFilterCondition(propertyName, QueryComparisons.Equal,value));
+
+            var results = new List<T>();
+            TableContinuationToken continuationToken = null;
+            do
+            {
+                var queryResults = await table.ExecuteQuerySegmentedAsync(query, continuationToken);
+
+                continuationToken = queryResults.ContinuationToken;
+
+                results.AddRange(queryResults.Results);
+
+            } while (continuationToken != null);
+
+            return results.FirstOrDefault();
+        }
+
         public async Task<T> GetItem(string partitionKey, string rowKey)
         {
             //Table
@@ -99,7 +123,7 @@ namespace PickupBot.Data.Repositories
 
             return (T)result.Result;
         }
-        
+
         public async Task<bool> Insert(T item)
         {
             //Table

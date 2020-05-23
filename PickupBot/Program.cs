@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Discord;
 using Discord.Addons.Hosting;
 using Discord.Addons.Hosting.Reliability;
+using Discord.Commands;
 using Discord.WebSocket;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -63,6 +64,7 @@ namespace PickupBot
                 .UseCommandService((context, conf) =>
                 {
                     conf.LogLevel = LogSeverity.Warning;
+                    conf.DefaultRunMode = RunMode.Async;
                 })
                 .ConfigureServices((hostContext, services) =>
                 {
@@ -144,12 +146,31 @@ namespace PickupBot
         {
             try
             {
+                var pickupsCategory =
+                    (ICategoryChannel) guild.CategoryChannels.FirstOrDefault(c => c.Name.Equals("Pickups", StringComparison.OrdinalIgnoreCase)) ??
+                    await guild.CreateCategoryChannelAsync("Pickups");
+
                 // create #pickup channel if missing
-                var channel = guild.Channels.FirstOrDefault(c => c.Name.Equals("pickup"));
-                if (channel == null)
+                var pickupChannel = guild.Channels.FirstOrDefault(c => c.Name.Equals("pickup"));
+                if (pickupChannel == null)
                 {
                     await guild.CreateTextChannelAsync("pickup",
-                        properties => properties.Topic = "powered by pickup-bot | !help for instructions");
+                        properties =>
+                        {
+                            properties.Topic = "powered by pickup-bot | !help for instructions";
+                            properties.CategoryId = pickupsCategory.Id;
+                        });
+                }
+                // create #pickup channel if missing
+                var activePickupsChannel = guild.Channels.FirstOrDefault(c => c.Name.Equals("pickup"));
+                if (activePickupsChannel == null)
+                {
+                    await guild.CreateTextChannelAsync("active-pickup",
+                        properties =>
+                        {
+                            properties.Topic = "Active pickups | use reactions to signup | powered by pickup-bot";
+                            properties.CategoryId = pickupsCategory.Id;
+                        });
                 }
 
                 // create applicable roles if missing

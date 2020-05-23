@@ -16,7 +16,7 @@ using PickupBot.Translation.Services;
 
 namespace PickupBot.Commands
 {
-    public class CommandHandlerService : InitializedService
+    public class CommandHandlerService : InitializedService, IDisposable
     {
         private readonly CommandService _commands;
         private readonly DiscordSocketClient _discord;
@@ -74,7 +74,7 @@ namespace PickupBot.Commands
             if (string.IsNullOrWhiteSpace(_rconPassword) ||
                 string.IsNullOrWhiteSpace(_rconHost) ||
                 _rconPort <= 0) return;
-
+    
             try
             {
                 var status = await RCON.UDPSendCommand("status", _rconHost, _rconPassword, _rconPort);
@@ -176,6 +176,16 @@ namespace PickupBot.Commands
         {
             await _commands.AddModulesAsync(Assembly.GetEntryAssembly(), _services);
             await _commands.AddModulesAsync(GetType().Assembly, _services);
+        }
+
+        public void Dispose()
+        {
+            _commands.CommandExecuted -= CommandExecutedAsync;
+            _discord.MessageReceived -= MessageReceivedAsync;
+            _discord.ReactionAdded -= ReactionAddedAsync;
+
+            ((IDisposable) _commands)?.Dispose();
+            _discord?.Dispose();
         }
     }
 }

@@ -9,6 +9,7 @@ namespace PickupBot.Data.Repositories
         Task<List<T>> GetList();
         Task<List<T>> GetList(string partitionKey);
         Task<List<T>> GetTopListByField(string partitionKey, string propertyName, int count);
+        Task<T> GetItemPropertyEquals(string partitionKey, string propertyName, string value);
         Task<T> GetItem(string partitionKey, string rowKey);
         Task<bool> Insert(T item);
         Task<bool> InsertOrReplace(T item);

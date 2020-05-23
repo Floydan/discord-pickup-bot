@@ -22,7 +22,13 @@
         <ProjectReference Include="..\PickupBot.GitHub\PickupBot.GitHub.csproj" />
     </ItemGroup>
     <ItemGroup>
+        <None Update="appSettings.Development.json">
+          <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </None>
         <None Update="appSettings.json">
+          <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </None>
+        <None Update="appSettings.Production.json">
           <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
         </None>
         <None Update="Settings.job">
