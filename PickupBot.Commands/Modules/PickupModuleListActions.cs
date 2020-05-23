@@ -94,7 +94,7 @@ namespace PickupBot.Commands.Modules
             int? teamSize = null,
             [Remainder, Name("Operator flags")] string operators = "")
         {
-            if (!IsInPickupChannel((IGuildChannel)Context.Channel))
+            if (!PickupHelpers.IsInPickupChannel((IGuildChannel)Context.Channel))
                 return;
 
             if (!teamSize.HasValue)
@@ -155,7 +155,7 @@ namespace PickupBot.Commands.Modules
         [Summary("Rename a queue")]
         public async Task Rename([Name("Queue name")] string queueName, [Name("New name")] string newName)
         {
-            if (!IsInPickupChannel((IGuildChannel)Context.Channel))
+            if (!PickupHelpers.IsInPickupChannel((IGuildChannel)Context.Channel))
                 return;
 
             var queue = await VerifyQueueByName(queueName);
@@ -211,7 +211,7 @@ namespace PickupBot.Commands.Modules
         [Summary("If you are the creator of the queue you can use this to delete it")]
         public async Task Delete([Name("Queue name"), Summary("Queue name"), Remainder] string queueName)
         {
-            if (!IsInPickupChannel((IGuildChannel)Context.Channel))
+            if (!PickupHelpers.IsInPickupChannel((IGuildChannel)Context.Channel))
                 return;
 
             var queue = await VerifyQueueByName(queueName);
@@ -223,7 +223,7 @@ namespace PickupBot.Commands.Modules
             var isAdmin = (Context.User as IGuildUser)?.GuildPermissions.Has(GuildPermission.Administrator) ?? false;
             if (isAdmin || queue.OwnerId == Context.User.Id.ToString())
             {
-                var queuesChannel = await GetPickupQueuesChannel(Context.Guild);
+                var queuesChannel = await PickupHelpers.GetPickupQueuesChannel(Context.Guild);
 
                 var result = await _queueRepository.RemoveQueue(queueName, Context.Guild.Id.ToString());
                 var message = result ?
@@ -244,7 +244,7 @@ namespace PickupBot.Commands.Modules
         [Summary("List all active queues")]
         public async Task List()
         {
-            if (!IsInPickupChannel((IGuildChannel)Context.Channel))
+            if (!PickupHelpers.IsInPickupChannel((IGuildChannel)Context.Channel))
                 return;
 
             //find all active queues
@@ -298,7 +298,7 @@ namespace PickupBot.Commands.Modules
         [Summary("Lists all the players in a given queues wait list")]
         public async Task WaitList([Name("Queue name"), Summary("Queue name"), Remainder] string queueName)
         {
-            if (!IsInPickupChannel((IGuildChannel)Context.Channel))
+            if (!PickupHelpers.IsInPickupChannel((IGuildChannel)Context.Channel))
                 return;
 
             var queue = await _queueRepository.FindQueue(queueName, Context.Guild.Id.ToString());
@@ -326,7 +326,7 @@ namespace PickupBot.Commands.Modules
         [Summary("Promotes one specific or all queues to the 'promote-role' role")]
         public async Task Promote([Name("Queue name"), Summary("Queue name"), Remainder] string queueName = "")
         {
-            if (!IsInPickupChannel((IGuildChannel)Context.Channel))
+            if (!PickupHelpers.IsInPickupChannel((IGuildChannel)Context.Channel))
                 return;
 
             var activity = await _activitiesRepository.Find((IGuildUser)Context.User);
@@ -409,7 +409,7 @@ namespace PickupBot.Commands.Modules
         [Summary("Triggers the start of the game by splitting teams and setting up voice channels")]
         public async Task Start([Name("Queue name"), Summary("Queue name"), Remainder] string queueName)
         {
-            if (!IsInPickupChannel((IGuildChannel)Context.Channel))
+            if (!PickupHelpers.IsInPickupChannel((IGuildChannel)Context.Channel))
                 return;
 
             var queue = await VerifyQueueByName(queueName);
@@ -466,7 +466,7 @@ namespace PickupBot.Commands.Modules
         [Summary("Lists the teams of a started pickup queue")]
         public async Task Teams([Name("Queue name"), Remainder] string queueName)
         {
-            if (!IsInPickupChannel((IGuildChannel)Context.Channel))
+            if (!PickupHelpers.IsInPickupChannel((IGuildChannel)Context.Channel))
                 return;
 
             var queue = await VerifyQueueByName(queueName);
@@ -481,7 +481,7 @@ namespace PickupBot.Commands.Modules
         [Summary("Triggers the end of the game by removing voice channels and removing the queue")]
         public async Task Stop([Name("Queue name"), Summary("Queue name")]string queueName)
         {
-            if (!IsInPickupChannel((IGuildChannel)Context.Channel))
+            if (!PickupHelpers.IsInPickupChannel((IGuildChannel)Context.Channel))
                 return;
 
             var queue = await VerifyQueueByName(queueName);
@@ -501,233 +501,6 @@ namespace PickupBot.Commands.Modules
             }
 
             await Delete(queueName);
-        }
-
-        private async Task NotifyUsers(PickupQueue queue, string serverName, IUser guildUser, params SocketGuildUser[] users)
-        {
-            var usersList = string.Join(Environment.NewLine, queue.Subscribers.Where(u => u.Id != guildUser.Id).Select(u => $@"  - {u.Name}"));
-            var header = $"**Contact your teammates on the \"{serverName}\" server and glhf!**";
-            var remember = $"**Remember** {Environment.NewLine}" +
-                           $"Remember to do `!leave {queue.Name}` if/when you leave the game to make room for those in the waiting list!";
-
-            var embed = new EmbedBuilder
-            {
-                Title = $"Queue {queue.Name} is ready to go!",
-                Description = $@"{header}{Environment.NewLine}{usersList}{Environment.NewLine}{remember}",
-                Footer = new EmbedFooterBuilder { Text = $"Provided by pickup-bot - {serverName}" },
-                Color = Color.Orange
-            }.Build();
-
-            foreach (var user in users)
-            {
-                try
-                {
-                    await user.SendMessageAsync(embed: embed);
-                    await Task.Delay(500);
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError($"Failed to send DM to {PickupHelpers.GetNickname(user)}", ex);
-                }
-            }
-        }
-
-        private async Task<PickupQueue> VerifyQueueByName(string queueName)
-        {
-            var queue = await _queueRepository.FindQueue(queueName, Context.Guild.Id.ToString());
-
-            if (queue != null) return queue;
-
-            await Context.Channel.SendMessageAsync($"`Queue with the name '{queueName}' doesn't exists!`").AutoRemoveMessage(10);
-            return null;
-        }
-
-        private async Task<bool> VerifyUserFlaggedStatus()
-        {
-            return await VerifyUserFlaggedStatus((IGuildUser)Context.User);
-        }
-
-        private async Task<bool> VerifyUserFlaggedStatus(IGuildUser user)
-        {
-            var flagged = await _flagRepository.IsFlagged(user);
-            if (flagged == null) return true;
-
-            var sb = new StringBuilder()
-                .AppendLine("You have been flagged which means that you can't join or create queues.")
-                .AppendLine("**Reason**")
-                .AppendLine($"_{flagged.Reason}_");
-
-            var embed = new EmbedBuilder
-            {
-                Title = "You are flagged",
-                Description = sb.ToString(),
-                Color = Color.Orange
-            }.Build();
-            await ReplyAsync(embed: embed).AutoRemoveMessage(10);
-
-            return false;
-        }
-
-        private async Task PrintTeams(PickupQueue queue)
-        {
-            if (!queue.Started || queue.Teams.IsNullOrEmpty()) return;
-
-            foreach (var team in queue.Teams)
-            {
-                var sb = new StringBuilder()
-                    .AppendLine("**Teammates:**")
-                    .AppendLine($"{string.Join(Environment.NewLine, team.Subscribers.Select(w => w.Name))}")
-                    .AppendLine("")
-                    .AppendLine("Your designated voice channel:")
-                    .AppendLine($"[<#{team.VoiceChannel.Value}>](https://discordapp.com/channels/{Context.Guild.Id}/{team.VoiceChannel.Value})");
-
-                await ReplyAsync(embed: new EmbedBuilder
-                {
-                    Title = team.Name,
-                    Description = sb.ToString(),
-                    Color = Color.Red
-                }.Build()).AutoRemoveMessage(120);
-            }
-        }
-
-        private void TriggerDelayedRconNotification(PickupQueue queue)
-        {
-            // 2 minute delay message
-            AsyncUtilities.DelayAction(TimeSpan.FromMinutes(2), async t => { await TriggerRconNotification(queue); });
-
-            // 4 minute delay message
-            AsyncUtilities.DelayAction(TimeSpan.FromMinutes(4), async t => { await TriggerRconNotification(queue); });
-        }
-
-        private async Task TriggerRconNotification(PickupQueue queue)
-        {
-            if (!queue.Rcon) return;
-            if (!string.IsNullOrWhiteSpace(queue.Host) &&
-                !queue.Host.Equals(_rconHost, StringComparison.OrdinalIgnoreCase))
-                return;
-
-            try
-            {
-                var redTeam = queue.Teams.FirstOrDefault();
-                var blueTeam = queue.Teams.LastOrDefault();
-                if (string.IsNullOrWhiteSpace(_rconPassword) || string.IsNullOrWhiteSpace(_rconHost) || _rconPort == 0) return;
-
-                var command = $"say \"^2Pickup '^3{queue.Name}^2' has started! " +
-                              $"^1RED TEAM: ^5{string.Join(", ", redTeam.Subscribers.Select(w => w.Name))} ^7- " +
-                              $"^4BLUE TEAM: ^5{string.Join(", ", blueTeam.Subscribers.Select(w => w.Name))}\"";
-
-                await RCON.UDPSendCommand(command, _rconHost, _rconPassword, _rconPort, true);
-
-            }
-            catch (Exception e)
-            {
-                _logger.LogError(e, e.Message);
-            }
-        }
-
-        private static async Task<PickupQueue> SaveStaticQueueMessage(PickupQueue queue, SocketGuild guild)
-        {
-            var queuesChannel = await GetPickupQueuesChannel(guild);
-
-            //var denyAll = OverwritePermissions.DenyAll(queuesChannel);
-            //await queuesChannel.AddPermissionOverwriteAsync(Context.Guild.EveryoneRole, denyAll);
-
-            var user = guild.GetUser(Convert.ToUInt64(queue.OwnerId));
-
-            var embed = CreateStaticQueueMessageEmbed(queue, user);
-
-            AddSubscriberFieldsToStaticQueueMessageFields(queue, embed);
-            AddWaitingListFieldsToStaticQueueMessageFields(queue, embed);
-
-            if (string.IsNullOrEmpty(queue.StaticMessageId))
-            {
-                var message = await queuesChannel.SendMessageAsync(embed: embed.Build());
-                await message.AddReactionsAsync(new IEmote[] { new Emoji("\u2705") }); // timer , new Emoji("\u23F2")
-
-                queue.StaticMessageId = message.Id.ToString();
-            }
-            else
-            {
-                if (await queuesChannel.GetMessageAsync(Convert.ToUInt64(queue.StaticMessageId)) is IUserMessage message)
-                    await message.ModifyAsync(m => { m.Embed = embed.Build(); });
-            }
-
-            return queue;
-        }
-
-        private static EmbedBuilder CreateStaticQueueMessageEmbed(PickupQueue queue, IUser user)
-        {
-            var embed = new EmbedBuilder
-            {
-                Title = queue.Name,
-                Author = new EmbedAuthorBuilder { Name = PickupHelpers.GetNickname(user), IconUrl = user.GetAvatarUrl() ?? user.GetDefaultAvatarUrl() },
-                Color = Color.Gold, 
-                Fields = new List<EmbedFieldBuilder>
-                {
-                    new EmbedFieldBuilder { Name = "Created by", Value = PickupHelpers.GetNickname(user), IsInline = true },
-                    new EmbedFieldBuilder
-                    {
-                        Name = "Game(s)",
-                        Value = string.Join(", ", queue.Games.IsNullOrEmpty() ? new[] { "No game defined" } : queue.Games),
-                        IsInline = true
-                    },
-                    new EmbedFieldBuilder { Name = "Started", Value = queue.Started ? "Yes" : "No", IsInline = true },
-                    new EmbedFieldBuilder { Name = "Host", Value = queue.Host ?? "No host defined", IsInline = true },
-                    new EmbedFieldBuilder
-                    {
-                        Name = "Port",
-                        Value = queue.Port == 0 ? "No port defined" : queue.Port.ToString(),
-                        IsInline = true
-                    },
-                    new EmbedFieldBuilder { Name = "Team size", Value = queue.TeamSize, IsInline = true },
-                    new EmbedFieldBuilder { Name = "Coop", Value = queue.IsCoop ? "Yes" : "No", IsInline = true },
-                    new EmbedFieldBuilder { Name = "Created", Value = queue.Created.ToString("yyyy-MM-dd\r\nHH:mm:ss 'UTC'"), IsInline = true },
-                    new EmbedFieldBuilder { Name = "Last updated", Value = queue.Updated.ToString("yyyy-MM-dd\r\nHH:mm:ss 'UTC'"), IsInline = true }
-                }
-            };
-
-            return embed;
-        }
-
-        private static void AddSubscriberFieldsToStaticQueueMessageFields(PickupQueue queue, EmbedBuilder embed)
-        {
-            var sb = new StringBuilder();
-            queue.Subscribers.ForEach(p => sb.AppendLine(p.Name));
-
-            embed.WithFields(new EmbedFieldBuilder
-            {
-                Name = $"Players in queue [{queue.Subscribers.Count}/{queue.MaxInQueue}]",
-                Value = queue.Subscribers.IsNullOrEmpty() ? "No players in queue" : sb.ToString(),
-                IsInline = true
-            });
-
-            sb.Clear();
-        }
-
-        private static void AddWaitingListFieldsToStaticQueueMessageFields(PickupQueue queue, EmbedBuilder embed)
-        {
-            var sb = new StringBuilder();
-            queue.WaitingList.Select((p, i) => $"{i}. {p.Name}").ToList().ForEach(p => sb.AppendLine(p));
-
-            embed.WithFields(new EmbedFieldBuilder
-            {
-                Name = $"Players in waiting list [{queue.WaitingList.Count}]",
-                Value = queue.WaitingList.IsNullOrEmpty() ? "No players in waiting list" : sb.ToString(),
-                IsInline = true
-            });
-
-            sb.Clear();
-        }
-
-        private static bool IsInPickupChannel(IChannel channel) => channel.Name.StartsWith("pickup", StringComparison.OrdinalIgnoreCase);
-
-        private static async Task<ITextChannel> GetPickupQueuesChannel(SocketGuild guild)
-        {
-            var queuesChannel = (ITextChannel)guild.TextChannels.FirstOrDefault(c =>
-                                   c.Name.Equals("active-pickups", StringComparison.OrdinalIgnoreCase)) ??
-                                await guild.CreateTextChannelAsync("active-pickups",
-                                    properties => { properties.Topic = "Active pickups, use reactions to signup"; });
-            return queuesChannel;
         }
 
         public void Dispose()
