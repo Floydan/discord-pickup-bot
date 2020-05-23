@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Discord;
 using Discord.Commands;
 using Microsoft.Extensions.Logging;
+using PickupBot.Commands.Infrastructure.Helpers;
 using PickupBot.Commands.Infrastructure.Utilities;
 using PickupBot.Commands.Models;
 
@@ -18,7 +19,7 @@ namespace PickupBot.Commands.Modules
         [Summary("Returns a list of server addresses.")]
         public async Task Servers()
         {
-            if (!IsInPickupChannel((IGuildChannel)Context.Channel))
+            if (!PickupHelpers.IsInPickupChannel((IGuildChannel)Context.Channel))
                 return;
 
             var sb = new StringBuilder()
@@ -40,7 +41,7 @@ namespace PickupBot.Commands.Modules
         [Command("serverstatus")]
         public async Task ServerStatus()
         {
-            if (!IsInPickupChannel((IGuildChannel)Context.Channel))
+            if (!PickupHelpers.IsInPickupChannel((IGuildChannel)Context.Channel))
                 return;
 
             if (string.IsNullOrWhiteSpace(_rconPassword) || string.IsNullOrWhiteSpace(_rconHost) || _rconPort == 0) return;
@@ -86,7 +87,7 @@ namespace PickupBot.Commands.Modules
         public async Task ClientInfo(string player)
         {
             _logger.LogInformation("clientinfo called");
-            if (!IsInPickupChannel((IGuildChannel)Context.Channel))
+            if (!PickupHelpers.IsInPickupChannel((IGuildChannel)Context.Channel))
                 return;
 
             if (string.IsNullOrWhiteSpace(_rconPassword) || string.IsNullOrWhiteSpace(_rconHost) || _rconPort == 0) return;
