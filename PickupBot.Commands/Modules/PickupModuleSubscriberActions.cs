@@ -92,8 +92,7 @@ namespace PickupBot.Commands.Modules
             if (!PickupHelpers.IsInPickupChannel((IGuildChannel)Context.Channel))
                 return;
 
-            var role = Context.Guild.Roles.FirstOrDefault(w => w.Name == "pickup-promote") ??
-                         (IRole)await Context.Guild.CreateRoleAsync("pickup-promote", GuildPermissions.None, Color.Orange, isHoisted: false, isMentionable: true);
+            var role = Context.Guild.Roles.FirstOrDefault(w => w.Name == "pickup-promote");
             if (role == null)
                 return; //Failed to get or create role;
 
