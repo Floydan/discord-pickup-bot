@@ -234,8 +234,7 @@ namespace PickupBot.Commands.Modules
             }
             else
             {
-
-                await SaveStaticQueueMessage(queue, guild);
+                queue = await SaveStaticQueueMessage(queue, guild);
 
                 if (queue.Subscribers.Count == queue.MaxInQueue)
                 {
