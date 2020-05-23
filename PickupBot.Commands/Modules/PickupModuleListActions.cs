@@ -46,11 +46,11 @@ namespace PickupBot.Commands.Modules
             _rconHost = pickupBotSettings.RCONHost ?? "";
             int.TryParse(pickupBotSettings.RCONPort ?? "0", out _rconPort);
 
-            _client.ReactionAdded += SocketClient_ReactionAdded;
-            _client.ReactionRemoved += SocketClient_ReactionRemoved;
+            _client.ReactionAdded += ReactionAdded;
+            _client.ReactionRemoved += ReactionRemoved;
         }
 
-        private async Task SocketClient_ReactionAdded(Cacheable<IUserMessage, ulong> message, ISocketMessageChannel channel, SocketReaction reaction)
+        private async Task ReactionAdded(Cacheable<IUserMessage, ulong> message, ISocketMessageChannel channel, SocketReaction reaction)
         {
             if (!(channel is IGuildChannel guildChannel) || guildChannel.Name != "active-pickups") return;
             if (reaction.User.Value.IsBot) return;
@@ -68,7 +68,7 @@ namespace PickupBot.Commands.Modules
             }
         }
 
-        private async Task SocketClient_ReactionRemoved(Cacheable<IUserMessage, ulong> message, ISocketMessageChannel channel, SocketReaction reaction)
+        private async Task ReactionRemoved(Cacheable<IUserMessage, ulong> message, ISocketMessageChannel channel, SocketReaction reaction)
         {
             if (!(channel is IGuildChannel guildChannel) || guildChannel.Name != "active-pickups") return;
             if (reaction.User.Value.IsBot) return;
@@ -350,14 +350,11 @@ namespace PickupBot.Commands.Modules
                 }
             }
 
-            var role = Context.Guild.Roles.FirstOrDefault(w => w.Name == "pickup-promote") ??
-                       (IRole)await Context.Guild.CreateRoleAsync("pickup-promote", GuildPermissions.None, Color.Orange, isHoisted: false, isMentionable: true);
-            if (role == null)
-                return; //Failed to get or create role;
+            var role = Context.Guild.Roles.FirstOrDefault(w => w.Name == "pickup-promote");
+            if (role == null) return; //Failed to get role;
 
             using (Context.Channel.EnterTypingState())
             {
-
                 var users = Context.Guild.Users.Where(w => w.Roles.Any(r => r.Id == role.Id)).ToList();
                 if (!users.Any())
                 {
@@ -409,8 +406,7 @@ namespace PickupBot.Commands.Modules
         [Summary("Triggers the start of the game by splitting teams and setting up voice channels")]
         public async Task Start([Name("Queue name"), Summary("Queue name"), Remainder] string queueName)
         {
-            if (!PickupHelpers.IsInPickupChannel((IGuildChannel)Context.Channel))
-                return;
+            if (!PickupHelpers.IsInPickupChannel((IGuildChannel)Context.Channel)) return;
 
             var queue = await VerifyQueueByName(queueName);
             if (queue == null) return;
@@ -506,8 +502,8 @@ namespace PickupBot.Commands.Modules
         public void Dispose()
         {
             //remove event handlers to keep things clean on dispose
-            _client.ReactionAdded -= SocketClient_ReactionAdded;
-            _client.ReactionAdded -= SocketClient_ReactionRemoved;
+            _client.ReactionAdded -= ReactionAdded;
+            _client.ReactionAdded -= ReactionRemoved;
         }
     }
 }
