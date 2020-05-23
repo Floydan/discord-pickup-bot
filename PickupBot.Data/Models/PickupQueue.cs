@@ -67,5 +67,6 @@ namespace PickupBot.Data.Models
 
         public decimal Readiness => Math.Ceiling((decimal)Subscribers.Count / MaxInQueue * 100);
         public int MaxInQueue => IsCoop ? TeamSize : TeamSize * 2;
+        public string StaticMessageId { get; set; }
     }
 }
