@@ -395,7 +395,7 @@ namespace PickupBot.Commands.Modules
             if (!PickupHelpers.IsInPickupChannel((IGuildChannel)Context.Channel)) return;
 
             var queue = await VerifyQueueByName(queueName);
-            if (queue == null) return;
+            if (queue == null || queue.Started) return;
 
             var pickupCategory = (ICategoryChannel)Context.Guild.CategoryChannels.FirstOrDefault(c =>
                               c.Name.Equals("Pickup voice channels", StringComparison.OrdinalIgnoreCase))
@@ -418,6 +418,7 @@ namespace PickupBot.Commands.Modules
 
             var redTeamName = $"{(queue.IsCoop ? "Coop" : "Red")} Team \uD83D\uDD34";
 
+            queue.Teams.Clear();
             queue.Teams.Add(new Team
             {
                 Name = redTeamName,
@@ -438,6 +439,8 @@ namespace PickupBot.Commands.Modules
             }
 
             queue.Started = true;
+            queue.Updated = DateTime.UtcNow;
+            queue = await SaveStaticQueueMessage(queue, Context.Guild);
             await _queueRepository.UpdateQueue(queue);
             await PrintTeams(queue);
 
@@ -481,6 +484,12 @@ namespace PickupBot.Commands.Modules
                     await vc.DeleteAsync().ConfigureAwait(false);
                 }
             }
+
+            queue.Started = false;
+            queue.Updated = DateTime.UtcNow;
+            queue.Teams.Clear();
+            queue = await SaveStaticQueueMessage(queue, Context.Guild);
+            await _queueRepository.UpdateQueue(queue);
 
             await Delete(queueName);
         }
