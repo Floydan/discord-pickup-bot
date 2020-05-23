@@ -9,8 +9,8 @@ using Discord.Commands;
 using Discord.WebSocket;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using PickupBot.Commands.Infrastructure.Utilities;
 using PickupBot.Commands.Models;
-using PickupBot.Commands.Utilities;
 using PickupBot.Data.Models;
 using PickupBot.Translation.Services;
 

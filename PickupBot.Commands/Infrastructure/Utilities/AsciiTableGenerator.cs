@@ -4,7 +4,7 @@ using System.Globalization;
 using System.Linq;
 using System.Text;
 
-namespace PickupBot.Commands.Utilities
+namespace PickupBot.Commands.Infrastructure.Utilities
 {
     public static class AsciiTableGenerator
     {

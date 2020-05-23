@@ -2,7 +2,7 @@
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace PickupBot.Commands.Utilities
+namespace PickupBot.Commands.Infrastructure.Utilities
 {
     public static class AsyncUtilities
     {

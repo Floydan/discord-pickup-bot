@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text.RegularExpressions;
 using PickupBot.Commands.Extensions;
 
-namespace PickupBot.Commands.Utilities
+namespace PickupBot.Commands.Infrastructure.Utilities
 {
     public static class OperatorParser
     {

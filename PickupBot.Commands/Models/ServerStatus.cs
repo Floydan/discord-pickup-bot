@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Data;
 using System.Linq;
 using System.Text.RegularExpressions;
-using PickupBot.Commands.Utilities;
+using PickupBot.Commands.Infrastructure.Utilities;
 
 namespace PickupBot.Commands.Models
 {
