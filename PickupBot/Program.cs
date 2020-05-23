@@ -2,7 +2,10 @@
 using System.IO;
 using System.Linq;
 using System.Net.Http;
+using System.Reflection;
 using System.Threading.Tasks;
+using AutoMapper;
+using AutoMapper.EquivalencyExpression;
 using Discord;
 using Discord.Addons.Hosting;
 using Discord.Addons.Hosting.Reliability;
@@ -19,6 +22,7 @@ using PickupBot.Data.Models;
 using PickupBot.Data.Repositories;
 using PickupBot.GitHub;
 using PickupBot.Infrastructure;
+using PickupBot.Translation.Models;
 using PickupBot.Translation.Services;
 
 namespace PickupBot
@@ -71,6 +75,14 @@ namespace PickupBot
                     var storageConnectionString =
                         hostContext.Configuration.GetConnectionString("StorageConnectionString");
 
+                    var assemblies = new[]
+                    {
+                        Assembly.GetExecutingAssembly(), 
+                        Assembly.GetAssembly(typeof(CommandHandlerService)), 
+                        Assembly.GetAssembly(typeof(PickupQueue)), 
+                        Assembly.GetAssembly(typeof(TranslationResult))
+                    };
+
                     services
                         .AddHttpClient()
                         .ConfigureSettings<PickupBotSettings>(hostContext.Configuration.GetSection("PickupBot"))
@@ -95,7 +107,12 @@ namespace PickupBot
                         )
                         .AddScoped<IQueueRepository, PickupQueueRepository>()
                         .AddScoped<IFlaggedSubscribersRepository, FlaggedSubscribersRepository>()
-                        .AddScoped<ISubscriberActivitiesRepository, SubscriberActivitiesRepository>();
+                        .AddScoped<ISubscriberActivitiesRepository, SubscriberActivitiesRepository>()
+                        .AddAutoMapper(config =>
+                        {
+                            config.AddCollectionMappers();
+                            config.AddMaps(assemblies);
+                        }, assemblies);
 
                     services.AddHttpClient<GitHubService>();
 

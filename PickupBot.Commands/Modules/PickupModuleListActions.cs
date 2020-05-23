@@ -155,8 +155,7 @@ namespace PickupBot.Commands.Modules
         [Summary("Rename a queue")]
         public async Task Rename([Name("Queue name")] string queueName, [Name("New name")] string newName)
         {
-            if (!PickupHelpers.IsInPickupChannel((IGuildChannel)Context.Channel))
-                return;
+            if (!PickupHelpers.IsInPickupChannel((IGuildChannel)Context.Channel)) return;
 
             var queue = await VerifyQueueByName(queueName);
             if (queue == null) return;
@@ -171,24 +170,9 @@ namespace PickupBot.Commands.Modules
                     return;
                 }
 
-                var newQueue = new PickupQueue(Context.Guild.Id.ToString(), newName)
-                {
-                    OwnerId = queue.OwnerId,
-                    OwnerName = queue.OwnerName,
-                    Created = queue.Created,
-                    Updated = DateTime.UtcNow,
-                    TeamSize = queue.TeamSize,
-                    Subscribers = queue.Subscribers,
-                    WaitingList = queue.WaitingList,
-                    IsCoop = queue.IsCoop,
-                    Rcon = queue.Rcon,
-                    Host = queue.Host,
-                    Port = queue.Port,
-                    Games = queue.Games,
-                    Started = queue.Started,
-                    Teams = queue.Teams,
-                    StaticMessageId = queue.StaticMessageId,
-                };
+                var newQueue = (PickupQueue)queue.Clone();
+                newQueue.RowKey = newName.ToLowerInvariant();
+                newQueue.Name = newName;
 
                 var result = await _queueRepository.AddQueue(newQueue);
                 if (result)
@@ -197,7 +181,7 @@ namespace PickupBot.Commands.Modules
                     await ReplyAsync($"The queue '{queue.Name}' has been renamed to '{newQueue.Name}'");
                     await ReplyAsync($"`{newQueue.Name} - {PickupHelpers.ParseSubscribers(newQueue)}`");
                     if(!string.IsNullOrEmpty(queue.StaticMessageId))
-                        await SaveStaticQueueMessage(queue, Context.Guild);
+                        _ = await SaveStaticQueueMessage(newQueue, Context.Guild);
                     return;
                 }
 

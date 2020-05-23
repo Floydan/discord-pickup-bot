@@ -7,6 +7,9 @@
         <Version>1.10.0</Version>
     </PropertyGroup>
     <ItemGroup>
+        <PackageReference Include="AutoMapper" Version="9.0.0" />
+        <PackageReference Include="AutoMapper.Collection" Version="6.0.0" />
+        <PackageReference Include="AutoMapper.Extensions.Microsoft.DependencyInjection" Version="7.0.0" />
         <PackageReference Include="Discord.Addons.Hosting" Version="2.1.0" />
         <PackageReference Include="Discord.Net" Version="2.2.0" />
         <PackageReference Include="Microsoft.Extensions.Azure" Version="1.0.0" />

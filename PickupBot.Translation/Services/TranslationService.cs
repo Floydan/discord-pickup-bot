@@ -2,7 +2,9 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using AutoMapper;
 using Google.Cloud.Translation.V2;
+using Microsoft.Extensions.Logging;
 using PickupBot.Data.Models;
 using TranslationResult = PickupBot.Translation.Models.TranslationResult;
 
@@ -10,9 +12,13 @@ namespace PickupBot.Translation.Services
 {
     public class GoogleTranslationService : ITranslationService
     {
+        private readonly IMapper _mapper;
+        private readonly ILogger<GoogleTranslationService> _logger;
         private readonly string _googleTranslateApiKey;
-        public GoogleTranslationService(PickupBotSettings pickupBotSettings)
+        public GoogleTranslationService(PickupBotSettings pickupBotSettings, IMapper mapper, ILogger<GoogleTranslationService> logger)
         {
+            _mapper = mapper;
+            _logger = logger;
             _googleTranslateApiKey = pickupBotSettings.GoogleTranslateAPIKey ?? "";
         }
 
@@ -24,15 +30,12 @@ namespace PickupBot.Translation.Services
             try
             {
                 var googleResults = await client.TranslateTextAsync(texts, targetLanguage);
-                var results = googleResults.Select(t => 
-                    new TranslationResult(t.OriginalText, t.TranslatedText, t.DetectedSourceLanguage, t.SpecifiedSourceLanguage, t.TargetLanguage))
-                    .ToList();
+                var results = googleResults.Select(_mapper.Map<TranslationResult>).ToList();
                 return results;
             }
             catch (Exception e)
             {
-                Console.WriteLine(e);
-
+                _logger.LogError(e.Message, e);
                 return null;
             }
         }

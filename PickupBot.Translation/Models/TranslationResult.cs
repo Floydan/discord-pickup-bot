@@ -1,5 +1,8 @@
-﻿namespace PickupBot.Translation.Models
+﻿using AutoMapper;
+
+namespace PickupBot.Translation.Models
 {
+    [AutoMap(typeof(Google.Cloud.Translation.V2.TranslationResult), DisableCtorValidation = true)]
     public class TranslationResult
     {
         /// <summary>
@@ -47,6 +50,11 @@
             SpecifiedSourceLanguage = specifiedSourceLanguage;
             DetectedSourceLanguage = detectedSourceLanguage;
             TargetLanguage = targetLanguage;
+        }
+
+        public TranslationResult()
+        {
+            
         }
     }
 }
