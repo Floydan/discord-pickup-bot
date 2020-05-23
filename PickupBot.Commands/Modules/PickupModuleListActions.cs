@@ -159,10 +159,7 @@ namespace PickupBot.Commands.Modules
                 return;
 
             var queue = await VerifyQueueByName(queueName);
-            if (queue == null)
-            {
-                return;
-            }
+            if (queue == null) return;
 
             var isAdmin = (Context.User as IGuildUser)?.GuildPermissions.Has(GuildPermission.Administrator) ?? false;
             if (isAdmin || queue.OwnerId == Context.User.Id.ToString())
@@ -187,7 +184,10 @@ namespace PickupBot.Commands.Modules
                     Rcon = queue.Rcon,
                     Host = queue.Host,
                     Port = queue.Port,
-                    Games = queue.Games
+                    Games = queue.Games,
+                    Started = queue.Started,
+                    Teams = queue.Teams,
+                    StaticMessageId = queue.StaticMessageId,
                 };
 
                 var result = await _queueRepository.AddQueue(newQueue);
@@ -196,6 +196,8 @@ namespace PickupBot.Commands.Modules
                     await _queueRepository.RemoveQueue(queue);
                     await ReplyAsync($"The queue '{queue.Name}' has been renamed to '{newQueue.Name}'");
                     await ReplyAsync($"`{newQueue.Name} - {PickupHelpers.ParseSubscribers(newQueue)}`");
+                    if(!string.IsNullOrEmpty(queue.StaticMessageId))
+                        await SaveStaticQueueMessage(queue, Context.Guild);
                     return;
                 }
 

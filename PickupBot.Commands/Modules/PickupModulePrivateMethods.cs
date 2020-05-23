@@ -34,7 +34,7 @@ namespace PickupBot.Commands.Modules
                 }
                 else
                 {
-                    await SaveStaticQueueMessage(queue, guild);
+                    queue = await SaveStaticQueueMessage(queue, guild);
                     await _queueRepository.UpdateQueue(queue);
                 }
             }

@@ -67,15 +67,22 @@ namespace PickupBot.Commands.Modules
             {
                 foreach (var queue in pickupQueues)
                 {
+
+                    queue.WaitingList.RemoveAll(w => w.Id == Context.User.Id);
+                    queue.Updated = DateTime.UtcNow;
+
                     var updatedQueue = await LeaveInternal(queue, Context.Channel, (IGuildUser)Context.User, false);
 
                     updatedQueue ??= queue;
 
-                    updatedQueue.WaitingList.RemoveAll(w => w.Id == Context.User.Id);
-                    updatedQueue.Updated = DateTime.UtcNow;
-
                     if (!updatedQueue.Subscribers.Any() && !updatedQueue.WaitingList.Any())
+                    {
                         await _queueRepository.RemoveQueue(updatedQueue.Name, updatedQueue.GuildId); //Try to remove queue if its empty.
+
+                        if (string.IsNullOrEmpty(queue.StaticMessageId)) continue;
+                        var queuesChannel = await PickupHelpers.GetPickupQueuesChannel(Context.Guild);
+                        await queuesChannel.DeleteMessageAsync(Convert.ToUInt64(queue.StaticMessageId));
+                    }
                     else
                         await _queueRepository.UpdateQueue(updatedQueue);
                 }
