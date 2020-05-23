@@ -54,8 +54,7 @@ namespace PickupBot.Commands.Modules
         [Summary("Leave all queues you have subscribed to, including waiting lists")]
         public async Task Clear()
         {
-            if (!PickupHelpers.IsInPickupChannel((IGuildChannel)Context.Channel))
-                return;
+            if (!PickupHelpers.IsInPickupChannel((IGuildChannel)Context.Channel)) return;
 
             //find queues with user in it
             var allQueues = await _queueRepository.AllQueues(Context.Guild.Id.ToString());
@@ -67,7 +66,6 @@ namespace PickupBot.Commands.Modules
             {
                 foreach (var queue in pickupQueues)
                 {
-
                     queue.WaitingList.RemoveAll(w => w.Id == Context.User.Id);
                     queue.Updated = DateTime.UtcNow;
 

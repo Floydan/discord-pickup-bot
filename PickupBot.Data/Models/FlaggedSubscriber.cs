@@ -17,8 +17,6 @@ namespace PickupBot.Data.Models
         {
             PartitionKey = user.GuildId.ToString();
             RowKey = user.Id.ToString();
-
-
         }
 
         public string Name { get; set; }

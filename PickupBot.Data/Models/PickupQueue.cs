@@ -6,9 +6,9 @@ using Newtonsoft.Json;
 
 namespace PickupBot.Data.Models
 {
-    public class PickupQueue : TableEntity
+    public class PickupQueue : TableEntity, ICloneable
     {
-        private static JsonSerializerSettings _jsonSerializerSettings = new JsonSerializerSettings
+        private static readonly JsonSerializerSettings JsonSerializerSettings = new JsonSerializerSettings
         {
             TypeNameHandling = TypeNameHandling.Auto,
             TypeNameAssemblyFormatHandling = TypeNameAssemblyFormatHandling.Full
@@ -42,22 +42,22 @@ namespace PickupBot.Data.Models
         public string SubscribersJson
         {
             get => JsonConvert.SerializeObject(Subscribers ?? Enumerable.Empty<Subscriber>(), Formatting.None);
-            set => Subscribers = string.IsNullOrWhiteSpace(value) ? new List<Subscriber>() : JsonConvert.DeserializeObject<List<Subscriber>>(value, _jsonSerializerSettings);
+            set => Subscribers = string.IsNullOrWhiteSpace(value) ? new List<Subscriber>() : JsonConvert.DeserializeObject<List<Subscriber>>(value, JsonSerializerSettings);
         }
         public string WaitingListJson
         {
             get => JsonConvert.SerializeObject(WaitingList ?? Enumerable.Empty<Subscriber>(), Formatting.None);
-            set => WaitingList = string.IsNullOrWhiteSpace(value) ? new List<Subscriber>() : JsonConvert.DeserializeObject<List<Subscriber>>(value, _jsonSerializerSettings);
+            set => WaitingList = string.IsNullOrWhiteSpace(value) ? new List<Subscriber>() : JsonConvert.DeserializeObject<List<Subscriber>>(value, JsonSerializerSettings);
         }
         public string GamesListJson
         {
             get => JsonConvert.SerializeObject(Games ?? Enumerable.Empty<string>(), Formatting.None);
-            set => Games = string.IsNullOrWhiteSpace(value) ? Enumerable.Empty<string>() : JsonConvert.DeserializeObject<IEnumerable<string>>(value, _jsonSerializerSettings);
+            set => Games = string.IsNullOrWhiteSpace(value) ? Enumerable.Empty<string>() : JsonConvert.DeserializeObject<IEnumerable<string>>(value, JsonSerializerSettings);
         }
         public string TeamsJson
         {
             get => JsonConvert.SerializeObject(Teams ?? Enumerable.Empty<Team>(), Formatting.None);
-            set => Teams = string.IsNullOrWhiteSpace(value) ? new List<Team>() : JsonConvert.DeserializeObject<List<Team>>(value, _jsonSerializerSettings);
+            set => Teams = string.IsNullOrWhiteSpace(value) ? new List<Team>() : JsonConvert.DeserializeObject<List<Team>>(value, JsonSerializerSettings);
         }
 
         public List<Subscriber> Subscribers { get; set; }
@@ -68,5 +68,11 @@ namespace PickupBot.Data.Models
         public decimal Readiness => Math.Ceiling((decimal)Subscribers.Count / MaxInQueue * 100);
         public int MaxInQueue => IsCoop ? TeamSize : TeamSize * 2;
         public string StaticMessageId { get; set; }
+
+        
+        public object Clone()
+        {
+            return (PickupQueue) MemberwiseClone();
+        }
     }
 }
