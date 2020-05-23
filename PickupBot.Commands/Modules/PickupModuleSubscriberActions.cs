@@ -215,17 +215,15 @@ namespace PickupBot.Commands.Modules
 
             var activity = await _activitiesRepository.Find(user);
             activity.PickupAdd += 1;
-            await _activitiesRepository.Update(activity);
+            
+            queue.Updated = DateTime.UtcNow;
+            queue.Subscribers.Add(new Subscriber { Id = user.Id, Name = PickupHelpers.GetNickname(user) });
 
             if (queue.Subscribers.Count >= queue.MaxInQueue)
             {
                 if (queue.WaitingList.All(w => w.Id != user.Id))
                 {
-                    queue.Updated = DateTime.UtcNow;
-                    queue.WaitingList.Add(new Subscriber { Id = user.Id, Name = PickupHelpers.GetNickname(user) });
-
                     queue = await SaveStaticQueueMessage(queue, guild);
-                    await _queueRepository.UpdateQueue(queue);
 
                     await channel.SendMessageAsync($"`You have been added to the '{queue.Name}' waiting list`").AutoRemoveMessage(10);
                 }
@@ -236,12 +234,8 @@ namespace PickupBot.Commands.Modules
             }
             else
             {
-                queue.Updated = DateTime.UtcNow;
-                queue.Subscribers.Add(new Subscriber { Id = user.Id, Name = PickupHelpers.GetNickname(user) });
 
                 await SaveStaticQueueMessage(queue, guild);
-
-                await _queueRepository.UpdateQueue(queue);
 
                 if (queue.Subscribers.Count == queue.MaxInQueue)
                 {
@@ -250,6 +244,8 @@ namespace PickupBot.Commands.Modules
 
                 await channel.SendMessageAsync($"`{queue.Name} - {PickupHelpers.ParseSubscribers(queue)}`");
             }
+            
+            await _queueRepository.UpdateQueue(queue);
         }
     }
 }
