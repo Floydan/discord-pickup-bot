@@ -59,7 +59,7 @@ namespace PickupBot
                         AlwaysDownloadUsers = true,
                         MessageCacheSize = 100
                     });
-                    configBuilder.SetToken(context.Configuration.GetSection("PickupBot:DiscordToken").Value);
+                    configBuilder.SetToken(context.Configuration["PickupBot:DiscordToken"]);
                 })
                 .UseCommandService((context, conf) =>
                 {

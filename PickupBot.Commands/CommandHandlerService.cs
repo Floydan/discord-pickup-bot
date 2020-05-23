@@ -49,8 +49,11 @@ namespace PickupBot.Commands
             _discord.MessageReceived += MessageReceivedAsync;
             _discord.ReactionAdded += ReactionAddedAsync;
 
-            GetActivityStats().GetAwaiter().GetResult();
-            UpdateActvity();
+            if (_commandPrefix == "!")
+            {
+                GetActivityStats().GetAwaiter().GetResult();
+                UpdateActvity();
+            }
         }
 
         private void UpdateActvity()
