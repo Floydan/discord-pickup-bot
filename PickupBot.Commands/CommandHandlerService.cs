@@ -180,6 +180,7 @@ namespace PickupBot.Commands
 
         public void Dispose()
         {
+            //remove event handlers to keep things clean on dispose
             _commands.CommandExecuted -= CommandExecutedAsync;
             _discord.MessageReceived -= MessageReceivedAsync;
             _discord.ReactionAdded -= ReactionAddedAsync;

@@ -52,6 +52,7 @@ namespace PickupBot.Commands.Modules
         private async Task SocketClient_ReactionAdded(Cacheable<IUserMessage, ulong> message, ISocketMessageChannel channel, SocketReaction reaction)
         {
             if (!(channel is IGuildChannel guildChannel) || guildChannel.Name != "active-pickups") return;
+            if(reaction.User.Value.IsBot) return;
             
             if (reaction.Emote.Name == "\u2705")
             {
@@ -69,6 +70,7 @@ namespace PickupBot.Commands.Modules
         private async Task SocketClient_ReactionRemoved(Cacheable<IUserMessage, ulong> message, ISocketMessageChannel channel, SocketReaction reaction)
         {
             if (!(channel is IGuildChannel guildChannel) || guildChannel.Name != "active-pickups") return;
+            if(reaction.User.Value.IsBot) return;
 
             if (reaction.Emote.Name == "\u2705")
             {
@@ -765,8 +767,9 @@ namespace PickupBot.Commands.Modules
 
         public void Dispose()
         {
+            //remove event handlers to keep things clean on dispose
             _client.ReactionAdded -= SocketClient_ReactionAdded;
-            _client?.Dispose();
+            _client.ReactionAdded -= SocketClient_ReactionRemoved;
         }
     }
 }
