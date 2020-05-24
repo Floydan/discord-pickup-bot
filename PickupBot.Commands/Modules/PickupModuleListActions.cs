@@ -449,6 +449,7 @@ namespace PickupBot.Commands.Modules
 
         private async Task PromoteInternal(PickupQueue queue, ITextChannel pickupChannel, IGuildUser user)
         {
+            var guild = (SocketGuild) user.Guild;
             var activity = await _activitiesRepository.Find(user);
             activity.PickupPromote += 1;
             await _activitiesRepository.Update(activity);
@@ -459,12 +460,12 @@ namespace PickupBot.Commands.Modules
                 return;
             }
 
-            var role = user.Guild.Roles.FirstOrDefault(w => w.Name == "pickup-promote");
+            var role = guild.Roles.FirstOrDefault(w => w.Name == "pickup-promote");
             if (role == null) return; //Failed to get role;
 
             using (pickupChannel.EnterTypingState())
             {
-                var users = Context.Guild.Users.Where(w => w.Roles.Any(r => r.Id == role.Id)).ToList();
+                var users = guild.Users.Where(w => w.Roles.Any(r => r.Id == role.Id)).ToList();
                 if (!users.Any())
                 {
                     await pickupChannel.SendMessageAsync("No users have subscribed using the `!subscribe` command.")
