@@ -48,7 +48,7 @@ namespace PickupBot.Commands.Modules
 
             try
             {
-                var response = await RCON.UDPSendCommand("status", _rconHost, _rconPassword, _rconPort);
+                var response = await RCON.UDPSendCommand("status", _rconHost, _rconPassword, _rconPort).ConfigureAwait(false);
                 
                 _logger.LogInformation($"serverstatus response: {response}");
                 var serverStatus = new ServerStatus(response);
@@ -92,7 +92,7 @@ namespace PickupBot.Commands.Modules
 
             if (string.IsNullOrWhiteSpace(_rconPassword) || string.IsNullOrWhiteSpace(_rconHost) || _rconPort == 0) return;
 
-            var userdata = await RCON.UDPSendCommand($"dumpuser {player}", _rconHost, _rconPassword, _rconPort);
+            var userdata = await RCON.UDPSendCommand($"dumpuser {player}", _rconHost, _rconPassword, _rconPort).ConfigureAwait(false);
             if(userdata.IndexOf("is not on the server", StringComparison.OrdinalIgnoreCase) != -1)
             {
                 await ReplyAsync(
