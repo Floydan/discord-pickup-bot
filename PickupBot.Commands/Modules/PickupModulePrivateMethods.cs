@@ -275,7 +275,7 @@ namespace PickupBot.Commands.Modules
             if (string.IsNullOrEmpty(queue.StaticMessageId))
             {
                 var message = await queuesChannel.SendMessageAsync(embed: embed.Build());
-                await message.AddReactionsAsync(new IEmote[] { new Emoji("\u2705") }); // timer , new Emoji("\u23F2")
+                await message.AddReactionsAsync(new IEmote[] { new Emoji("\u2705"), new Emoji("\uD83D\uDCE2") }); // timer , new Emoji("\u23F2")
 
                 queue.StaticMessageId = message.Id.ToString();
             }
