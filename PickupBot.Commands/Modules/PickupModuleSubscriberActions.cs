@@ -22,7 +22,7 @@ namespace PickupBot.Commands.Modules
                 return;
 
             //find queue with name {queueName}
-            await AddInternal(queueName, Context.Guild, Context.Channel, (IGuildUser)Context.User);
+            await AddInternal(queueName, Context.Channel, (IGuildUser)Context.User);
         }
 
         [Command("remove")]

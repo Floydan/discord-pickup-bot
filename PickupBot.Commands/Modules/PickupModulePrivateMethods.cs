@@ -16,7 +16,6 @@ namespace PickupBot.Commands.Modules
 {
     public partial class PickupModule
     {
-
         private async Task<PickupQueue> LeaveInternal(PickupQueue queue, ISocketMessageChannel channel, IGuildUser user, bool notify = true)
         {
             var guild = (SocketGuild)user.Guild;
@@ -91,8 +90,9 @@ namespace PickupBot.Commands.Modules
             return false;
         }
 
-        private async Task AddInternal(string queueName, SocketGuild guild, ISocketMessageChannel channel, IGuildUser user)
+        private async Task AddInternal(string queueName, ISocketMessageChannel channel, IGuildUser user)
         {
+            var guild = (SocketGuild)user.Guild;
             PickupQueue queue;
             if (!string.IsNullOrWhiteSpace(queueName))
             {
@@ -255,15 +255,22 @@ namespace PickupBot.Commands.Modules
         {
             var queuesChannel = await PickupHelpers.GetPickupQueuesChannel(guild);
 
-            //var denyAll = OverwritePermissions.DenyAll(queuesChannel);
-            //await queuesChannel.AddPermissionOverwriteAsync(Context.Guild.EveryoneRole, denyAll);
-
             var user = guild.GetUser(Convert.ToUInt64(queue.OwnerId));
 
             var embed = CreateStaticQueueMessageEmbed(queue, user);
 
             AddSubscriberFieldsToStaticQueueMessageFields(queue, embed);
             AddWaitingListFieldsToStaticQueueMessageFields(queue, embed);
+
+            embed.WithFields(
+                new EmbedFieldBuilder {Name = "\u200b", Value = "\u200b"},
+                new EmbedFieldBuilder
+                {
+                    Name = "Available actions", 
+                    Value = $"\u2705 - Add to pickup / remove from pickup\r\n" +
+                            $"\uD83D\uDCE2 - Promote pickup"
+                }
+            );
 
             if (string.IsNullOrEmpty(queue.StaticMessageId))
             {
