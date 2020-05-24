@@ -55,16 +55,22 @@ namespace PickupBot.Commands.Modules
             if (!(channel is IGuildChannel guildChannel) || guildChannel.Name != "active-pickups") return;
             if (reaction.User.Value.IsBot) return;
 
+            var queue = await _queueRepository.FindQueueByMessageId(reaction.MessageId, guildChannel.GuildId.ToString());
+            if (queue == null) return;
+            
+            var pickupChannel = ((SocketGuild)guildChannel.Guild).Channels.FirstOrDefault(c => c.Name.Equals("pickup")) as SocketTextChannel;
             if (reaction.Emote.Name == "\u2705")
             {
-                var queue = await _queueRepository.FindQueueByMessageId(reaction.MessageId, guildChannel.GuildId.ToString());
-
-                if (queue != null)
-                {
-                    var pickupChannel = ((SocketGuild)guildChannel.Guild).Channels.FirstOrDefault(c => c.Name.Equals("pickup")) as SocketTextChannel;
-                    await AddInternal(queue.Name, (SocketGuild)guildChannel.Guild, pickupChannel ?? (SocketTextChannel)guildChannel,
-                        (SocketGuildUser)reaction.User);
-                }
+                await AddInternal(queue.Name, 
+                    pickupChannel ?? (SocketTextChannel)guildChannel,
+                    (SocketGuildUser)reaction.User);
+            }
+            else if (reaction.Emote.Name == "\uD83D\uDCE2")
+            {
+                await PromoteInternal(
+                    queue, 
+                    pickupChannel ?? (SocketTextChannel)guildChannel,
+                    (SocketGuildUser)reaction.User);
             }
         }
 
@@ -180,7 +186,7 @@ namespace PickupBot.Commands.Modules
                     await _queueRepository.RemoveQueue(queue);
                     await ReplyAsync($"The queue '{queue.Name}' has been renamed to '{newQueue.Name}'");
                     await ReplyAsync($"`{newQueue.Name} - {PickupHelpers.ParseSubscribers(newQueue)}`");
-                    if(!string.IsNullOrEmpty(queue.StaticMessageId))
+                    if (!string.IsNullOrEmpty(queue.StaticMessageId))
                         _ = await SaveStaticQueueMessage(newQueue, Context.Guild);
                     return;
                 }
@@ -315,10 +321,6 @@ namespace PickupBot.Commands.Modules
             if (!PickupHelpers.IsInPickupChannel((IGuildChannel)Context.Channel))
                 return;
 
-            var activity = await _activitiesRepository.Find((IGuildUser)Context.User);
-            activity.PickupPromote += 1;
-            await _activitiesRepository.Update(activity);
-
             PickupQueue queue = null;
             if (!string.IsNullOrWhiteSpace(queueName))
             {
@@ -336,56 +338,7 @@ namespace PickupBot.Commands.Modules
                 }
             }
 
-            var role = Context.Guild.Roles.FirstOrDefault(w => w.Name == "pickup-promote");
-            if (role == null) return; //Failed to get role;
-
-            using (Context.Channel.EnterTypingState())
-            {
-                var users = Context.Guild.Users.Where(w => w.Roles.Any(r => r.Id == role.Id)).ToList();
-                if (!users.Any())
-                {
-                    await ReplyAsync("No users have subscribed using the `!subscribe` command.").AutoRemoveMessage(10);
-                    return;
-                }
-
-                if (string.IsNullOrWhiteSpace(queueName))
-                {
-                    var queues = await _queueRepository.AllQueues(Context.Guild.Id.ToString());
-                    var filtered = queues.Where(q => q.MaxInQueue > q.Subscribers.Count).ToArray();
-                    if (filtered.Any())
-                        await ReplyAsync($"There are {filtered.Length} pickup queues with spots left, check out the `!list`! - {role.Mention}").AutoRemoveMessage();
-                }
-                else if (queue != null)
-                {
-                    var sb = new StringBuilder()
-                        .AppendLine("**Current queue**")
-                        .AppendLine($"`{PickupHelpers.ParseSubscribers(queue)}`")
-                        .AppendLine("")
-                        .AppendLine($"**Spots left**: {queue.MaxInQueue - queue.Subscribers.Count}")
-                        .AppendLine($"**Team size**: {queue.TeamSize}")
-                        .AppendLine("")
-                        .AppendLine($"Just run `!add \"{queue.Name}\"` in channel <#{Context.Channel.Id}> on the **{Context.Guild.Name}** server to join!")
-                        .AppendLine("");
-
-                    if (!queue.Games.IsNullOrEmpty())
-                        sb.AppendLine($"**Game(s): ** _{string.Join(", ", queue.Games)}_");
-
-                    if (!string.IsNullOrWhiteSpace(queue.Host))
-                        sb.AppendLine($"**Server**: _{queue.Host ?? "ra3.se"}:{(queue.Port > 0 ? queue.Port : 27960)}_");
-
-                    var embed = new EmbedBuilder
-                    {
-                        Title = $"Pickup queue {queue.Name} needs more players",
-                        Description = sb.ToString(),
-                        Author = new EmbedAuthorBuilder { Name = "pickup-bot" },
-                        Color = Color.Orange
-                    }.Build();
-
-                    var tasks = users.Select(user => user.SendMessageAsync(embed: embed));
-
-                    await Task.WhenAll(tasks);
-                }
-            }
+            await PromoteInternal(queue, (ITextChannel)Context.Channel, (IGuildUser)Context.User);
         }
 
         [Command("start")]
@@ -492,6 +445,74 @@ namespace PickupBot.Commands.Modules
             await _queueRepository.UpdateQueue(queue);
 
             await Delete(queueName);
+        }
+
+        private async Task PromoteInternal(PickupQueue queue, ITextChannel pickupChannel, IGuildUser user)
+        {
+            var activity = await _activitiesRepository.Find(user);
+            activity.PickupPromote += 1;
+            await _activitiesRepository.Update(activity);
+
+            if (queue?.MaxInQueue <= queue?.Subscribers.Count)
+            {
+                await ReplyAsync("Queue is full, why the spam?").AutoRemoveMessage(10);
+                return;
+            }
+
+            var role = user.Guild.Roles.FirstOrDefault(w => w.Name == "pickup-promote");
+            if (role == null) return; //Failed to get role;
+
+            using (pickupChannel.EnterTypingState())
+            {
+                var users = Context.Guild.Users.Where(w => w.Roles.Any(r => r.Id == role.Id)).ToList();
+                if (!users.Any())
+                {
+                    await pickupChannel.SendMessageAsync("No users have subscribed using the `!subscribe` command.")
+                        .AutoRemoveMessage(10);
+                    return;
+                }
+
+                if (queue == null)
+                {
+                    var queues = await _queueRepository.AllQueues(user.GuildId.ToString());
+                    var filtered = queues.Where(q => q.MaxInQueue > q.Subscribers.Count).ToArray();
+                    if (filtered.Any())
+                        await pickupChannel.SendMessageAsync($"There are {filtered.Length} pickup queues with spots left, check out the `!list`! - {role.Mention}")
+                            .AutoRemoveMessage();
+                }
+                else
+                {
+                    var sb = new StringBuilder()
+                        .AppendLine("**Current queue**")
+                        .AppendLine($"`{PickupHelpers.ParseSubscribers(queue)}`")
+                        .AppendLine("")
+                        .AppendLine($"**Spots left**: {queue.MaxInQueue - queue.Subscribers.Count}")
+                        .AppendLine($"**Team size**: {queue.TeamSize}")
+                        .AppendLine("")
+                        .AppendLine($"Just run `!add \"{queue.Name}\"` in channel <#{pickupChannel.Id}> on the **{user.Guild.Name}** server to join!")
+                        .AppendLine("");
+
+                    if (!queue.Games.IsNullOrEmpty())
+                        sb.AppendLine($"**Game(s): ** _{string.Join(", ", queue.Games)}_");
+
+                    if (!string.IsNullOrWhiteSpace(queue.Host))
+                        sb.AppendLine($"**Server**: _{queue.Host ?? "ra3.se"}:{(queue.Port > 0 ? queue.Port : 27960)}_");
+
+                    var embed = new EmbedBuilder
+                    {
+                        Title = $"Pickup queue {queue.Name} needs more players",
+                        Description = sb.ToString(),
+                        Author = new EmbedAuthorBuilder { Name = "pickup-bot" },
+                        Color = Color.Orange
+                    }.Build();
+
+                    foreach (var u in users)
+                    {
+                        await u.SendMessageAsync(embed: embed);
+                        await Task.Delay(TimeSpan.FromMilliseconds(200));
+                    }
+                }
+            }
         }
 
         public void Dispose()
