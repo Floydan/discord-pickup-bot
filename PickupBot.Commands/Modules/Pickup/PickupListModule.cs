@@ -13,7 +13,7 @@ using PickupBot.Commands.Infrastructure.Utilities;
 using PickupBot.Data.Models;
 using PickupBot.Data.Repositories;
 
-namespace PickupBot.Commands.Modules
+namespace PickupBot.Commands.Modules.Pickup
 {
     [Name("Pickup list actions")]
     [Summary("Commands for handling pickup list actions")]
@@ -99,16 +99,12 @@ namespace PickupBot.Commands.Modules
             if (!PickupHelpers.IsInPickupChannel((IGuildChannel)Context.Channel))
                 return;
 
-            if (!teamSize.HasValue)
-                teamSize = 4;
+            if (!teamSize.HasValue) teamSize = 4;
 
-            if (teamSize > 16)
-                teamSize = 16;
+            if (teamSize > 16) teamSize = 16;
 
             if (!await _miscCommandService.VerifyUserFlaggedStatus((IGuildUser)Context.User, Context.Channel).ConfigureAwait(false))
                 return;
-
-            var ops = OperatorParser.Parse(operators);
 
             //find queue with name {queueName}
             var queue = await _queueRepository.FindQueue(queueName, Context.Guild.Id.ToString()).ConfigureAwait(false);
@@ -124,33 +120,11 @@ namespace PickupBot.Commands.Modules
             activity.PickupAdd += 1;
             await _activitiesRepository.Update(activity).ConfigureAwait(false);
 
-            var rconEnabled = ops?.ContainsKey("-rcon") ?? true;
-            if (ops?.ContainsKey("-norcon") == true)
-                rconEnabled = false;
+            queue = await _listCommandService.Create(queueName, teamSize, operators, (SocketGuildUser)Context.User).ConfigureAwait(false);
 
-            queue = new PickupQueue(Context.Guild.Id.ToString(), queueName)
-            {
-                Name = queueName,
-                GuildId = Context.Guild.Id.ToString(),
-                OwnerName = PickupHelpers.GetNickname(Context.User),
-                OwnerId = Context.User.Id.ToString(),
-                Created = DateTime.UtcNow,
-                Updated = DateTime.UtcNow,
-                TeamSize = teamSize.Value,
-                IsCoop = ops?.ContainsKey("-coop") ?? false,
-                Rcon = rconEnabled,
-                Subscribers = new List<Subscriber>
-                    {new Subscriber {Id = Context.User.Id, Name = PickupHelpers.GetNickname(Context.User)}},
-                Host = ops?.ContainsKey("-host") ?? false ? ops["-host"]?.FirstOrDefault() : null,
-                Port = int.Parse((ops?.ContainsKey("-port") ?? false ? ops["-port"]?.FirstOrDefault() : null) ?? "0"),
-                Games = ops?.ContainsKey("-game") ?? false ? ops["-game"] : Enumerable.Empty<string>(),
-            };
+            await Context.Channel.SendMessageAsync($"`Queue '{queue.Name}' was added by {PickupHelpers.GetNickname(Context.User)}`")
+                .ConfigureAwait(false);
 
-            await _queueRepository.AddQueue(queue).ConfigureAwait(false);
-
-            await Context.Channel.SendMessageAsync($"`Queue '{queueName}' was added by {PickupHelpers.GetNickname(Context.User)}`").ConfigureAwait(false);
-            queue = await _listCommandService.SaveStaticQueueMessage(queue, Context.Guild).ConfigureAwait(false);
-            await _queueRepository.UpdateQueue(queue).ConfigureAwait(false);
         }
 
         [Command("rename")]
@@ -214,23 +188,34 @@ namespace PickupBot.Commands.Modules
             }
 
             var isAdmin = (Context.User as IGuildUser)?.GuildPermissions.Has(GuildPermission.Administrator) ?? false;
-            if (isAdmin || queue.OwnerId == Context.User.Id.ToString())
+            if (!isAdmin && queue.OwnerId != Context.User.Id.ToString())
             {
-                var queuesChannel = await PickupHelpers.GetPickupQueuesChannel(Context.Guild).ConfigureAwait(false);
-
-                var result = await _queueRepository.RemoveQueue(queueName, Context.Guild.Id.ToString()).ConfigureAwait(false);
-                var message = result ?
-                    $"`Queue '{queueName}' has been canceled`" :
-                    $"`Queue with the name '{queueName}' doesn't exists or you are not the owner of the queue!`";
-                await Context.Channel.SendMessageAsync(message).AutoRemoveMessage(10).ConfigureAwait(false);
-
-                if (!string.IsNullOrEmpty(queue.StaticMessageId))
-                    await queuesChannel.DeleteMessageAsync(Convert.ToUInt64(queue.StaticMessageId)).ConfigureAwait(false);
-
+                await Context.Channel.SendMessageAsync("You do not have permission to remove the queue.").AutoRemoveMessage(10).ConfigureAwait(false);
                 return;
             }
 
-            await Context.Channel.SendMessageAsync("You do not have permission to remove the queue.").AutoRemoveMessage(10).ConfigureAwait(false);
+            if (!queue.Started)
+            {
+                var queuesChannel = await PickupHelpers.GetPickupQueuesChannel(Context.Guild).ConfigureAwait(false);
+
+                var result = await _queueRepository.RemoveQueue(queueName, Context.Guild.Id.ToString())
+                    .ConfigureAwait(false);
+                var message = result
+                    ? $"`Queue '{queueName}' has been canceled`"
+                    : $"`Queue with the name '{queueName}' doesn't exists or you are not the owner of the queue!`";
+                await Context.Channel.SendMessageAsync(message).AutoRemoveMessage(10).ConfigureAwait(false);
+
+                if (!string.IsNullOrEmpty(queue.StaticMessageId))
+                    await queuesChannel.DeleteMessageAsync(Convert.ToUInt64(queue.StaticMessageId))
+                        .ConfigureAwait(false);
+            }
+            else
+            {
+                await Context.Channel.SendMessageAsync("Queue is started, you have to run `!stop` to clean up efter yourself first")
+                    .AutoRemoveMessage(15)
+                    .ConfigureAwait(false);
+
+            }
         }
 
         [Command("list")]
