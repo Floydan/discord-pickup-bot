@@ -278,7 +278,7 @@ namespace PickupBot.Commands.Modules
                 .AppendLine("")
                 .AppendLine($"Created by _{queue.OwnerName}_ {(queue.IsCoop ? "(_coop_)" : "")}")
                 .AppendLine("```")
-                .AppendLine($"[{queue.Subscribers.Count}/{queue.MaxInQueue}] - {PickupHelpers.ParseSubscribers(q)}")
+                .AppendLine($"[{queue.Subscribers.Count}/{queue.MaxInQueue}] - {PickupHelpers.ParseSubscribers(queue)}")
                 .AppendLine("```");
 
             if (!queue.WaitingList.IsNullOrEmpty())
