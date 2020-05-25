@@ -190,12 +190,13 @@ namespace PickupBot.Commands.Modules
                 await ReplyAsync("An error occured when trying to update the queue name, try again.")
                     .AutoRemoveMessage(10)
                     .ConfigureAwait(false);
-                return;
             }
-
-            await ReplyAsync("`You do not have permission to rename this queue, you have to be either the owner or a server admin`")
-                .AutoRemoveMessage(10)
-                .ConfigureAwait(false);
+            else
+            {
+                await ReplyAsync("`You do not have permission to rename this queue, you have to be either the owner or a server admin`")
+                    .AutoRemoveMessage(10)
+                    .ConfigureAwait(false);
+            }
         }
 
         [Command("delete")]
@@ -258,32 +259,35 @@ namespace PickupBot.Commands.Modules
             }
 
             var ordered = pickupQueues.OrderByDescending(w => w.Readiness);
-            var sb = new StringBuilder();
             foreach (var q in ordered)
             {
-                sb.Clear()
-                  .AppendLine($"`!add \"{q.Name}\"` to join!")
-                  .AppendLine("")
-                  .AppendLine($"Created by _{q.OwnerName}_ {(q.IsCoop ? "(_coop_)" : "")}")
-                  .AppendLine("```")
-                  .AppendLine($"[{q.Subscribers.Count}/{q.MaxInQueue}] - {PickupHelpers.ParseSubscribers(q)}")
-                  .AppendLine("```");
-
-                if (!q.WaitingList.IsNullOrEmpty())
-                    sb.AppendLine($"In waitlist: **{q.WaitingList.Count}**");
-                if (!q.Games.IsNullOrEmpty())
-                    sb.AppendLine($"**Game(s): ** _{string.Join(", ", q.Games)}_");
-                if (!string.IsNullOrWhiteSpace(q.Host))
-                    sb.AppendLine($"**Server**: _{q.Host ?? "ra3.se"}:{(q.Port > 0 ? q.Port : 27960)}_");
-
                 embed = new EmbedBuilder
                 {
                     Title = $"{q.Name}{(q.Started ? " - Started" : "")}",
-                    Description = sb.ToString(),
+                    Description = BuildListResponse(q).ToString(),
                     Color = Color.Orange
                 }.Build();
                 await Context.Channel.SendMessageAsync(embed: embed).AutoRemoveMessage().ConfigureAwait(false);
             }
+        }
+
+        private static StringBuilder BuildListResponse(PickupQueue queue)
+        {
+            var sb = new StringBuilder();
+            sb.AppendLine($"`!add \"{queue.Name}\"` to join!")
+                .AppendLine("")
+                .AppendLine($"Created by _{queue.OwnerName}_ {(queue.IsCoop ? "(_coop_)" : "")}")
+                .AppendLine("```")
+                .AppendLine($"[{queue.Subscribers.Count}/{queue.MaxInQueue}] - {PickupHelpers.ParseSubscribers(q)}")
+                .AppendLine("```");
+
+            if (!queue.WaitingList.IsNullOrEmpty())
+                sb.AppendLine($"In waitlist: **{queue.WaitingList.Count}**");
+            if (!queue.Games.IsNullOrEmpty())
+                sb.AppendLine($"**Game(s): ** _{string.Join(", ", queue.Games)}_");
+            if (!string.IsNullOrWhiteSpace(queue.Host))
+                sb.AppendLine($"**Server**: _{queue.Host ?? "ra3.se"}:{(queue.Port > 0 ? queue.Port : 27960)}_");
+            return sb;
         }
 
         [Command("waitlist")]
