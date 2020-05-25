@@ -9,6 +9,7 @@ using Discord.Commands;
 using Discord.WebSocket;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using PickupBot.Commands.Infrastructure;
 using PickupBot.Commands.Infrastructure.Utilities;
 using PickupBot.Commands.Models;
 using PickupBot.Data.Models;
@@ -31,6 +32,7 @@ namespace PickupBot.Commands
 
         public CommandHandlerService(IServiceProvider services, PickupBotSettings pickupBotSettings, ILogger<CommandHandlerService> logger)
         {
+            ServiceLocator.SetLocatorProvider(services);
             _commands = services.GetRequiredService<CommandService>();
             _discord = services.GetRequiredService<DiscordSocketClient>();
             _translationService = services.GetService<ITranslationService>();

@@ -18,6 +18,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Console;
 using PickupBot.Commands;
 using PickupBot.Commands.Extensions;
+using PickupBot.Commands.Infrastructure.Services;
 using PickupBot.Data.Models;
 using PickupBot.Data.Repositories;
 using PickupBot.GitHub;
@@ -86,6 +87,9 @@ namespace PickupBot
                     services
                         .AddHttpClient()
                         .ConfigureSettings<PickupBotSettings>(hostContext.Configuration.GetSection("PickupBot"))
+                        .AddTransient<IListCommandService, ListCommandService>()
+                        .AddTransient<IMiscCommandService, MiscCommandService>()
+                        .AddTransient<ISubscriberCommandService, SubscriberCommandService>()
                         .AddSingleton<ITranslationService, GoogleTranslationService>()
                         .AddSingleton<CommandHandlerService>() //added as singleton to be used in event registration below
                         .AddHostedService(p => p.GetService<CommandHandlerService>())

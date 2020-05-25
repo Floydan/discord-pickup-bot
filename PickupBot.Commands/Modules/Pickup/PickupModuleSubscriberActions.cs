@@ -3,17 +3,35 @@ using System.Linq;
 using System.Threading.Tasks;
 using Discord;
 using Discord.Commands;
-using Discord.WebSocket;
 using PickupBot.Commands.Extensions;
 using PickupBot.Commands.Infrastructure.Helpers;
+using PickupBot.Commands.Infrastructure.Services;
 using PickupBot.Data.Models;
+using PickupBot.Data.Repositories;
 
 // ReSharper disable MemberCanBePrivate.Global
 
 namespace PickupBot.Commands.Modules
 {
-    public partial class PickupModule
+    [Name("Pickup subscriber actions")]
+    [Summary("Commands for handling pickup subscriber actions")]
+    public class PickupSubscriberModule : ModuleBase<SocketCommandContext>
     {
+        private readonly IQueueRepository _queueRepository;
+        private readonly ISubscriberCommandService _subscriberCommandService;
+        private readonly IMiscCommandService _miscCommandService;
+
+        public PickupSubscriberModule(
+            IQueueRepository queueRepository, 
+            ISubscriberCommandService subscriberCommandService, 
+            IMiscCommandService miscCommandService
+        )
+        {
+            _queueRepository = queueRepository;
+            _subscriberCommandService = subscriberCommandService;
+            _miscCommandService = miscCommandService;
+        }
+
         [Command("add")]
         [Summary("Take a spot in a pickup queue, if the queue is full you are placed on the waiting list.")]
         public async Task Add([Name("Queue name"), Summary("Queue name"), Remainder]string queueName = "")
@@ -22,7 +40,7 @@ namespace PickupBot.Commands.Modules
                 return;
 
             //find queue with name {queueName}
-            await AddInternal(queueName, Context.Channel, (IGuildUser)Context.User).ConfigureAwait(false);
+            await _subscriberCommandService.Add(queueName, Context.Channel, (IGuildUser)Context.User).ConfigureAwait(false);
         }
 
         [Command("remove")]
@@ -40,13 +58,13 @@ namespace PickupBot.Commands.Modules
             }
 
             //find queue with name {queueName}
-            var queue = await VerifyQueueByName(queueName).ConfigureAwait(false);
+            var queue = await _miscCommandService.VerifyQueueByName(queueName, (IGuildChannel)Context.Channel).ConfigureAwait(false);
             if (queue == null)
             {
                 return;
             }
 
-            await LeaveInternal(queue, Context.Channel, (IGuildUser)Context.User).ConfigureAwait(false);
+            await _subscriberCommandService.Leave(queue, Context.Channel, (IGuildUser)Context.User).ConfigureAwait(false);
         }
 
         [Command("clear")]
@@ -69,7 +87,7 @@ namespace PickupBot.Commands.Modules
                     queue.WaitingList.RemoveAll(w => w.Id == Context.User.Id);
                     queue.Updated = DateTime.UtcNow;
 
-                    var updatedQueue = await LeaveInternal(queue, Context.Channel, (IGuildUser)Context.User, false).ConfigureAwait(false);
+                    var updatedQueue = await _subscriberCommandService.Leave(queue, Context.Channel, (IGuildUser)Context.User, false).ConfigureAwait(false);
 
                     updatedQueue ??= queue;
 

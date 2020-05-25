@@ -38,7 +38,7 @@ namespace PickupBot.Commands.Infrastructure.Helpers
 
         public static async Task NotifyUsers(PickupQueue queue, string serverName, IUser guildUser, params SocketGuildUser[] users)
         {
-            var usersList = String.Join(Environment.NewLine, queue.Subscribers.Where(u => u.Id != guildUser.Id).Select(u => $@"  - {u.Name}"));
+            var usersList = string.Join(Environment.NewLine, queue.Subscribers.Where(u => u.Id != guildUser.Id).Select(u => $@"  - {u.Name}"));
             var header = $"**Contact your teammates on the \"{serverName}\" server and glhf!**";
             var remember = $"**Remember** {Environment.NewLine}" +
                            $"Remember to do `!leave {queue.Name}` if/when you leave the game to make room for those in the waiting list!";

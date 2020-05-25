@@ -6,45 +6,40 @@ using System.Threading.Tasks;
 using Discord;
 using Discord.Commands;
 using Discord.WebSocket;
-using Microsoft.Extensions.Logging;
 using PickupBot.Commands.Extensions;
 using PickupBot.Commands.Infrastructure.Helpers;
+using PickupBot.Commands.Infrastructure.Services;
 using PickupBot.Commands.Infrastructure.Utilities;
 using PickupBot.Data.Models;
 using PickupBot.Data.Repositories;
-// ReSharper disable MemberCanBePrivate.Global
 
 namespace PickupBot.Commands.Modules
 {
-    [Name("Pickup")]
-    [Summary("Commands for handling pickup queues")]
-    public partial class PickupModule : ModuleBase<SocketCommandContext>, IDisposable
+    [Name("Pickup list actions")]
+    [Summary("Commands for handling pickup list actions")]
+    public class PickupListModule : ModuleBase<SocketCommandContext>, IDisposable
     {
         private readonly IQueueRepository _queueRepository;
-        private readonly IFlaggedSubscribersRepository _flagRepository;
         private readonly ISubscriberActivitiesRepository _activitiesRepository;
-        private readonly ILogger<PickupModule> _logger;
+        private readonly IListCommandService _listCommandService;
+        private readonly ISubscriberCommandService _subscriberCommandService;
+        private readonly IMiscCommandService _miscCommandService;
         private readonly DiscordSocketClient _client;
-        private readonly string _rconPassword;
-        private readonly string _rconHost;
-        private readonly int _rconPort;
 
-        public PickupModule(
+        public PickupListModule(
             IQueueRepository queueRepository,
-            IFlaggedSubscribersRepository flagRepository,
             ISubscriberActivitiesRepository activitiesRepository,
-            PickupBotSettings pickupBotSettings,
-            ILogger<PickupModule> logger,
+            IListCommandService listCommandService,
+            ISubscriberCommandService subscriberCommandService,
+            IMiscCommandService miscCommandService,
             DiscordSocketClient client)
         {
             _queueRepository = queueRepository;
-            _flagRepository = flagRepository;
             _activitiesRepository = activitiesRepository;
-            _logger = logger;
+            _listCommandService = listCommandService;
+            _subscriberCommandService = subscriberCommandService;
+            _miscCommandService = miscCommandService;
             _client = client;
-            _rconPassword = pickupBotSettings.RCONServerPassword ?? "";
-            _rconHost = pickupBotSettings.RCONHost ?? "";
-            int.TryParse(pickupBotSettings.RCONPort ?? "0", out _rconPort);
 
             _client.ReactionAdded += ReactionAdded;
             _client.ReactionRemoved += ReactionRemoved;
@@ -62,12 +57,12 @@ namespace PickupBot.Commands.Modules
             switch (reaction.Emote.Name)
             {
                 case "\u2705":
-                    await AddInternal(queue.Name,
+                    await _subscriberCommandService.Add(queue.Name,
                         pickupChannel ?? (SocketTextChannel)guildChannel,
                         (SocketGuildUser)reaction.User).ConfigureAwait(false);
                     break;
                 case "\uD83D\uDCE2":
-                    await PromoteInternal(
+                    await _listCommandService.Promote(
                         queue,
                         pickupChannel ?? (SocketTextChannel)guildChannel,
                         (SocketGuildUser)reaction.User).ConfigureAwait(false);
@@ -87,7 +82,7 @@ namespace PickupBot.Commands.Modules
                 if (queue != null)
                 {
                     var pickupChannel = ((SocketGuild)guildChannel.Guild).Channels.FirstOrDefault(c => c.Name.Equals("pickup")) as SocketTextChannel;
-                    await LeaveInternal(queue, pickupChannel ?? (SocketTextChannel)guildChannel,
+                    await _subscriberCommandService.Leave(queue, pickupChannel ?? (SocketTextChannel)guildChannel,
                         (SocketGuildUser)reaction.User).ConfigureAwait(false);
                 }
             }
@@ -110,7 +105,7 @@ namespace PickupBot.Commands.Modules
             if (teamSize > 16)
                 teamSize = 16;
 
-            if (!await VerifyUserFlaggedStatus().ConfigureAwait(false))
+            if (!await _miscCommandService.VerifyUserFlaggedStatus((IGuildUser)Context.User, Context.Channel).ConfigureAwait(false))
                 return;
 
             var ops = OperatorParser.Parse(operators);
@@ -154,7 +149,7 @@ namespace PickupBot.Commands.Modules
             await _queueRepository.AddQueue(queue).ConfigureAwait(false);
 
             await Context.Channel.SendMessageAsync($"`Queue '{queueName}' was added by {PickupHelpers.GetNickname(Context.User)}`").ConfigureAwait(false);
-            queue = await SaveStaticQueueMessage(queue, Context.Guild).ConfigureAwait(false);
+            queue = await _listCommandService.SaveStaticQueueMessage(queue, Context.Guild).ConfigureAwait(false);
             await _queueRepository.UpdateQueue(queue).ConfigureAwait(false);
         }
 
@@ -164,7 +159,7 @@ namespace PickupBot.Commands.Modules
         {
             if (!PickupHelpers.IsInPickupChannel((IGuildChannel)Context.Channel)) return;
 
-            var queue = await VerifyQueueByName(queueName).ConfigureAwait(false);
+            var queue = await _miscCommandService.VerifyQueueByName(queueName, (IGuildChannel)Context.Channel).ConfigureAwait(false);
             if (queue == null) return;
 
             var isAdmin = (Context.User as IGuildUser)?.GuildPermissions.Has(GuildPermission.Administrator) ?? false;
@@ -188,7 +183,7 @@ namespace PickupBot.Commands.Modules
                     await ReplyAsync($"The queue '{queue.Name}' has been renamed to '{newQueue.Name}'");
                     await ReplyAsync($"`{newQueue.Name} - {PickupHelpers.ParseSubscribers(newQueue)}`");
                     if (!string.IsNullOrEmpty(queue.StaticMessageId))
-                        _ = await SaveStaticQueueMessage(newQueue, Context.Guild).ConfigureAwait(false);
+                        await _listCommandService.SaveStaticQueueMessage(newQueue, Context.Guild).ConfigureAwait(false);
                     return;
                 }
 
@@ -211,7 +206,7 @@ namespace PickupBot.Commands.Modules
             if (!PickupHelpers.IsInPickupChannel((IGuildChannel)Context.Channel))
                 return;
 
-            var queue = await VerifyQueueByName(queueName).ConfigureAwait(false);
+            var queue = await _miscCommandService.VerifyQueueByName(queueName, (IGuildChannel)Context.Channel).ConfigureAwait(false);
             if (queue == null)
             {
                 return;
@@ -343,7 +338,7 @@ namespace PickupBot.Commands.Modules
                 }
             }
 
-            await PromoteInternal(queue, (ITextChannel)Context.Channel, (IGuildUser)Context.User).ConfigureAwait(false);
+            await _listCommandService.Promote(queue, (ITextChannel)Context.Channel, (IGuildUser)Context.User).ConfigureAwait(false);
         }
 
         [Command("start")]
@@ -352,7 +347,7 @@ namespace PickupBot.Commands.Modules
         {
             if (!PickupHelpers.IsInPickupChannel((IGuildChannel)Context.Channel)) return;
 
-            var queue = await VerifyQueueByName(queueName).ConfigureAwait(false);
+            var queue = await _miscCommandService.VerifyQueueByName(queueName, (IGuildChannel)Context.Channel).ConfigureAwait(false);
             if (queue == null || queue.Started) return;
 
             var pickupCategory = (ICategoryChannel)Context.Guild.CategoryChannels.FirstOrDefault(c =>
@@ -398,11 +393,11 @@ namespace PickupBot.Commands.Modules
 
             queue.Started = true;
             queue.Updated = DateTime.UtcNow;
-            queue = await SaveStaticQueueMessage(queue, Context.Guild).ConfigureAwait(false);
+            queue = await _listCommandService.SaveStaticQueueMessage(queue, Context.Guild).ConfigureAwait(false);
             await _queueRepository.UpdateQueue(queue).ConfigureAwait(false);
-            await PrintTeams(queue).ConfigureAwait(false);
+            await _listCommandService.PrintTeams(queue, Context.Channel, Context.Guild).ConfigureAwait(false);
 
-            TriggerDelayedRconNotification(queue);
+            _miscCommandService.TriggerDelayedRconNotification(queue);
         }
 
         [Command("teams"), Alias("team")]
@@ -412,12 +407,12 @@ namespace PickupBot.Commands.Modules
             if (!PickupHelpers.IsInPickupChannel((IGuildChannel)Context.Channel))
                 return;
 
-            var queue = await VerifyQueueByName(queueName).ConfigureAwait(false);
+            var queue = await _miscCommandService.VerifyQueueByName(queueName, (IGuildChannel)Context.Channel).ConfigureAwait(false);
             if (queue == null) return;
 
-            await PrintTeams(queue).ConfigureAwait(false);
+            await _listCommandService.PrintTeams(queue, Context.Channel, Context.Guild).ConfigureAwait(false);
 
-            await TriggerRconNotification(queue).ConfigureAwait(false);
+            await _miscCommandService.TriggerRconNotification(queue).ConfigureAwait(false);
         }
 
         [Command("stop")]
@@ -427,7 +422,7 @@ namespace PickupBot.Commands.Modules
             if (!PickupHelpers.IsInPickupChannel((IGuildChannel)Context.Channel))
                 return;
 
-            var queue = await VerifyQueueByName(queueName).ConfigureAwait(false);
+            var queue = await _miscCommandService.VerifyQueueByName(queueName, (IGuildChannel)Context.Channel).ConfigureAwait(false);
             if (queue == null) return;
 
             var voiceIds = queue.Teams.Select(w => w.VoiceChannel.Value).ToList();
@@ -446,81 +441,10 @@ namespace PickupBot.Commands.Modules
             queue.Started = false;
             queue.Updated = DateTime.UtcNow;
             queue.Teams.Clear();
-            queue = await SaveStaticQueueMessage(queue, Context.Guild).ConfigureAwait(false);
+            queue = await _listCommandService.SaveStaticQueueMessage(queue, Context.Guild).ConfigureAwait(false);
             await _queueRepository.UpdateQueue(queue).ConfigureAwait(false);
 
             await Delete(queueName).ConfigureAwait(false);
-        }
-
-        private async Task PromoteInternal(PickupQueue queue, ITextChannel pickupChannel, IGuildUser user)
-        {
-            var guild = (SocketGuild)user.Guild;
-            var activity = await _activitiesRepository.Find(user).ConfigureAwait(false);
-            activity.PickupPromote += 1;
-            await _activitiesRepository.Update(activity).ConfigureAwait(false);
-
-            if (queue?.MaxInQueue <= queue?.Subscribers.Count)
-            {
-                await ReplyAsync("Queue is full, why the spam?").AutoRemoveMessage(10);
-                return;
-            }
-
-            var role = guild.Roles.FirstOrDefault(w => w.Name == "pickup-promote");
-            if (role == null) return; //Failed to get role;
-
-            using (pickupChannel.EnterTypingState())
-            {
-                var users = guild.Users.Where(w => w.Roles.Any(r => r.Id == role.Id)).ToList();
-                if (!users.Any())
-                {
-                    await pickupChannel.SendMessageAsync("No users have subscribed using the `!subscribe` command.")
-                        .AutoRemoveMessage(10)
-                        .ConfigureAwait(false);
-                    return;
-                }
-
-                if (queue == null)
-                {
-                    var queues = await _queueRepository.AllQueues(user.GuildId.ToString()).ConfigureAwait(false);
-                    var filtered = queues.Where(q => q.MaxInQueue > q.Subscribers.Count).ToArray();
-                    if (filtered.Any())
-                        await pickupChannel.SendMessageAsync($"There are {filtered.Length} pickup queues with spots left, check out the `!list`! - {role.Mention}")
-                            .AutoRemoveMessage()
-                            .ConfigureAwait(false);
-                }
-                else
-                {
-                    var sb = new StringBuilder()
-                        .AppendLine("**Current queue**")
-                        .AppendLine($"`{PickupHelpers.ParseSubscribers(queue)}`")
-                        .AppendLine("")
-                        .AppendLine($"**Spots left**: {queue.MaxInQueue - queue.Subscribers.Count}")
-                        .AppendLine($"**Team size**: {queue.TeamSize}")
-                        .AppendLine("")
-                        .AppendLine($"Just run `!add \"{queue.Name}\"` in channel <#{pickupChannel.Id}> on the **{user.Guild.Name}** server to join!")
-                        .AppendLine("");
-
-                    if (!queue.Games.IsNullOrEmpty())
-                        sb.AppendLine($"**Game(s): ** _{string.Join(", ", queue.Games)}_");
-
-                    if (!string.IsNullOrWhiteSpace(queue.Host))
-                        sb.AppendLine($"**Server**: _{queue.Host ?? "ra3.se"}:{(queue.Port > 0 ? queue.Port : 27960)}_");
-
-                    var embed = new EmbedBuilder
-                    {
-                        Title = $"Pickup queue {queue.Name} needs more players",
-                        Description = sb.ToString(),
-                        Author = new EmbedAuthorBuilder { Name = "pickup-bot" },
-                        Color = Color.Orange
-                    }.Build();
-
-                    foreach (var u in users)
-                    {
-                        await u.SendMessageAsync(embed: embed).ConfigureAwait(false);
-                        await Task.Delay(TimeSpan.FromMilliseconds(200)).ConfigureAwait(false);
-                    }
-                }
-            }
         }
 
         public void Dispose()

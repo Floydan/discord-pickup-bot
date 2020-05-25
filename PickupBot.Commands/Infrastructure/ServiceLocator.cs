@@ -1,21 +1,21 @@
 ﻿using System;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace PickupBot
+namespace PickupBot.Commands.Infrastructure
 {
     public class ServiceLocator
     {
-        private readonly ServiceProvider _currentServiceProvider;
-        private static ServiceProvider _serviceProvider;
+        private readonly IServiceProvider _currentServiceProvider;
+        private static IServiceProvider _serviceProvider;
 
-        public ServiceLocator(ServiceProvider currentServiceProvider)
+        public ServiceLocator(IServiceProvider currentServiceProvider)
         {
             _currentServiceProvider = currentServiceProvider;
         }
 
         public static ServiceLocator Current => new ServiceLocator(_serviceProvider);
 
-        public static void SetLocatorProvider(ServiceProvider serviceProvider)
+        public static void SetLocatorProvider(IServiceProvider serviceProvider)
         {
             _serviceProvider = serviceProvider;
         }
