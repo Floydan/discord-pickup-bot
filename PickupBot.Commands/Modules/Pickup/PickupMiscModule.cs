@@ -8,12 +8,29 @@ using Microsoft.Extensions.Logging;
 using PickupBot.Commands.Infrastructure.Helpers;
 using PickupBot.Commands.Infrastructure.Utilities;
 using PickupBot.Commands.Models;
+using PickupBot.Data.Models;
 
 // ReSharper disable MemberCanBePrivate.Global
 namespace PickupBot.Commands.Modules
 {
-    public partial class PickupModule
+    [Name("Pickup misc. actions")]
+    [Summary("Commands for handling pickups - misc. actions")]
+    public class PickupMiscModule : ModuleBase<SocketCommandContext>
     {
+        private readonly ILogger<PickupMiscModule> _logger;
+        private readonly string _rconPassword;
+        private readonly string _rconHost;
+        private readonly int _rconPort;
+
+        public PickupMiscModule(PickupBotSettings pickupBotSettings, ILogger<PickupMiscModule> logger)
+        {
+            _logger = logger;
+
+            _rconPassword = pickupBotSettings.RCONServerPassword ?? "";
+            _rconHost = pickupBotSettings.RCONHost ?? "";
+            int.TryParse(pickupBotSettings.RCONPort ?? "0", out _rconPort);
+        }
+
         [Command("servers")]
         [Alias("server", "ip")]
         [Summary("Returns a list of server addresses.")]
