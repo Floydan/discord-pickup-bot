@@ -7,6 +7,7 @@ using Discord;
 using Discord.WebSocket;
 using PickupBot.Commands.Extensions;
 using PickupBot.Commands.Infrastructure.Helpers;
+using PickupBot.Commands.Infrastructure.Utilities;
 using PickupBot.Data.Models;
 using PickupBot.Data.Repositories;
 
@@ -21,6 +22,41 @@ namespace PickupBot.Commands.Infrastructure.Services
         {
             _queueRepository = queueRepository;
             _activitiesRepository = activitiesRepository;
+        }
+        
+
+        public async Task<PickupQueue> Create(string queueName, int? teamSize, string operators, SocketGuildUser user)
+        {
+            var ops = OperatorParser.Parse(operators);
+            var rconEnabled = ops?.ContainsKey("-rcon") ?? true;
+            if (ops?.ContainsKey("-norcon") == true)
+                rconEnabled = false;
+
+            var queue = new PickupQueue(user.Guild.Id.ToString(), queueName)
+            {
+                Name = queueName,
+                GuildId = user.Guild.Id.ToString(),
+                OwnerName = PickupHelpers.GetNickname(user),
+                OwnerId = user.Id.ToString(),
+                Created = DateTime.UtcNow,
+                Updated = DateTime.UtcNow,
+                TeamSize = teamSize ?? 4,
+                IsCoop = ops?.ContainsKey("-coop") ?? false,
+                Rcon = rconEnabled,
+                Subscribers = new List<Subscriber>
+                {
+                    new Subscriber {Id = user.Id, Name = PickupHelpers.GetNickname(user)}
+                },
+                Host = ops?.ContainsKey("-host") ?? false ? ops["-host"]?.FirstOrDefault() : null,
+                Port = int.Parse((ops?.ContainsKey("-port") ?? false ? ops["-port"]?.FirstOrDefault() : null) ?? "0"),
+                Games = ops?.ContainsKey("-game") ?? false ? ops["-game"] : Enumerable.Empty<string>(),
+            };
+
+            await _queueRepository.AddQueue(queue).ConfigureAwait(false);
+
+            queue = await SaveStaticQueueMessage(queue, user.Guild).ConfigureAwait(false);
+            await _queueRepository.UpdateQueue(queue).ConfigureAwait(false);
+            return queue;
         }
 
         public async Task<bool> DeleteEmptyQueue(PickupQueue queue, SocketGuild guild, ISocketMessageChannel channel, bool notify)
@@ -246,6 +282,7 @@ namespace PickupBot.Commands.Infrastructure.Services
 
     public interface IListCommandService
     {
+        Task<PickupQueue> Create(string queueName, int? teamSize, string operators, SocketGuildUser user);
         Task<bool> DeleteEmptyQueue(PickupQueue queue, SocketGuild guild, ISocketMessageChannel channel, bool notify);
         Task PrintTeams(PickupQueue queue, ISocketMessageChannel channel, IGuild guild);
         Task Promote(PickupQueue queue, ITextChannel pickupChannel, IGuildUser user);

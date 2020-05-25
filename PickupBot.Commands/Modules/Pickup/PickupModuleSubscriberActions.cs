@@ -11,7 +11,7 @@ using PickupBot.Data.Repositories;
 
 // ReSharper disable MemberCanBePrivate.Global
 
-namespace PickupBot.Commands.Modules
+namespace PickupBot.Commands.Modules.Pickup
 {
     [Name("Pickup subscriber actions")]
     [Summary("Commands for handling pickup subscriber actions")]

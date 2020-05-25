@@ -11,7 +11,7 @@ using PickupBot.Commands.Models;
 using PickupBot.Data.Models;
 
 // ReSharper disable MemberCanBePrivate.Global
-namespace PickupBot.Commands.Modules
+namespace PickupBot.Commands.Modules.Pickup
 {
     [Name("Pickup misc. actions")]
     [Summary("Commands for handling pickups - misc. actions")]
