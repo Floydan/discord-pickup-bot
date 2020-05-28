@@ -71,74 +71,7 @@ namespace PickupBot
                     conf.LogLevel = LogSeverity.Warning;
                     conf.DefaultRunMode = RunMode.Async;
                 })
-                .ConfigureServices((hostContext, services) =>
-                {
-                    var storageConnectionString =
-                        hostContext.Configuration.GetConnectionString("StorageConnectionString");
-
-                    var assemblies = new[]
-                    {
-                        Assembly.GetExecutingAssembly(), 
-                        Assembly.GetAssembly(typeof(CommandHandlerService)), 
-                        Assembly.GetAssembly(typeof(PickupQueue)), 
-                        Assembly.GetAssembly(typeof(TranslationResult))
-                    };
-
-                    services
-                        .AddHttpClient()
-                        .ConfigureSettings<PickupBotSettings>(hostContext.Configuration.GetSection("PickupBot"))
-                        .AddTransient<IListCommandService, ListCommandService>()
-                        .AddTransient<IMiscCommandService, MiscCommandService>()
-                        .AddTransient<ISubscriberCommandService, SubscriberCommandService>()
-                        .AddSingleton<ITranslationService, GoogleTranslationService>()
-                        .AddSingleton<CommandHandlerService>() //added as singleton to be used in event registration below
-                        .AddHostedService(p => p.GetService<CommandHandlerService>())
-                        .AddSingleton<HttpClient>()
-                        .AddScoped<IAzureTableStorage<PickupQueue>>(provider =>
-                            new AzureTableStorage<PickupQueue>(
-                                new AzureTableSettings(storageConnectionString, nameof(PickupQueue))
-                            )
-                        )
-                        .AddScoped<IAzureTableStorage<FlaggedSubscriber>>(provider =>
-                            new AzureTableStorage<FlaggedSubscriber>(
-                                new AzureTableSettings(storageConnectionString, nameof(FlaggedSubscriber))
-                            )
-                        )
-                        .AddScoped<IAzureTableStorage<SubscriberActivities>>(provider =>
-                            new AzureTableStorage<SubscriberActivities>(
-                                new AzureTableSettings(storageConnectionString, nameof(SubscriberActivities))
-                            )
-                        )
-                        .AddScoped<IQueueRepository, PickupQueueRepository>()
-                        .AddScoped<IFlaggedSubscribersRepository, FlaggedSubscribersRepository>()
-                        .AddScoped<ISubscriberActivitiesRepository, SubscriberActivitiesRepository>()
-                        .AddAutoMapper(config =>
-                        {
-                            config.AddCollectionMappers();
-                            config.AddMaps(assemblies);
-                        }, assemblies);
-
-                    services.AddHttpClient<GitHubService>();
-
-                    services.AddLogging(b =>
-                    {
-                        b.ClearProviders();
-
-                        b.AddConfiguration(hostContext.Configuration.GetSection("Logging"))
-                            .AddEventSourceLogger()
-                            .AddConsole();
-
-                        if (hostContext.HostingEnvironment.IsDevelopment())
-                        {
-                            b.AddDebug();
-                        }
-                        else
-                        {
-                            b.AddFilter<ConsoleLoggerProvider>((category, level) => category == "A" || level == LogLevel.Warning);
-                        }
-                    });
-
-                })
+                .ConfigureServices(ConfigureServices)
                 .UseConsoleLifetime();
 
             using (var host = builder.Build())
@@ -163,6 +96,86 @@ namespace PickupBot
             return 0;
         }
 
+        private static void ConfigureServices(HostBuilderContext hostContext, IServiceCollection services)
+        {
+            var storageConnectionString =
+                hostContext.Configuration.GetConnectionString("StorageConnectionString");
+
+            var assemblies = new[]
+            {
+                Assembly.GetExecutingAssembly(),
+                Assembly.GetAssembly(typeof(CommandHandlerService)),
+                Assembly.GetAssembly(typeof(PickupQueue)),
+                Assembly.GetAssembly(typeof(TranslationResult))
+            };
+
+            services
+                .AddHttpClient()
+                .ConfigureSettings<PickupBotSettings>(hostContext.Configuration.GetSection("PickupBot"))
+                .AddTransient<IListCommandService, ListCommandService>()
+                .AddTransient<IMiscCommandService, MiscCommandService>()
+                .AddTransient<ISubscriberCommandService, SubscriberCommandService>()
+                .AddSingleton<ITranslationService, GoogleTranslationService>()
+                .AddSingleton<CommandHandlerService>() //added as singleton to be used in event registration below
+                .AddHostedService(p => p.GetService<CommandHandlerService>())
+                .AddSingleton<HttpClient>()
+                .AddScoped<IAzureTableStorage<PickupQueue>>(provider =>
+                    new AzureTableStorage<PickupQueue>(
+                        new AzureTableSettings(storageConnectionString, nameof(PickupQueue))
+                    )
+                )
+                .AddScoped<IAzureTableStorage<FlaggedSubscriber>>(provider =>
+                    new AzureTableStorage<FlaggedSubscriber>(
+                        new AzureTableSettings(storageConnectionString, nameof(FlaggedSubscriber))
+                    )
+                )
+                .AddScoped<IAzureTableStorage<SubscriberActivities>>(provider =>
+                    new AzureTableStorage<SubscriberActivities>(
+                        new AzureTableSettings(storageConnectionString, nameof(SubscriberActivities))
+                    )
+                )
+                .AddScoped<IAzureTableStorage<DuelPlayer>>(provider =>
+                    new AzureTableStorage<DuelPlayer>(
+                        new AzureTableSettings(storageConnectionString, nameof(DuelPlayer))
+                    )
+                )
+                .AddScoped<IAzureTableStorage<DuelMatch>>(provider =>
+                    new AzureTableStorage<DuelMatch>(
+                        new AzureTableSettings(storageConnectionString, nameof(DuelMatch))
+                    )
+                )
+                .AddScoped<IQueueRepository, PickupQueueRepository>()
+                .AddScoped<IFlaggedSubscribersRepository, FlaggedSubscribersRepository>()
+                .AddScoped<ISubscriberActivitiesRepository, SubscriberActivitiesRepository>()
+                .AddScoped<IDuelPlayerRepository, DuelPlayerRepository>()
+                .AddScoped<IDuelMatchRepository, DuelMatchRepository>()
+                .AddAutoMapper(config =>
+                {
+                    config.AddCollectionMappers();
+                    config.AddMaps(assemblies);
+                }, assemblies);
+
+            services.AddHttpClient<GitHubService>();
+
+            services.AddLogging(b =>
+            {
+                b.ClearProviders();
+
+                b.AddConfiguration(hostContext.Configuration.GetSection("Logging"))
+                    .AddEventSourceLogger()
+                    .AddConsole();
+
+                if (hostContext.HostingEnvironment.IsDevelopment())
+                {
+                    b.AddDebug();
+                }
+                else
+                {
+                    b.AddFilter<ConsoleLoggerProvider>((category, level) => category == "A" || level == LogLevel.Warning);
+                }
+            });
+        }
+
         private static async Task OnJoinedGuild(SocketGuild guild)
         {
             try
@@ -184,6 +197,10 @@ namespace PickupBot
                 // create applicable roles if missing
                 if (guild.Roles.All(w => w.Name != "pickup-promote"))
                     await guild.CreateRoleAsync("pickup-promote", GuildPermissions.None, Color.Orange, isHoisted: false, isMentionable: true);
+
+                // create applicable roles if missing
+                if (guild.Roles.All(w => w.Name != "duellist"))
+                    await guild.CreateRoleAsync("duellist", GuildPermissions.None, isHoisted: false, isMentionable: true);
 
                 // create voice channel category if missing
                 if (guild.CategoryChannels.FirstOrDefault(c => c.Name.Equals("Pickup voice channels", StringComparison.OrdinalIgnoreCase)) == null)

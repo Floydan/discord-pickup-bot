@@ -134,7 +134,7 @@ namespace PickupBot.Data.Repositories
 
             //Execute
             var result = await table.ExecuteAsync(operation);
-            return result.Result is PickupQueue;
+            return result.Result is T;
         }
         
         public async Task<bool> InsertOrReplace(T item)
@@ -147,7 +147,7 @@ namespace PickupBot.Data.Repositories
 
             //Execute
             var result = await table.ExecuteAsync(operation);
-            return result.Result is PickupQueue;
+            return result.Result is T;
         }
         
         public async Task<bool> InsertOrMerge(T item)
@@ -160,7 +160,7 @@ namespace PickupBot.Data.Repositories
 
             //Execute
             var result = await table.ExecuteAsync(operation);
-            return result.Result is PickupQueue;
+            return result.Result is T;
         }
         
         public async Task<bool> Update(T item)
@@ -173,7 +173,7 @@ namespace PickupBot.Data.Repositories
 
             //Execute
             var result = await table.ExecuteAsync(operation);
-            return result.Result is PickupQueue;
+            return result.Result is T;
         }
         
         public async Task<bool> Delete(string partitionKey, string rowKey)
@@ -189,7 +189,7 @@ namespace PickupBot.Data.Repositories
 
             //Execute
             var result = await table.ExecuteAsync(operation);
-            return result.Result is PickupQueue;
+            return result.Result is T;
         }
         
         public async Task<bool> Delete(T item)
@@ -204,7 +204,7 @@ namespace PickupBot.Data.Repositories
 
             //Execute
             var result = await table.ExecuteAsync(operation);
-            return result.Result is PickupQueue;
+            return result.Result is T;
         }
 
         private async Task<CloudTable> GetTableAsync()

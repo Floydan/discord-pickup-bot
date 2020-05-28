@@ -13,6 +13,7 @@ namespace PickupBot.Commands.Infrastructure.Utilities
             "-captains", 
             "-captain", 
             "-coop", 
+            "-nocoop", 
             "-novoice",
             "-gamemode",
             "-gmode",
@@ -20,7 +21,8 @@ namespace PickupBot.Commands.Infrastructure.Utilities
             "-norcon",
             "-host",
             "-port",
-            "-game"
+            "-game",
+            "-teamsize"
         };
 
         private static readonly Regex OperatorsRegex = new Regex(@"(?<operator>-\w+)+[:]?(?<value>[^-]*)");
