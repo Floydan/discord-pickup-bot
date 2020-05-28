@@ -173,6 +173,29 @@ namespace PickupBot.Commands.Modules.Pickup
             }
         }
 
+        [Command("update")]
+        [Summary("Updates a pickup queue operator values")]
+        public async Task Update(
+            [Name("Queue name")] string queueName,
+            [Remainder, Name("Operator flags")] string operators = "")
+        {
+            if (!PickupHelpers.IsInPickupChannel((IGuildChannel)Context.Channel))
+                return;
+
+            var queue = await _listCommandService.UpdateOperators(queueName, operators, (SocketGuildUser)Context.User).ConfigureAwait(false);
+
+            if (queue == null)
+            {
+                await Context.Channel.SendMessageAsync($"`Queue with the name '{queueName}' doesn't exists!`").AutoRemoveMessage(10).ConfigureAwait(false);
+                return;
+            }
+
+            await Context.Channel
+                .SendMessageAsync($"`Queue '{queue.Name}' was updated by {PickupHelpers.GetNickname(Context.User)}`")
+                .ConfigureAwait(false);
+
+        }
+
         [Command("delete")]
         [Alias("del", "cancel")]
         [Summary("If you are the creator of the queue you can use this to delete it")]

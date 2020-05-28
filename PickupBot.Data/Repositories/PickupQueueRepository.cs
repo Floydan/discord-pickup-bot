@@ -22,8 +22,7 @@ namespace PickupBot.Data.Repositories
 
         public async Task<bool> RemoveQueue(string queueName, string guildId)
         {
-            var queue = await _client.GetItem(guildId, queueName.ToLowerInvariant());
-            var result = await _client.Delete(queue);
+            var result = await _client.Delete(guildId, queueName);
             return result;
         }
 
