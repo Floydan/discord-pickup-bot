@@ -76,17 +76,21 @@ namespace PickupBot.Commands.Modules
                 .Where(w => activities.Select(x => Convert.ToUInt64(x.RowKey)).Contains(w.Id))
                 .ToList();
 
-            var sb = new StringBuilder();
-            AddTopPlayers(sb, users, activities, a => a.PickupCreate, "create");
-            AddTopPlayers(sb, users, activities, a => a.PickupAdd, "add");
-            AddTopPlayers(sb, users, activities, a => a.PickupPromote, "promote", "spammers");
-            AddTopPlayers(sb, users, activities, a => a.PickupTop10, "top10", "stats junkies");
+            var embed = new EmbedBuilder
+            {
+                Title = "Top 10"
+            };
 
-            await ReplyAsync(sb.ToString()).AutoRemoveMessage();
+            AddTopPlayers(embed, users, activities, a => a.PickupCreate, "create");
+            AddTopPlayers(embed, users, activities, a => a.PickupAdd, "add");
+            AddTopPlayers(embed, users, activities, a => a.PickupPromote, "promote", "spammers");
+            AddTopPlayers(embed, users, activities, a => a.PickupTop10, "top10", "stats junkies");
+
+            await ReplyAsync(embed: embed.Build()).AutoRemoveMessage(60);
         }
 
         private static void AddTopPlayers(
-            StringBuilder sb, 
+            EmbedBuilder embed,
             ICollection<SocketGuildUser> users, 
             ICollection<SubscriberActivities> activities, 
             Func<SubscriberActivities, int> keySelector,
@@ -103,18 +107,25 @@ namespace PickupBot.Commands.Modules
             if (!top10.Any()) return;
 
             var counter = 0;
-            sb.AppendLine($"**Top 10 `!{type}` {headlineAdditions}**");
+            
+            var sb = new StringBuilder();
 
             foreach (var c in top10)
             {
                 counter++;
+                var badge = counter == 1 ? ":first_place:" : counter == 2 ? ":second_place:" : counter == 3 ? ":third_place:" : "";
                 var user = users.FirstOrDefault(u => u.Id == Convert.ToUInt64(c.RowKey));
                 if (user == null) continue;
                 var val = keySelector.Invoke(c);
-                sb.AppendLine($"{counter}. {user.Nickname ?? user.Username} - {val} {type.Pluralize(val)}");
+                sb.AppendLine($"{badge} {user.Nickname ?? user.Username} _({val})_");
             }
 
-            sb.AppendLine("");
+            embed.WithFields(new EmbedFieldBuilder
+            {
+                IsInline = true, 
+                Name = $"**Top 10 `!{type}` {headlineAdditions}**", 
+                Value = sb.ToString()
+            });
         }
 
         [Command("releases")]

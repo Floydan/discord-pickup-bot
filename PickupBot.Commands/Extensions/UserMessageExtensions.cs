@@ -27,7 +27,7 @@ namespace PickupBot.Commands.Extensions
             {
                 a.Result.AutoRemoveMessage(delay); 
                 return a.Result;
-            }, cts.Token);
+            }, cts.Token).ConfigureAwait(false);
         }
 
         public static async Task<IUserMessage> AutoRemoveMessage(this Task<IUserMessage> message, int delay = 30)
@@ -37,7 +37,7 @@ namespace PickupBot.Commands.Extensions
             {
                 a.Result.AutoRemoveMessage(delay); 
                 return a.Result;
-            }, cts.Token);
+            }, cts.Token).ConfigureAwait(false);
         }
     }
 }

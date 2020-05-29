@@ -190,6 +190,11 @@ namespace PickupBot
                     pickupsCategory.Id);
 
                 await CreateChannel(guild,
+                    "duel",
+                    "powered by pickup-bot | !help for instructions",
+                    pickupsCategory.Id);
+
+                await CreateChannel(guild,
                     "active-pickup",
                     "Active pickups | use reactions to signup | powered by pickup-bot",
                     pickupsCategory.Id);
