@@ -89,6 +89,13 @@ namespace PickupBot.Data.Repositories
         
         public async Task<T> GetItemPropertyEquals(string partitionKey, string propertyName, string value)
         {
+            var results =  await GetItemsPropertyEquals(partitionKey, propertyName, value);
+
+            return results.FirstOrDefault();
+        }
+        
+        public async Task<IEnumerable<T>> GetItemsPropertyEquals(string partitionKey, string propertyName, string value)
+        {
             //Table
             var table = await GetTableAsync();
             //Query
@@ -107,7 +114,7 @@ namespace PickupBot.Data.Repositories
 
             } while (continuationToken != null);
 
-            return results.FirstOrDefault();
+            return results;
         }
 
         public async Task<T> GetItem(string partitionKey, string rowKey)

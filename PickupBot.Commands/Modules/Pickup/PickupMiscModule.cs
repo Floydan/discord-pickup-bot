@@ -58,9 +58,6 @@ namespace PickupBot.Commands.Modules.Pickup
         [Command("serverstatus")]
         public async Task ServerStatus()
         {
-            if (!PickupHelpers.IsInPickupChannel((IGuildChannel)Context.Channel))
-                return;
-
             if (string.IsNullOrWhiteSpace(_rconPassword) || string.IsNullOrWhiteSpace(_rconHost) || _rconPort == 0) return;
 
             try

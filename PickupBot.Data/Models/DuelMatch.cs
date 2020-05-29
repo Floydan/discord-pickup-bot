@@ -7,10 +7,13 @@ namespace PickupBot.Data.Models
     {
         public DuelMatch() { }
 
-        public DuelMatch(ulong guildId, ulong userId) : this()
+        public DuelMatch(ulong guildId, ulong challengerId, ulong challengeeId) : this()
         {
             PartitionKey = guildId.ToString();
-            RowKey = userId.ToString();
+            RowKey = $"{challengerId}||{challengeeId}";
+            ChallengerId = challengerId.ToString();
+            ChallengeeId = challengeeId.ToString();
+            ChallengeDate = DateTime.UtcNow;
         }
 
         public string ChallengerId { get; set; }
@@ -24,5 +27,6 @@ namespace PickupBot.Data.Models
 
         public DateTime MatchDate { get; set; }
         public DateTime ChallengeDate { get; set; }
+        public bool Started { get; set; }
     }
 }
