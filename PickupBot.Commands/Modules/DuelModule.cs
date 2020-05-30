@@ -277,7 +277,6 @@ namespace PickupBot.Commands.Modules
                 match.LooserId = opponent.Id.ToString();
                 match.LooserName = PickupHelpers.GetNickname(opponent);
 
-                //TODO: Get challenge, if started record a win for winner and loss for looser and delete challenge
                 await ReplyAsync($"{match.WinnerName} has won against {match.LooserName}").AutoRemoveMessage(10);
 
                 var winner = await _duelPlayerRepository.Find((IGuildUser)Context.User);
@@ -313,7 +312,6 @@ namespace PickupBot.Commands.Modules
                 match.LooserId = Context.User.Id.ToString();
                 match.LooserName = PickupHelpers.GetNickname(Context.User);
 
-                //TODO: Get challenge, if started record a win for winner and loss for looser and delete challenge
                 await ReplyAsync($"{match.LooserName} has lost against {match.WinnerName}").AutoRemoveMessage(10);
 
                 var winner = await _duelPlayerRepository.Find(opponent);
@@ -350,7 +348,7 @@ namespace PickupBot.Commands.Modules
                                            $"{(Convert.ToUInt64(g.WinnerId) == user.Id ? $":first_place: Won against {g.LooserName}" : $":cry: Lost against {g.WinnerName}")}" +
                                            $" (_{g.MatchDate:yyyy-MM-dd HH:mm:ss 'UTC'}_)")
                                        .ToArray();
-                //TODO: Print table with wins, losses and 10 most recent games
+
                 var embed = new EmbedBuilder
                 {
                     Title = $"{PickupHelpers.GetNickname(user)} stats [{((SkillLevel)duelPlayer.Skill).ToString()}] MMR: {duelPlayer.MMR}",
