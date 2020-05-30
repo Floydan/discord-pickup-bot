@@ -16,6 +16,7 @@ namespace PickupBot.Commands.Infrastructure.Helpers
         }
 
         public static bool IsInPickupChannel(IChannel channel) => channel.Name.StartsWith("pickup", StringComparison.OrdinalIgnoreCase);
+        public static bool IsInDuelChannel(IChannel channel) => channel.Name.Equals("duel", StringComparison.OrdinalIgnoreCase);
 
         public static async Task<ITextChannel> GetPickupQueuesChannel(SocketGuild guild)
         {

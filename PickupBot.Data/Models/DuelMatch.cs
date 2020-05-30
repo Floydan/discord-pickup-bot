@@ -25,7 +25,7 @@ namespace PickupBot.Data.Models
         public string LooserId { get; set; }
         public string LooserName { get; set; }
 
-        public DateTime MatchDate { get; set; }
+        public DateTime? MatchDate { get; set; }
         public DateTime ChallengeDate { get; set; }
         public bool Started { get; set; }
     }

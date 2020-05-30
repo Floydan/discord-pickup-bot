@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using Microsoft.Azure.Cosmos.Table;
 using Newtonsoft.Json;
@@ -23,23 +24,18 @@ namespace PickupBot.Data.Models
         public string Name { get; set; }
         public int Skill { get; set; }
         public bool Active { get; set; } = true;
-
-        public int Wins => WonMatches.Count;
-        public int Losses => LostMatches.Count;
-
-        public List<DuelMatch> WonMatches { get; set; }
-        public List<DuelMatch> LostMatches { get; set; }
-
+        // ReSharper disable once InconsistentNaming
+        public int MMR { get; set; } = 1000;
         
-        public string WonMatchesJson
+        public ulong GuildId => Convert.ToUInt64(PartitionKey);
+        public ulong Id => Convert.ToUInt64(RowKey);
+
+        public List<DuelMatch> MatchHistory { get; set; }
+
+        public string MatchHistoryJson
         {
-            get => JsonConvert.SerializeObject(WonMatches ?? Enumerable.Empty<DuelMatch>(), Formatting.None);
-            set => WonMatches = string.IsNullOrWhiteSpace(value) ? new List<DuelMatch>() : JsonConvert.DeserializeObject<List<DuelMatch>>(value, JsonSerializerSettings);
-        }
-        public string LostMatchesJson
-        {
-            get => JsonConvert.SerializeObject(LostMatches ?? Enumerable.Empty<DuelMatch>(), Formatting.None);
-            set => LostMatches = string.IsNullOrWhiteSpace(value) ? new List<DuelMatch>() : JsonConvert.DeserializeObject<List<DuelMatch>>(value, JsonSerializerSettings);
+            get => JsonConvert.SerializeObject(MatchHistory ?? Enumerable.Empty<DuelMatch>(), Formatting.None);
+            set => MatchHistory = string.IsNullOrWhiteSpace(value) ? new List<DuelMatch>() : JsonConvert.DeserializeObject<List<DuelMatch>>(value, JsonSerializerSettings);
         }
     }
 }
