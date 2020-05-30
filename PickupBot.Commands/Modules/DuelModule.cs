@@ -39,8 +39,7 @@ namespace PickupBot.Commands.Modules
             var skillLevel = Parse(level);
             var user = (IGuildUser)Context.User;
             _logger.LogInformation($"{nameof(Register)} called for user '{user.Username}' with skill level '{skillLevel.ToString()}'");
-
-
+            
             var result = await _duelPlayerRepository.Save(user, Parse(level)).ConfigureAwait(false);
 
             if (user.RoleIds.All(r => r != duellistRole.Id))
@@ -48,7 +47,7 @@ namespace PickupBot.Commands.Modules
 
             _logger.LogInformation($"Duel player saved result: {result}");
 
-            await ReplyAsync($"You have been registered for duels with skill level [{skillLevel.ToString()}]");
+            await ReplyAsync($"You have been registered for duels with skill level [{skillLevel.ToString()}]").AutoRemoveMessage(10);
         }
 
         [Command("unregister")]
@@ -73,7 +72,7 @@ namespace PickupBot.Commands.Modules
 
                 _logger.LogInformation($"Duel player updated to inactive result: {result}");
 
-                await ReplyAsync("You have been unregistered for duels.");
+                await ReplyAsync("You have been unregistered for duels.").AutoRemoveMessage(10);
             }
         }
 
@@ -92,7 +91,7 @@ namespace PickupBot.Commands.Modules
 
             _logger.LogInformation($"Duel player saved result: {result}");
 
-            await ReplyAsync($"Your skill level has been set to [{skillLevel.ToString()}]");
+            await ReplyAsync($"Your skill level has been set to [{skillLevel.ToString()}]").AutoRemoveMessage(10);
         }
 
         [Command("challenge")]
@@ -151,7 +150,7 @@ namespace PickupBot.Commands.Modules
 
                     if (opponent == null)
                     {
-                        await ReplyAsync("No opponents could be found.");
+                        await ReplyAsync("No opponents could be found.").AutoRemoveMessage(10);
                     }
                     else
                     {
@@ -162,7 +161,7 @@ namespace PickupBot.Commands.Modules
                 }
                 else
                 {
-                    await ReplyAsync("No duellists are currently online");
+                    await ReplyAsync("No duellists are currently online").AutoRemoveMessage(10);
                 }
             }
         }
@@ -220,11 +219,11 @@ namespace PickupBot.Commands.Modules
                     sb.AppendLine($" - {PickupHelpers.GetNickname(challenger)} `{duelMatch.ChallengeDate:yyyy-MM-dd HH:mm:ss 'UTC'}`");
                 }
 
-                await ReplyAsync($"**These brave souls have challenged you to a duel**\n{sb}");
+                await ReplyAsync($"**These brave souls have challenged you to a duel**\n{sb}").AutoRemoveMessage();
             }
             else
             {
-                await ReplyAsync("No one has been brave enough to challenge you");
+                await ReplyAsync("No one has been brave enough to challenge you").AutoRemoveMessage(10);
             }
         }
 
@@ -249,11 +248,11 @@ namespace PickupBot.Commands.Modules
                     sb.AppendLine($" - {PickupHelpers.GetNickname(challengee)} `{duelMatch.ChallengeDate:yyyy-MM-dd HH:mm:ss 'UTC'}`");
                 }
 
-                await ReplyAsync($"**These are the foolish mortals you have challenged**\n{sb}");
+                await ReplyAsync($"**These are the foolish mortals you have challenged**\n{sb}").AutoRemoveMessage();
             }
             else
             {
-                await ReplyAsync("You have not challenged anyone");
+                await ReplyAsync("You have not challenged anyone").AutoRemoveMessage(10);
             }
         }
 
@@ -370,7 +369,7 @@ namespace PickupBot.Commands.Modules
                     }
                 });
 
-                await ReplyAsync(embed: embed.Build());
+                await ReplyAsync(embed: embed.Build()).AutoRemoveMessage();
             }
         }
 
