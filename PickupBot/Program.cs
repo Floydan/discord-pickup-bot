@@ -98,9 +98,6 @@ namespace PickupBot
 
         private static void ConfigureServices(HostBuilderContext hostContext, IServiceCollection services)
         {
-            var storageConnectionString =
-                hostContext.Configuration.GetConnectionString("StorageConnectionString");
-
             var assemblies = new[]
             {
                 Assembly.GetExecutingAssembly(),
@@ -119,36 +116,7 @@ namespace PickupBot
                 .AddSingleton<CommandHandlerService>() //added as singleton to be used in event registration below
                 .AddHostedService(p => p.GetService<CommandHandlerService>())
                 .AddSingleton<HttpClient>()
-                .AddScoped<IAzureTableStorage<PickupQueue>>(provider =>
-                    new AzureTableStorage<PickupQueue>(
-                        new AzureTableSettings(storageConnectionString, nameof(PickupQueue))
-                    )
-                )
-                .AddScoped<IAzureTableStorage<FlaggedSubscriber>>(provider =>
-                    new AzureTableStorage<FlaggedSubscriber>(
-                        new AzureTableSettings(storageConnectionString, nameof(FlaggedSubscriber))
-                    )
-                )
-                .AddScoped<IAzureTableStorage<SubscriberActivities>>(provider =>
-                    new AzureTableStorage<SubscriberActivities>(
-                        new AzureTableSettings(storageConnectionString, nameof(SubscriberActivities))
-                    )
-                )
-                .AddScoped<IAzureTableStorage<DuelPlayer>>(provider =>
-                    new AzureTableStorage<DuelPlayer>(
-                        new AzureTableSettings(storageConnectionString, nameof(DuelPlayer))
-                    )
-                )
-                .AddScoped<IAzureTableStorage<DuelMatch>>(provider =>
-                    new AzureTableStorage<DuelMatch>(
-                        new AzureTableSettings(storageConnectionString, nameof(DuelMatch))
-                    )
-                )
-                .AddScoped<IQueueRepository, PickupQueueRepository>()
-                .AddScoped<IFlaggedSubscribersRepository, FlaggedSubscribersRepository>()
-                .AddScoped<ISubscriberActivitiesRepository, SubscriberActivitiesRepository>()
-                .AddScoped<IDuelPlayerRepository, DuelPlayerRepository>()
-                .AddScoped<IDuelMatchRepository, DuelMatchRepository>()
+                .AddRepositories(hostContext.Configuration)
                 .AddAutoMapper(config =>
                 {
                     config.AddCollectionMappers();

@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using Microsoft.Azure.Cosmos.Table;
@@ -30,12 +31,12 @@ namespace PickupBot.Data.Models
         public ulong GuildId => Convert.ToUInt64(PartitionKey);
         public ulong Id => Convert.ToUInt64(RowKey);
 
-        public List<DuelMatch> MatchHistory { get; set; }
+        public IList<DuelMatch> MatchHistory { get; set; }
 
         public string MatchHistoryJson
         {
             get => JsonConvert.SerializeObject(MatchHistory ?? Enumerable.Empty<DuelMatch>(), Formatting.None);
-            set => MatchHistory = string.IsNullOrWhiteSpace(value) ? new List<DuelMatch>() : JsonConvert.DeserializeObject<List<DuelMatch>>(value, JsonSerializerSettings);
+            set => MatchHistory = string.IsNullOrWhiteSpace(value) ? new List<DuelMatch>() : JsonConvert.DeserializeObject<IList<DuelMatch>>(value, JsonSerializerSettings);
         }
     }
 }

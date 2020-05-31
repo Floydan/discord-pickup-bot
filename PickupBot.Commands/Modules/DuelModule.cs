@@ -18,12 +18,14 @@ namespace PickupBot.Commands.Modules
     public class DuelModule : ModuleBase<SocketCommandContext>
     {
         private readonly IDuelPlayerRepository _duelPlayerRepository;
+        private readonly IDuelChallengeRepository _duelChallengeRepository;
         private readonly IDuelMatchRepository _duelMatchRepository;
         private readonly ILogger<DuelModule> _logger;
 
-        public DuelModule(IDuelPlayerRepository duelPlayerRepository, IDuelMatchRepository duelMatchRepository, ILogger<DuelModule> logger)
+        public DuelModule(IDuelPlayerRepository duelPlayerRepository, IDuelChallengeRepository duelChallengeRepository, IDuelMatchRepository duelMatchRepository, ILogger<DuelModule> logger)
         {
             _duelPlayerRepository = duelPlayerRepository;
+            _duelChallengeRepository = duelChallengeRepository;
             _duelMatchRepository = duelMatchRepository;
             _logger = logger;
         }
@@ -32,14 +34,14 @@ namespace PickupBot.Commands.Modules
         [Summary("Register for duels")]
         public async Task Register([Name("skill level (low, medium, high)"), Remainder]string level = "")
         {
-            if(!PickupHelpers.IsInDuelChannel(Context.Channel)) return;
+            if (!PickupHelpers.IsInDuelChannel(Context.Channel)) return;
 
             var duellistRole = await GetDuellistRole().ConfigureAwait(false);
 
             var skillLevel = Parse(level);
             var user = (IGuildUser)Context.User;
             _logger.LogInformation($"{nameof(Register)} called for user '{user.Username}' with skill level '{skillLevel.ToString()}'");
-            
+
             var result = await _duelPlayerRepository.Save(user, Parse(level)).ConfigureAwait(false);
 
             if (user.RoleIds.All(r => r != duellistRole.Id))
@@ -54,7 +56,7 @@ namespace PickupBot.Commands.Modules
         [Summary("Unregister for duels")]
         public async Task UnRegister()
         {
-            if(!PickupHelpers.IsInDuelChannel(Context.Channel)) return;
+            if (!PickupHelpers.IsInDuelChannel(Context.Channel)) return;
 
             var user = (IGuildUser)Context.User;
             _logger.LogInformation($"{nameof(UnRegister)} called for user '{user.Username}'");
@@ -80,7 +82,7 @@ namespace PickupBot.Commands.Modules
         [Summary("Set skill level")]
         public async Task SetSkill([Name("skill level (low, medium, high)"), Remainder]string level = "")
         {
-            if(!PickupHelpers.IsInDuelChannel(Context.Channel)) return;
+            if (!PickupHelpers.IsInDuelChannel(Context.Channel)) return;
 
             var user = (IGuildUser)Context.User;
             _logger.LogInformation($"{nameof(SetSkill)} called for user '{user.Username}' with skill level '{level}'");
@@ -97,7 +99,7 @@ namespace PickupBot.Commands.Modules
         [Command("challenge")]
         public async Task Challenge(IGuildUser challengee = null)
         {
-            if(!PickupHelpers.IsInDuelChannel(Context.Channel)) return;
+            if (!PickupHelpers.IsInDuelChannel(Context.Channel)) return;
 
             var user = (IGuildUser)Context.User;
             _logger.LogInformation($"{nameof(Challenge)} called for user '{user.Username}'");
@@ -123,7 +125,7 @@ namespace PickupBot.Commands.Modules
 
                 if (CheckUserOnlineState(challengee))
                 {
-                    await _duelMatchRepository.Save((IGuildUser)Context.User, challengee).ConfigureAwait(false);
+                    await _duelChallengeRepository.Save((IGuildUser)Context.User, challengee).ConfigureAwait(false);
                     await ReplyAsync($"{Context.User.Mention} has challenged {challengee.Mention} to a duel!");
                 }
                 else
@@ -133,7 +135,7 @@ namespace PickupBot.Commands.Modules
             }
             else
             {
-                var duellistUsers = Context.Guild.Users.Where(u => u.Roles.Contains(duellistRole))
+                var duellistUsers = Context.Guild.Users.Where(u => u.Roles.Contains(duellistRole) && u.Id != Context.User.Id)
                     .Where(CheckUserOnlineState)
                     .ToArray();
 
@@ -146,7 +148,12 @@ namespace PickupBot.Commands.Modules
                         if (duellistPlayer != null) duellists.Add(duellistPlayer);
                     }
 
-                    var opponent = duellists.FirstOrDefault(d => d.Skill >= duelPlayer.Skill) ?? duellists.FirstOrDefault();
+                    // ReSharper disable once InconsistentNaming
+                    var closestMMR = duellists.Where(d => d.MMR >= duelPlayer.MMR).OrderBy(d => d.MMR);
+
+                    var opponent = closestMMR.FirstOrDefault(d => d.Skill >= duelPlayer.Skill) ??
+                                           duellists.FirstOrDefault(d => d.Skill >= duelPlayer.Skill) ??
+                                           duellists.FirstOrDefault();
 
                     if (opponent == null)
                     {
@@ -155,7 +162,7 @@ namespace PickupBot.Commands.Modules
                     else
                     {
                         var opponentUser = duellistUsers.First(u => u.Id == opponent.Id);
-                        await _duelMatchRepository.Save((IGuildUser)Context.User, opponentUser).ConfigureAwait(false);
+                        await _duelChallengeRepository.Save((IGuildUser)Context.User, opponentUser).ConfigureAwait(false);
                         await ReplyAsync($"{Context.User.Mention} has challenged {opponentUser.Mention} to a duel!");
                     }
                 }
@@ -170,15 +177,20 @@ namespace PickupBot.Commands.Modules
         [Summary("Accepts a challenge from a specific user e.g. !accept @challenger")]
         public async Task Accept(IGuildUser challenger)
         {
-            if(!PickupHelpers.IsInDuelChannel(Context.Channel)) return;
+            if (!PickupHelpers.IsInDuelChannel(Context.Channel)) return;
+            _logger.LogInformation($"{nameof(Accept)} called for user '{challenger.Username}'");
 
-            var match = await _duelMatchRepository.Find(challenger, (IGuildUser)Context.User);
-            if (match != null)
+            var challenge = await _duelChallengeRepository.Find(challenger, (IGuildUser)Context.User);
+            if (challenge != null)
             {
                 //On accept start match
-
-                match.Started = true;
-                match.MatchDate = DateTime.UtcNow;
+                await _duelChallengeRepository.Delete(challenge);
+                var match = new DuelMatch(Context.Guild.Id, challenger.Id, Context.User.Id)
+                {
+                    Started = true,
+                    ChallengeDate = challenge.ChallengeDate,
+                    MatchDate = DateTime.UtcNow
+                };
                 await _duelMatchRepository.Save(match).ConfigureAwait(false);
                 await ReplyAsync($"{Context.User.Mention} has accepted the challenge from {challenger.Mention}!");
             }
@@ -188,12 +200,13 @@ namespace PickupBot.Commands.Modules
         [Summary("Declines a challenge from a specific user e.g. !accept @challenger")]
         public async Task Decline(IGuildUser challenger)
         {
-            if(!PickupHelpers.IsInDuelChannel(Context.Channel)) return;
+            if (!PickupHelpers.IsInDuelChannel(Context.Channel)) return;
+            _logger.LogInformation($"{nameof(Decline)} called for user '{challenger.Username}'");
 
-            var match = await _duelMatchRepository.Find(challenger, (IGuildUser)Context.User);
-            if (match != null)
+            var challenge = await _duelChallengeRepository.Find(challenger, (IGuildUser)Context.User);
+            if (challenge != null)
             {
-                await _duelMatchRepository.Delete(match).ConfigureAwait(false);
+                await _duelChallengeRepository.Delete(challenge).ConfigureAwait(false);
                 await ReplyAsync($"{Context.User.Mention} has declined the challenge from {challenger.Mention}!");
             }
         }
@@ -202,16 +215,16 @@ namespace PickupBot.Commands.Modules
         [Summary("Lists everyone who has challenged you")]
         public async Task Challenges()
         {
-            if(!PickupHelpers.IsInDuelChannel(Context.Channel)) return;
+            if (!PickupHelpers.IsInDuelChannel(Context.Channel)) return;
 
-            var challenges = await _duelMatchRepository.FindByChallengeeId((IGuildUser)Context.User);
-            var duelMatches = challenges as DuelMatch[] ?? challenges.ToArray();
-            if (duelMatches.Any(c => !c.Started))
+            var challenges = await _duelChallengeRepository.FindByChallengeeId((IGuildUser)Context.User);
+            var duelChallenges = challenges as DuelChallenge[] ?? challenges.ToArray();
+            if (duelChallenges.Any())
             {
-                var challengerIds = duelMatches.Where(c => !c.Started).Select(c => Convert.ToUInt64(c.ChallengerId));
+                var challengerIds = duelChallenges.Select(c => Convert.ToUInt64(c.ChallengerId));
                 var users = Context.Guild.Users.Where(u => challengerIds.Contains(u.Id)).ToArray();
                 var sb = new StringBuilder();
-                foreach (var duelMatch in duelMatches.Where(m => !m.Started).OrderBy(m => m.ChallengeDate))
+                foreach (var duelMatch in duelChallenges.OrderBy(m => m.ChallengeDate))
                 {
                     var challenger = users.FirstOrDefault(u => u.Id == Convert.ToUInt64(duelMatch.ChallengerId));
                     if (challenger == null) continue;
@@ -231,16 +244,16 @@ namespace PickupBot.Commands.Modules
         [Summary("Lists everyone you have challenged")]
         public async Task Opponents()
         {
-            if(!PickupHelpers.IsInDuelChannel(Context.Channel)) return;
+            if (!PickupHelpers.IsInDuelChannel(Context.Channel)) return;
 
-            var challenges = await _duelMatchRepository.FindByChallengerId((IGuildUser)Context.User);
-            var duelMatches = challenges as DuelMatch[] ?? challenges.ToArray();
-            if (duelMatches.Any(c => !c.Started))
+            var challenges = await _duelChallengeRepository.FindByChallengerId((IGuildUser)Context.User);
+            var duelChallenges = challenges as DuelChallenge[] ?? challenges.ToArray();
+            if (duelChallenges.Any())
             {
-                var challengerIds = duelMatches.Where(c => !c.Started).Select(c => Convert.ToUInt64(c.ChallengeeId));
+                var challengerIds = duelChallenges.Select(c => Convert.ToUInt64(c.ChallengeeId));
                 var users = Context.Guild.Users.Where(u => challengerIds.Contains(u.Id)).ToArray();
                 var sb = new StringBuilder();
-                foreach (var duelMatch in duelMatches.Where(m => !m.Started).OrderBy(m => m.ChallengeDate))
+                foreach (var duelMatch in duelChallenges.OrderBy(m => m.ChallengeDate))
                 {
                     var challengee = users.FirstOrDefault(u => u.Id == Convert.ToUInt64(duelMatch.ChallengeeId));
                     if (challengee == null) continue;
@@ -260,14 +273,21 @@ namespace PickupBot.Commands.Modules
         [Summary("Record a win")]
         public async Task Win(IGuildUser opponent)
         {
-            if(!PickupHelpers.IsInDuelChannel(Context.Channel)) return;
+            if (!PickupHelpers.IsInDuelChannel(Context.Channel)) return;
+            if(opponent.Id == Context.User.Id) return;
+            
+            var matches = (await _duelMatchRepository.FindByChallengeeId((IGuildUser)Context.User)).ToList();
+            matches.AddRange(await _duelMatchRepository.FindByChallengerId((IGuildUser)Context.User));
 
-            var match = await _duelMatchRepository.Find(opponent, (IGuildUser)Context.User) ??
-                        await _duelMatchRepository.Find((IGuildUser)Context.User, opponent);
+            matches = matches.Where(w => (w.ChallengerId == opponent.Id.ToString() || w.ChallengeeId == opponent.Id.ToString()) && string.IsNullOrEmpty(w.WinnerId)).ToList();
 
-            if (match != null && match.Started)
+            if (matches.Any())
             {
-                await _duelMatchRepository.Delete(match);
+                var match = matches.First();
+                var winner = await _duelPlayerRepository.Find((IGuildUser)Context.User);
+                var looser = await _duelPlayerRepository.Find(opponent);
+
+                var mmrDiff = UpdateMMR(winner, looser);
 
                 if (!match.MatchDate.HasValue)
                     match.MatchDate = DateTime.UtcNow;
@@ -276,17 +296,18 @@ namespace PickupBot.Commands.Modules
                 match.WinnerName = PickupHelpers.GetNickname(Context.User);
                 match.LooserId = opponent.Id.ToString();
                 match.LooserName = PickupHelpers.GetNickname(opponent);
+                match.MMR = mmrDiff;
+
+                await _duelMatchRepository.Save(match);
 
                 await ReplyAsync($"{match.WinnerName} has won against {match.LooserName}").AutoRemoveMessage(10);
-
-                var winner = await _duelPlayerRepository.Find((IGuildUser)Context.User);
-                var looser = await _duelPlayerRepository.Find(opponent);
-                UpdateMMR(winner, looser);
-
+                
                 winner.MatchHistory.Insert(0, match);
+                winner.MatchHistory = winner.MatchHistory.Take(10).ToList();
                 await _duelPlayerRepository.Save(winner);
 
                 looser.MatchHistory.Insert(0, match);
+                looser.MatchHistory = looser.MatchHistory.Take(10).ToList();
                 await _duelPlayerRepository.Save(looser);
             }
         }
@@ -295,33 +316,42 @@ namespace PickupBot.Commands.Modules
         [Summary("Record a loss")]
         public async Task Loss(IGuildUser opponent)
         {
-            if(!PickupHelpers.IsInDuelChannel(Context.Channel)) return;
+            if (!PickupHelpers.IsInDuelChannel(Context.Channel)) return;
+            if(opponent.Id == Context.User.Id) return;
+            
+            var matches = (await _duelMatchRepository.FindByChallengeeId((IGuildUser)Context.User)).ToList();
+            matches.AddRange(await _duelMatchRepository.FindByChallengerId((IGuildUser)Context.User));
 
-            var match = await _duelMatchRepository.Find(opponent, (IGuildUser)Context.User) ??
-                        await _duelMatchRepository.Find((IGuildUser)Context.User, opponent);
+            matches = matches.Where(w => (w.ChallengerId == opponent.Id.ToString() || w.ChallengeeId == opponent.Id.ToString()) && string.IsNullOrEmpty(w.WinnerId)).ToList();
 
-            if (match != null && match.Started)
+            if (matches.Any())
             {
-                await _duelMatchRepository.Delete(match);
+                var match = matches.First();
+                var winner = await _duelPlayerRepository.Find(opponent);
+                var looser = await _duelPlayerRepository.Find((IGuildUser)Context.User);
+
+                var mmrDiff = UpdateMMR(winner, looser);
 
                 if (!match.MatchDate.HasValue)
                     match.MatchDate = DateTime.UtcNow;
 
+                match.Started = true;
                 match.WinnerId = opponent.Id.ToString();
                 match.WinnerName = PickupHelpers.GetNickname(opponent);
                 match.LooserId = Context.User.Id.ToString();
                 match.LooserName = PickupHelpers.GetNickname(Context.User);
+                match.MMR = mmrDiff;
+
+                await _duelMatchRepository.Save(match);
 
                 await ReplyAsync($"{match.LooserName} has lost against {match.WinnerName}").AutoRemoveMessage(10);
 
-                var winner = await _duelPlayerRepository.Find(opponent);
-                var looser = await _duelPlayerRepository.Find((IGuildUser)Context.User);
-
-                UpdateMMR(winner, looser);
                 winner.MatchHistory.Insert(0, match);
+                winner.MatchHistory = winner.MatchHistory.Take(10).ToList();
                 await _duelPlayerRepository.Save(winner);
 
                 looser.MatchHistory.Insert(0, match);
+                looser.MatchHistory = looser.MatchHistory.Take(10).ToList();
                 await _duelPlayerRepository.Save(looser);
             }
         }
@@ -330,7 +360,7 @@ namespace PickupBot.Commands.Modules
         [Summary("User duel stats")]
         public async Task Stats(IGuildUser user = null)
         {
-            if(!PickupHelpers.IsInDuelChannel(Context.Channel)) return;
+            if (!PickupHelpers.IsInDuelChannel(Context.Channel)) return;
 
             user ??= (IGuildUser)Context.User;
 
@@ -341,13 +371,14 @@ namespace PickupBot.Commands.Modules
             }
             else
             {
-                var games = duelPlayer.MatchHistory;
+                var games = (await _duelMatchRepository.FindByChallengerId(user)).ToList();
+                games.AddRange(await _duelMatchRepository.FindByChallengeeId(user));
 
-                var last10 = games.Take(10)
-                                       .Select(g =>
-                                           $"{(Convert.ToUInt64(g.WinnerId) == user.Id ? $":first_place: Won against {g.LooserName}" : $":cry: Lost against {g.WinnerName}")}" +
-                                           $" (_{g.MatchDate:yyyy-MM-dd HH:mm:ss 'UTC'}_)")
-                                       .ToArray();
+                games = games.Where(w => w.Started && !string.IsNullOrEmpty(w.WinnerId)).ToList();
+
+                var last10 = duelPlayer.MatchHistory.Select(g =>
+                                           $"{(Convert.ToUInt64(g.WinnerId) == user.Id ? $":first_place: Won against {g.LooserName} MMR +{g.MMR}" : $":cry: Lost against {g.WinnerName} MMR -{g.MMR}")}")
+                                        .ToArray();
 
                 var embed = new EmbedBuilder
                 {
@@ -356,13 +387,13 @@ namespace PickupBot.Commands.Modules
                 };
                 embed.WithFields(new List<EmbedFieldBuilder>
                 {
-                    new EmbedFieldBuilder { Name = ":first_place: Wins", Value = duelPlayer.MatchHistory.Count(w => w.WinnerId == duelPlayer.Id.ToString()), IsInline = true},
+                    new EmbedFieldBuilder { Name = ":first_place: **Wins**", Value = games.Count(w => w.WinnerId == duelPlayer.Id.ToString()), IsInline = true},
                     new EmbedFieldBuilder { Name = "\u200b", Value = "\u200b", IsInline = true},
-                    new EmbedFieldBuilder { Name = ":cry: Losses", Value = duelPlayer.MatchHistory.Count(w => w.LooserId == duelPlayer.Id.ToString()), IsInline = true },
+                    new EmbedFieldBuilder { Name = ":cry: **Losses**", Value = games.Count(w => w.LooserId == duelPlayer.Id.ToString()), IsInline = true },
                     new EmbedFieldBuilder { Name = "\u200b", Value = "\u200b" },
                     new EmbedFieldBuilder
                     {
-                        Name = "Last matches",
+                        Name = "**Last matches**",
                         Value = last10.IsNullOrEmpty() ? "No matches recorded" : string.Join(Environment.NewLine, last10)
                     }
                 });
@@ -377,23 +408,42 @@ namespace PickupBot.Commands.Modules
         }
 
         // ReSharper disable once InconsistentNaming
-        private static void UpdateMMR(DuelPlayer winner, DuelPlayer looser)
+        private static int UpdateMMR(DuelPlayer winner, DuelPlayer looser)
         {
-            if (looser.Skill > winner.Skill)
+            var diff = 0;
+            if (looser.MMR == winner.MMR)
             {
-                winner.MMR += 50;
-                looser.MMR -= 50;
+                if (looser.Skill > winner.Skill)
+                {
+                    diff = 50;
+                    winner.MMR += 50;
+                    looser.MMR -= 50;
+                }
+                if (looser.Skill == winner.Skill)
+                {
+                    diff = 30;
+                    winner.MMR += 30;
+                    looser.MMR -= 30;
+                }
+                if (looser.Skill < winner.Skill)
+                {
+                    diff = 10;
+                    winner.MMR += 10;
+                    looser.MMR -= 10;
+                }
             }
-            if (looser.Skill == winner.Skill)
+            else
             {
-                winner.MMR += 30;
-                looser.MMR -= 30;
-            };
-            if (looser.Skill < winner.Skill)
-            {
-                winner.MMR += 10;
-                looser.MMR -= 10;
-            };
+                var skillDiff = Math.Abs(Math.Ceiling(winner.Skill / (decimal)looser.Skill));
+                diff = (int)Math.Ceiling(Math.Abs(((1 - looser.MMR / (decimal)winner.MMR) * looser.MMR) * .15m / skillDiff));
+
+                if (diff < 10) diff += 10;
+
+                looser.MMR -= diff;
+                winner.MMR += diff;
+            }
+
+            return diff;
         }
 
         private static SkillLevel Parse(string level)
@@ -410,7 +460,7 @@ namespace PickupBot.Commands.Modules
             return skillLevel;
         }
 
-        private async Task<IRole> GetDuellistRole() => 
+        private async Task<IRole> GetDuellistRole() =>
             Context.Guild.Roles.FirstOrDefault(r => r.Name.Equals("duellist", StringComparison.OrdinalIgnoreCase)) ??
             (IRole)await Context.Guild.CreateRoleAsync("duellist", GuildPermissions.None, isHoisted: false, isMentionable: false);
 
