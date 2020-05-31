@@ -46,7 +46,7 @@ namespace PickupBot.Data.Repositories
 
         public async Task<PickupQueue> FindQueueByMessageId(ulong messageId, string guildId)
         {
-            return await _client.GetItemPropertyEquals(guildId, nameof(PickupQueue.StaticMessageId), messageId.ToString());
+            return await _client.GetItemPropertyEquals(guildId, messageId.ToString(), nameof(PickupQueue.StaticMessageId));
         }
 
         public async Task<IEnumerable<PickupQueue>> AllQueues(string guildId)

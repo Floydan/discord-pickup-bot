@@ -23,15 +23,15 @@ namespace PickupBot.Data.Repositories
         public async Task<IEnumerable<DuelChallenge>> FindByChallengerId(IGuildUser challenger)
         {
             return await _client.GetItemsPropertyEquals(challenger.GuildId.ToString(), 
-                nameof(DuelChallenge.ChallengerId), 
-                challenger.Id.ToString());
+                challenger.Id.ToString(),
+                nameof(DuelChallenge.ChallengerId));
         }
 
         public async Task<IEnumerable<DuelChallenge>> FindByChallengeeId(IGuildUser challengee)
         {
             return await _client.GetItemsPropertyEquals(challengee.GuildId.ToString(), 
-                nameof(DuelChallenge.ChallengeeId), 
-                challengee.Id.ToString());
+                challengee.Id.ToString(),
+                nameof(DuelChallenge.ChallengeeId));
         }
 
         public async Task<bool> Save(IGuildUser challenger, IGuildUser challengee)
@@ -42,19 +42,6 @@ namespace PickupBot.Data.Repositories
             };
 
             return await _client.InsertOrReplace(duelMatch);
-        }
-
-        public async Task<bool> Save(DuelChallenge duelChallenge)
-        {
-            return await _client.InsertOrMerge(duelChallenge);
-        }
-
-        public async Task<bool> Delete(IGuildUser challenger, IGuildUser challengee)
-        {
-            return await _client.Delete(
-                challenger.GuildId.ToString(),
-                $"{challenger.Id}||{challengee.Id}"
-            );
         }
 
         public async Task<bool> Delete(DuelChallenge duelChallenge)

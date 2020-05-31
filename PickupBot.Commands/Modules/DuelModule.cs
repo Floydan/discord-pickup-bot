@@ -272,17 +272,22 @@ namespace PickupBot.Commands.Modules
         {
             if (!PickupHelpers.IsInDuelChannel(Context.Channel) || opponent.Id == Context.User.Id) return;
 
-            var matches = (await _duelMatchRepository.FindByChallengeeId((IGuildUser)Context.User)).ToList();
-            matches.AddRange(await _duelMatchRepository.FindByChallengerId((IGuildUser)Context.User));
+            var matches = (await _duelMatchRepository.FindByChallengerIdOrChallengeeId((IGuildUser)Context.User)).ToList();
 
             matches = matches.Where(w => IsValidMatch(w, opponent)).ToList();
 
             if (matches.Any())
             {
                 var match = matches.First();
+                
+                if(!string.IsNullOrEmpty(match.WinnerId))
+                {
+                    await ReplyAsync($"{match.WinnerName} has won against {match.LooserName}").AutoRemoveMessage(10);
+                    return;
+                };
+
                 var winner = await _duelPlayerRepository.Find((IGuildUser)Context.User);
                 var looser = await _duelPlayerRepository.Find(opponent);
-
                 await UpdateMatchAndMMR(winner, looser, match);
             }
         }
@@ -293,14 +298,20 @@ namespace PickupBot.Commands.Modules
         {
             if (!PickupHelpers.IsInDuelChannel(Context.Channel) || opponent.Id == Context.User.Id) return;
 
-            var matches = (await _duelMatchRepository.FindByChallengeeId((IGuildUser)Context.User)).ToList();
-            matches.AddRange(await _duelMatchRepository.FindByChallengerId((IGuildUser)Context.User));
+            var matches = (await _duelMatchRepository.FindByChallengerIdOrChallengeeId((IGuildUser)Context.User)).ToList();
 
             matches = matches.Where(w => IsValidMatch(w, opponent)).ToList();
 
             if (matches.Any())
             {
                 var match = matches.First();
+                
+                if(!string.IsNullOrEmpty(match.WinnerId))
+                {
+                    await ReplyAsync($"{match.LooserName} has lost against {match.WinnerName}").AutoRemoveMessage(10);
+                    return;
+                };
+                
                 var winner = await _duelPlayerRepository.Find(opponent);
                 var looser = await _duelPlayerRepository.Find((IGuildUser)Context.User);
 
@@ -308,7 +319,7 @@ namespace PickupBot.Commands.Modules
             }
         }
 
-        [Command("stats")]
+        [Command("stats"), Alias("statistics")]
         [Summary("User duel stats")]
         public async Task Stats(IGuildUser user = null)
         {
@@ -323,8 +334,7 @@ namespace PickupBot.Commands.Modules
             }
             else
             {
-                var games = (await _duelMatchRepository.FindByChallengerId(user)).ToList();
-                games.AddRange(await _duelMatchRepository.FindByChallengeeId(user));
+                var games = (await _duelMatchRepository.FindByChallengerIdOrChallengeeId(user)).ToList();
 
                 games = games.Where(w => w.Started && !string.IsNullOrEmpty(w.WinnerId)).ToList();
 
@@ -354,6 +364,23 @@ namespace PickupBot.Commands.Modules
             }
         }
 
+        [Command("duel-top10"), Alias("dtop10", "d-top10")]
+        public async Task DuelTop10()
+        {
+            var top10 = await _duelPlayerRepository.Top10(Context.Guild.Id);
+
+            var i = 0;
+            var sb = new StringBuilder();
+            foreach (var duelPlayer in top10)
+            {
+                i++;
+                var badge = i == 1 ? ":first_place:" : i == 2 ? ":second_place:" : i == 3 ? ":third_place:" : "";
+                sb.AppendLine($"{badge} {duelPlayer.Name} _- MMR: {duelPlayer.MMR}_");
+            }
+
+            await ReplyAsync($"**Top 10 duellists**\n{sb}");
+        }
+
         // ReSharper disable once InconsistentNaming
         private async Task UpdateMatchAndMMR(DuelPlayer winner, DuelPlayer looser, DuelMatch match)
         {
@@ -366,7 +393,6 @@ namespace PickupBot.Commands.Modules
             match.MMR = mmrDiff;
 
             await _duelMatchRepository.Save(match);
-
             await ReplyAsync($"{match.WinnerName} has won against {match.LooserName}").AutoRemoveMessage(10);
 
             winner.MatchHistory.Insert(0, match);

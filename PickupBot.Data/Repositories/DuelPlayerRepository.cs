@@ -43,6 +43,14 @@ namespace PickupBot.Data.Repositories
             return result;
         }
 
+        public async Task<IEnumerable<DuelPlayer>> Top10(ulong guildId)
+        {
+            var result = await _client.GetList(guildId.ToString());
+            var top10 = result.OrderByDescending(p => p.MMR).Take(10);
+
+            return top10;
+        }
+
         public async Task<IEnumerable<DuelPlayer>> List(IEnumerable<IGuildUser> users)
         {
             var guildUsers = users as IGuildUser[] ?? users.ToArray();

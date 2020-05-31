@@ -2,6 +2,7 @@
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Azure.Cosmos.Table;
+using PickupBot.Data.Infrastructure.Extensions;
 using PickupBot.Data.Models;
 
 namespace PickupBot.Data.Repositories
@@ -14,7 +15,7 @@ namespace PickupBot.Data.Repositories
         {
             _settings = settings;
         }
-        
+
         public async Task<List<T>> GetList()
         {
             //Table
@@ -36,7 +37,7 @@ namespace PickupBot.Data.Repositories
 
             return results;
         }
-        
+
         public async Task<List<T>> GetList(string partitionKey)
         {
             //Table
@@ -60,7 +61,14 @@ namespace PickupBot.Data.Repositories
 
             return results;
         }
-        
+
+        /// <summary>
+        /// Cosmos tables only! 
+        /// </summary>
+        /// <param name="partitionKey">partition key</param>
+        /// <param name="propertyName">property name</param>
+        /// <param name="count">number of entries to return</param>
+        /// <returns>List of T</returns>
         public async Task<List<T>> GetTopListByField(string partitionKey, string propertyName, int count)
         {
             //Table
@@ -69,7 +77,7 @@ namespace PickupBot.Data.Repositories
             //Query
             var query = new TableQuery<T>()
                 .Where(TableQuery.GenerateFilterCondition("PartitionKey", QueryComparisons.Equal, partitionKey))
-                .OrderBy(propertyName)
+                .OrderByDesc(propertyName)
                 .Take(count);
 
             var results = new List<T>();
@@ -86,24 +94,29 @@ namespace PickupBot.Data.Repositories
 
             return results;
         }
-        
-        public async Task<T> GetItemPropertyEquals(string partitionKey, string propertyName, string value)
+
+        public async Task<T> GetItemPropertyEquals(string partitionKey, string value, string propertyName)
         {
-            var results =  await GetItemsPropertyEquals(partitionKey, propertyName, value);
+            var results = await GetItemsPropertyEquals(partitionKey, value, propertyName);
 
             return results.FirstOrDefault();
         }
-        
-        public async Task<IEnumerable<T>> GetItemsPropertyEquals(string partitionKey, string propertyName, string value)
+
+        public async Task<IEnumerable<T>> GetItemsPropertyEquals(string partitionKey, string value, params string[] propertyNames)
         {
             //Table
             var table = await GetTableAsync();
             //Query
             var query = new TableQuery<T>()
-                .Where(TableQuery.CombineFilters(
-                    TableQuery.GenerateFilterCondition("PartitionKey", QueryComparisons.Equal, partitionKey),
-                    TableOperators.And,
-                    TableQuery.GenerateFilterCondition(propertyName, QueryComparisons.Equal, value)));
+                .Where(TableQuery.GenerateFilterCondition("PartitionKey", QueryComparisons.Equal, partitionKey));
+
+            var ors = new TableQuery<T>();
+            foreach (var propertyName in propertyNames)
+            {
+                ors.OrWhere(TableQuery.GenerateFilterCondition(propertyName, QueryComparisons.Equal, value));
+            }
+
+            query.AndWhere(ors.FilterString);
 
             var results = new List<T>();
             TableContinuationToken continuationToken = null;
@@ -146,7 +159,7 @@ namespace PickupBot.Data.Repositories
             var result = await table.ExecuteAsync(operation);
             return result.Result is T;
         }
-        
+
         public async Task<bool> InsertOrReplace(T item)
         {
             //Table
@@ -159,7 +172,7 @@ namespace PickupBot.Data.Repositories
             var result = await table.ExecuteAsync(operation);
             return result.Result is T;
         }
-        
+
         public async Task<bool> InsertOrMerge(T item)
         {
             //Table
@@ -172,7 +185,7 @@ namespace PickupBot.Data.Repositories
             var result = await table.ExecuteAsync(operation);
             return result.Result is T;
         }
-        
+
         public async Task<bool> Update(T item)
         {
             //Table
@@ -185,12 +198,12 @@ namespace PickupBot.Data.Repositories
             var result = await table.ExecuteAsync(operation);
             return result.Result is T;
         }
-        
+
         public async Task<bool> Delete(string partitionKey, string rowKey)
         {
             //Item
             var item = await GetItem(partitionKey, rowKey);
-            
+
             //Table
             var table = await GetTableAsync();
 
@@ -201,7 +214,7 @@ namespace PickupBot.Data.Repositories
             var result = await table.ExecuteAsync(operation);
             return result.Result is T;
         }
-        
+
         public async Task<bool> Delete(T item)
         {
             if (item == null) return false;

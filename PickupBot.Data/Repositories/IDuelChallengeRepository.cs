@@ -11,8 +11,6 @@ namespace PickupBot.Data.Repositories
         Task<IEnumerable<DuelChallenge>> FindByChallengerId(IGuildUser challenger);
         Task<IEnumerable<DuelChallenge>> FindByChallengeeId(IGuildUser challengee);
         Task<bool> Save(IGuildUser challenger, IGuildUser challengee);
-        Task<bool> Save(DuelChallenge duelMatch);
-        Task<bool> Delete(IGuildUser challenger, IGuildUser challengee);
         Task<bool> Delete(DuelChallenge duelMatch);
     }
 }

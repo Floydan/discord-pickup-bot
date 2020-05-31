@@ -11,6 +11,7 @@ namespace PickupBot.Data.Repositories
         Task<bool> Save(IGuildUser user, SkillLevel skillLevel);
         Task<bool> Save(DuelPlayer player);
         Task<bool> Delete(IGuildUser user);
+        Task<IEnumerable<DuelPlayer>> Top10(ulong guildId);
         Task<IEnumerable<DuelPlayer>> List(IEnumerable<IGuildUser> users);
     }
 }
