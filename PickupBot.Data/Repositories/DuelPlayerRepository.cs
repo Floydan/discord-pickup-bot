@@ -36,6 +36,13 @@ namespace PickupBot.Data.Repositories
             return await _client.Delete(user.GuildId.ToString(), user.Id.ToString());
         }
 
+        public async Task<IEnumerable<DuelPlayer>> List(ulong guildId)
+        {
+            var result = await _client.GetList(guildId.ToString());
+
+            return result;
+        }
+
         public async Task<IEnumerable<DuelPlayer>> List(IEnumerable<IGuildUser> users)
         {
             var guildUsers = users as IGuildUser[] ?? users.ToArray();

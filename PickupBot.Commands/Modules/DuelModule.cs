@@ -412,7 +412,7 @@ namespace PickupBot.Commands.Modules
         {
             var mmr = (int)Math.Ceiling(looser.MMR / (decimal)winner.MMR * 0.05m * looser.MMR);
             if (mmr < 10) mmr += 10;
-            if (mmr > 100) mmr = 100;
+            if (mmr > 200) mmr = 200;
 
             looser.MMR -= mmr;
             winner.MMR += mmr;
