@@ -100,7 +100,10 @@ namespace PickupBot.Data.Repositories
             var table = await GetTableAsync();
             //Query
             var query = new TableQuery<T>()
-                .Where(TableQuery.GenerateFilterCondition(propertyName, QueryComparisons.Equal,value));
+                .Where(TableQuery.CombineFilters(
+                    TableQuery.GenerateFilterCondition("PartitionKey", QueryComparisons.Equal, partitionKey),
+                    TableOperators.And,
+                    TableQuery.GenerateFilterCondition(propertyName, QueryComparisons.Equal, value)));
 
             var results = new List<T>();
             TableContinuationToken continuationToken = null;
