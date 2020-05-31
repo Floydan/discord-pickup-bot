@@ -274,8 +274,8 @@ namespace PickupBot.Commands.Modules
         public async Task Win(IGuildUser opponent)
         {
             if (!PickupHelpers.IsInDuelChannel(Context.Channel)) return;
-            if(opponent.Id == Context.User.Id) return;
-            
+            if (opponent.Id == Context.User.Id) return;
+
             var matches = (await _duelMatchRepository.FindByChallengeeId((IGuildUser)Context.User)).ToList();
             matches.AddRange(await _duelMatchRepository.FindByChallengerId((IGuildUser)Context.User));
 
@@ -301,7 +301,7 @@ namespace PickupBot.Commands.Modules
                 await _duelMatchRepository.Save(match);
 
                 await ReplyAsync($"{match.WinnerName} has won against {match.LooserName}").AutoRemoveMessage(10);
-                
+
                 winner.MatchHistory.Insert(0, match);
                 winner.MatchHistory = winner.MatchHistory.Take(10).ToList();
                 await _duelPlayerRepository.Save(winner);
@@ -317,8 +317,8 @@ namespace PickupBot.Commands.Modules
         public async Task Loss(IGuildUser opponent)
         {
             if (!PickupHelpers.IsInDuelChannel(Context.Channel)) return;
-            if(opponent.Id == Context.User.Id) return;
-            
+            if (opponent.Id == Context.User.Id) return;
+
             var matches = (await _duelMatchRepository.FindByChallengeeId((IGuildUser)Context.User)).ToList();
             matches.AddRange(await _duelMatchRepository.FindByChallengerId((IGuildUser)Context.User));
 
@@ -410,40 +410,14 @@ namespace PickupBot.Commands.Modules
         // ReSharper disable once InconsistentNaming
         private static int UpdateMMR(DuelPlayer winner, DuelPlayer looser)
         {
-            var diff = 0;
-            if (looser.MMR == winner.MMR)
-            {
-                if (looser.Skill > winner.Skill)
-                {
-                    diff = 50;
-                    winner.MMR += 50;
-                    looser.MMR -= 50;
-                }
-                if (looser.Skill == winner.Skill)
-                {
-                    diff = 30;
-                    winner.MMR += 30;
-                    looser.MMR -= 30;
-                }
-                if (looser.Skill < winner.Skill)
-                {
-                    diff = 10;
-                    winner.MMR += 10;
-                    looser.MMR -= 10;
-                }
-            }
-            else
-            {
-                var skillDiff = Math.Abs(Math.Ceiling(winner.Skill / (decimal)looser.Skill));
-                diff = (int)Math.Ceiling(Math.Abs(((1 - looser.MMR / (decimal)winner.MMR) * looser.MMR) * .15m / skillDiff));
+            var mmr = (int)Math.Ceiling(looser.MMR / (decimal)winner.MMR * 0.05m * looser.MMR);
+            if (mmr < 10) mmr += 10;
+            if (mmr > 100) mmr = 100;
 
-                if (diff < 10) diff += 10;
+            looser.MMR -= mmr;
+            winner.MMR += mmr;
 
-                looser.MMR -= diff;
-                winner.MMR += diff;
-            }
-
-            return diff;
+            return mmr;
         }
 
         private static SkillLevel Parse(string level)
