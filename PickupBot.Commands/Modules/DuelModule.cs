@@ -380,7 +380,8 @@ namespace PickupBot.Commands.Modules
 
         private static bool IsValidMatch(DuelMatch match, IGuildUser opponent)
         {
-            return (match.ChallengerId == opponent.Id.ToString() || match.ChallengeeId == opponent.Id.ToString()) && string.IsNullOrEmpty(match.WinnerId)
+            return (match.ChallengerId == opponent.Id.ToString() || match.ChallengeeId == opponent.Id.ToString()) &&
+                   string.IsNullOrEmpty(match.WinnerId);
         }
 
         private static bool CheckUserOnlineState(IGuildUser u)
