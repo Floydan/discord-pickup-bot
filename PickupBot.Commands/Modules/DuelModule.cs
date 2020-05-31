@@ -99,12 +99,10 @@ namespace PickupBot.Commands.Modules
         [Command("challenge")]
         public async Task Challenge(IGuildUser challengee = null)
         {
-            if (!PickupHelpers.IsInDuelChannel(Context.Channel)) return;
+            if (!PickupHelpers.IsInDuelChannel(Context.Channel) || challengee != null && (challengee.Id == Context.User.Id || challengee.IsBot)) return;
 
             var user = (IGuildUser)Context.User;
             _logger.LogInformation($"{nameof(Challenge)} called for user '{user.Username}'");
-
-            if (challengee != null && (challengee.Id == Context.User.Id || challengee.IsBot)) return;
 
             var duellistRole = await GetDuellistRole();
 
@@ -120,56 +118,57 @@ namespace PickupBot.Commands.Modules
                 if (challengee.RoleIds.All(r => r != duellistRole.Id))
                 {
                     await ReplyAsync($"'{PickupHelpers.GetNickname(challengee)}' is not a duellist.").AutoRemoveMessage(10);
-                    return;
-                }
-
-                if (CheckUserOnlineState(challengee))
-                {
-                    await _duelChallengeRepository.Save((IGuildUser)Context.User, challengee).ConfigureAwait(false);
-                    await ReplyAsync($"{Context.User.Mention} has challenged {challengee.Mention} to a duel!");
                 }
                 else
                 {
-                    await ReplyAsync($"'{PickupHelpers.GetNickname(challengee)}' is not online, maybe try again later?").AutoRemoveMessage(10);
+                    if (CheckUserOnlineState(challengee))
+                    {
+                        await _duelChallengeRepository.Save((IGuildUser)Context.User, challengee).ConfigureAwait(false);
+                        await ReplyAsync($"{Context.User.Mention} has challenged {challengee.Mention} to a duel!");
+                    }
+                    else
+                    {
+                        await ReplyAsync($"'{PickupHelpers.GetNickname(challengee)}' is not online, maybe try again later?").AutoRemoveMessage(10);
+                    }
+                }
+
+                return;
+            }
+
+            var duellistUsers = Context.Guild.Users
+                .Where(u => u.Roles.Contains(duellistRole) && u.Id != Context.User.Id && CheckUserOnlineState(u))
+                .ToArray();
+
+            if (duellistUsers.Any())
+            {
+                var duellists = new List<DuelPlayer>();
+                foreach (var duellistUser in duellistUsers)
+                {
+                    var duellistPlayer = await _duelPlayerRepository.Find(duellistUser);
+                    if (duellistPlayer != null) duellists.Add(duellistPlayer);
+                }
+
+                // ReSharper disable once InconsistentNaming
+                var closestMMR = duellists.Where(d => d.MMR >= duelPlayer.MMR).OrderBy(d => d.MMR);
+
+                var opponent = closestMMR.FirstOrDefault(d => d.Skill >= duelPlayer.Skill) ??
+                               duellists.FirstOrDefault(d => d.Skill >= duelPlayer.Skill) ??
+                               duellists.FirstOrDefault();
+
+                if (opponent == null)
+                {
+                    await ReplyAsync("No opponents could be found.").AutoRemoveMessage(10);
+                }
+                else
+                {
+                    var opponentUser = duellistUsers.First(u => u.Id == opponent.Id);
+                    await _duelChallengeRepository.Save((IGuildUser)Context.User, opponentUser).ConfigureAwait(false);
+                    await ReplyAsync($"{Context.User.Mention} [MMR: {duelPlayer.MMR}] has challenged {opponentUser.Mention} [MMR: {opponent.MMR}] to a duel!");
                 }
             }
             else
             {
-                var duellistUsers = Context.Guild.Users.Where(u => u.Roles.Contains(duellistRole) && u.Id != Context.User.Id)
-                    .Where(CheckUserOnlineState)
-                    .ToArray();
-
-                if (duellistUsers.Any())
-                {
-                    var duellists = new List<DuelPlayer>();
-                    foreach (var duellistUser in duellistUsers)
-                    {
-                        var duellistPlayer = await _duelPlayerRepository.Find(duellistUser);
-                        if (duellistPlayer != null) duellists.Add(duellistPlayer);
-                    }
-
-                    // ReSharper disable once InconsistentNaming
-                    var closestMMR = duellists.Where(d => d.MMR >= duelPlayer.MMR).OrderBy(d => d.MMR);
-
-                    var opponent = closestMMR.FirstOrDefault(d => d.Skill >= duelPlayer.Skill) ??
-                                           duellists.FirstOrDefault(d => d.Skill >= duelPlayer.Skill) ??
-                                           duellists.FirstOrDefault();
-
-                    if (opponent == null)
-                    {
-                        await ReplyAsync("No opponents could be found.").AutoRemoveMessage(10);
-                    }
-                    else
-                    {
-                        var opponentUser = duellistUsers.First(u => u.Id == opponent.Id);
-                        await _duelChallengeRepository.Save((IGuildUser)Context.User, opponentUser).ConfigureAwait(false);
-                        await ReplyAsync($"{Context.User.Mention} has challenged {opponentUser.Mention} to a duel!");
-                    }
-                }
-                else
-                {
-                    await ReplyAsync("No duellists are currently online").AutoRemoveMessage(10);
-                }
+                await ReplyAsync("No duellists are currently online").AutoRemoveMessage(10);
             }
         }
 
@@ -245,7 +244,7 @@ namespace PickupBot.Commands.Modules
         {
             if (!PickupHelpers.IsInDuelChannel(Context.Channel)) return;
 
-            var challenges = (await _duelChallengeRepository.FindByChallengerId((IGuildUser) Context.User)).ToArray();
+            var challenges = (await _duelChallengeRepository.FindByChallengerId((IGuildUser)Context.User)).ToArray();
             if (challenges.Any())
             {
                 var challengerIds = challenges.Select(c => Convert.ToUInt64(c.ChallengeeId));
@@ -275,7 +274,7 @@ namespace PickupBot.Commands.Modules
 
             var matches = (await _duelMatchRepository.FindByChallengeeId((IGuildUser)Context.User)).ToList();
             matches.AddRange(await _duelMatchRepository.FindByChallengerId((IGuildUser)Context.User));
-            
+
             matches = matches.Where(w => IsValidMatch(w, opponent)).ToList();
 
             if (matches.Any())
@@ -304,7 +303,7 @@ namespace PickupBot.Commands.Modules
                 var match = matches.First();
                 var winner = await _duelPlayerRepository.Find(opponent);
                 var looser = await _duelPlayerRepository.Find((IGuildUser)Context.User);
-                
+
                 await UpdateMatchAndMMR(winner, looser, match);
             }
         }
