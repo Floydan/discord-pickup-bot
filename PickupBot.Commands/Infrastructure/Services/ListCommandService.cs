@@ -228,7 +228,7 @@ namespace PickupBot.Commands.Infrastructure.Services
                 new EmbedFieldBuilder {Name = "\u200b", Value = "\u200b"},
                 new EmbedFieldBuilder
                 {
-                    Name = "Available actions", 
+                    Name = "**Available actions**", 
                     Value = $"\u2705 - Add to pickup / remove from pickup\r\n" +
                             $"\uD83D\uDCE2 - Promote pickup"
                 }
@@ -259,25 +259,25 @@ namespace PickupBot.Commands.Infrastructure.Services
                 Color = Color.Gold, 
                 Fields = new List<EmbedFieldBuilder>
                 {
-                    new EmbedFieldBuilder { Name = "Created by", Value = PickupHelpers.GetNickname(user), IsInline = true },
+                    new EmbedFieldBuilder { Name = "**Created by**", Value = PickupHelpers.GetNickname(user), IsInline = true },
                     new EmbedFieldBuilder
                     {
-                        Name = "Game(s)",
+                        Name = "**Game(s)**",
                         Value = string.Join(", ", queue.Games.IsNullOrEmpty() ? new[] { "No game defined" } : queue.Games),
                         IsInline = true
                     },
-                    new EmbedFieldBuilder { Name = "Started", Value = queue.Started ? "Yes" : "No", IsInline = true },
-                    new EmbedFieldBuilder { Name = "Host", Value = queue.Host ?? "No host defined", IsInline = true },
+                    new EmbedFieldBuilder { Name = "**Started**", Value = queue.Started ? "Yes" : "No", IsInline = true },
+                    new EmbedFieldBuilder { Name = "**Host**", Value = queue.Host ?? "No host defined", IsInline = true },
                     new EmbedFieldBuilder
                     {
-                        Name = "Port",
+                        Name = "**Port**",
                         Value = queue.Port == 0 ? "No port defined" : queue.Port.ToString(),
                         IsInline = true
                     },
-                    new EmbedFieldBuilder { Name = "Team size", Value = queue.TeamSize, IsInline = true },
-                    new EmbedFieldBuilder { Name = "Coop", Value = queue.IsCoop ? "Yes" : "No", IsInline = true },
-                    new EmbedFieldBuilder { Name = "Created", Value = queue.Created.ToString("yyyy-MM-dd\r\nHH:mm:ss 'UTC'"), IsInline = true },
-                    new EmbedFieldBuilder { Name = "Last updated", Value = queue.Updated.ToString("yyyy-MM-dd\r\nHH:mm:ss 'UTC'"), IsInline = true }
+                    new EmbedFieldBuilder { Name = "**Team size**", Value = queue.TeamSize, IsInline = true },
+                    new EmbedFieldBuilder { Name = "**Coop**", Value = queue.IsCoop ? "Yes" : "No", IsInline = true },
+                    new EmbedFieldBuilder { Name = "**Created**", Value = queue.Created.ToString("yyyy-MM-dd\r\nHH:mm:ss 'UTC'"), IsInline = true },
+                    new EmbedFieldBuilder { Name = "**Last updated**", Value = queue.Updated.ToString("yyyy-MM-dd\r\nHH:mm:ss 'UTC'"), IsInline = true }
                 }
             };
 
@@ -291,7 +291,7 @@ namespace PickupBot.Commands.Infrastructure.Services
 
             embed.WithFields(new EmbedFieldBuilder
             {
-                Name = $"Players in queue [{queue.Subscribers.Count}/{queue.MaxInQueue}]",
+                Name = $"**Players in queue [{queue.Subscribers.Count}/{queue.MaxInQueue}]**",
                 Value = queue.Subscribers.IsNullOrEmpty() ? "No players in queue" : sb.ToString(),
                 IsInline = true
             });
@@ -306,7 +306,7 @@ namespace PickupBot.Commands.Infrastructure.Services
 
             embed.WithFields(new EmbedFieldBuilder
             {
-                Name = $"Players in waiting list [{queue.WaitingList.Count}]",
+                Name = $"**Players in waiting list [{queue.WaitingList.Count}]**",
                 Value = queue.WaitingList.IsNullOrEmpty() ? "No players in waiting list" : sb.ToString(),
                 IsInline = true
             });
