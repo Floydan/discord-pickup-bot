@@ -5,7 +5,6 @@ using System.Threading.Tasks;
 using Discord;
 using Discord.Addons.Interactive;
 using Discord.Commands;
-using Discord.WebSocket;
 using Newtonsoft.Json;
 using PickupBot.Commands.Infrastructure;
 using PickupBot.Data.Models;
@@ -17,6 +16,7 @@ namespace PickupBot.Commands.Modules
     [Name("Server admin")]
     [RequireUserPermission(GuildPermission.Administrator)]
     [Summary("Not fully implemented yet")]
+    [Group("server")]
     public class ServerModule : InteractiveBase<SocketCommandContext>
     {
         private readonly IServerRepository _serverRepository;
@@ -28,12 +28,9 @@ namespace PickupBot.Commands.Modules
             _encryptionSettings = encryptionSettings;
         }
 
-        [Command("addserver")]
-        [Alias("serveradd")]
+        [Command("add")]
         [Summary("Add a server; If you add a server with rcon password make sure you delete the message with the password since it is visible for everyone in the channel.")]
-        public async Task AddServer(
-            [Name("Server address:server port")]string fullAddress,
-            [Remainder, Name("Optional RCon password")]string rconPassword = default)
+        public async Task AddServer([Name("Server address:server port")]string fullAddress)
         {
             using (Context.Channel.EnterTypingState())
             {
@@ -43,10 +40,7 @@ namespace PickupBot.Commands.Modules
                 if (parts.Length > 1)
                     int.TryParse(parts.Last(), out port);
 
-                var client = new HttpClient
-                {
-                    BaseAddress = new Uri("http://ip-api.com/")
-                };
+                var client = new HttpClient { BaseAddress = new Uri("http://ip-api.com/") };
                 var response = await client.GetStringAsync($"/json/{host}?fields=36749595");
 
                 var server = JsonConvert.DeserializeObject<Server>(response);
@@ -54,15 +48,8 @@ namespace PickupBot.Commands.Modules
                 server.Port = port;
                 server.PartitionKey = Context.Guild.Id.ToString();
                 server.RowKey = host.ToLowerInvariant();
-                if (!string.IsNullOrWhiteSpace(rconPassword))
-                {
-                    server.RconPassword =
-                        EncryptionProvider.AESEncrypt(rconPassword, _encryptionSettings.Key, _encryptionSettings.IV);
-                }
-
-                var result = await _serverRepository.Save(server);
-
-                if (result)
+                
+                if (await _serverRepository.Save(server))
                 {
                     await ReplyAsync("Server added");
                 }
@@ -73,8 +60,7 @@ namespace PickupBot.Commands.Modules
             }
         }
 
-        [Command("deleteserver")]
-        [Alias("serverdelete", "removeserver", "serverremove")]
+        [Command("delete")]
         [Summary("Remove a server")]
         public async Task RemoveServer(string host)
         {

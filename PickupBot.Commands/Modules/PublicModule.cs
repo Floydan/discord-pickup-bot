@@ -170,19 +170,23 @@ namespace PickupBot.Commands.Modules
                 var servers = await _serverRepository.List(Context.Guild.Id);
 
                 var sb = new StringBuilder();
-                if (servers.IsNullOrEmpty())
+                var enumerable = servers as Server[] ?? servers.ToArray();
+                if (enumerable.IsNullOrEmpty())
                 {
-                    sb.AppendLine("No servers have been added yet.");
+                    sb.AppendLine("No servers have been added yet.")
+                        .AppendLine("Talk to an admin if you wish to add your server.")
+                        .AppendLine("Or if you are an admin you can add servers using the `!server add` command.");
+
                 }
                 else
                 {
-                    var continents = servers.Select(s => s.Continent).OrderBy(c => c).Distinct();
+                    var continents = enumerable.Select(s => s.Continent).OrderBy(c => c).Distinct();
                     foreach (var continent in continents)
                     {
                         sb.AppendLine($"**{continent}**")
                           .AppendLine("```markdown")
                           .AppendLine(AsciiTableGenerator.CreateAsciiTableFromDataTable(
-                            ContinentToTable(servers.Where(s => s.Continent == continent)
+                            ContinentToTable(enumerable.Where(s => s.Continent == continent)
                                 .OrderBy(s => s.Country)
                                 .ThenBy(s => s.City))
                             )?.ToString())
