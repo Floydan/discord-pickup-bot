@@ -2,7 +2,7 @@
 using System.Threading.Tasks;
 using PickupBot.Data.Models;
 
-namespace PickupBot.Data.Repositories
+namespace PickupBot.Data.Repositories.Interfaces
 {
     public interface IQueueRepository
     {

@@ -2,6 +2,7 @@
 using System.Threading.Tasks;
 using Discord;
 using PickupBot.Data.Models;
+using PickupBot.Data.Repositories.Interfaces;
 
 namespace PickupBot.Data.Repositories
 {

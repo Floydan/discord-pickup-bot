@@ -1,6 +1,7 @@
 ﻿using System.Collections.Generic;
 using System.Threading.Tasks;
 using PickupBot.Data.Models;
+using PickupBot.Data.Repositories.Interfaces;
 
 namespace PickupBot.Data.Repositories
 {

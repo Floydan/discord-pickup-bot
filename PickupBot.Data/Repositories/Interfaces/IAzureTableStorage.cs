@@ -2,7 +2,7 @@
 using System.Threading.Tasks;
 using Microsoft.Azure.Cosmos.Table;
 
-namespace PickupBot.Data.Repositories
+namespace PickupBot.Data.Repositories.Interfaces
 {
     public interface IAzureTableStorage<T> where T : TableEntity
     {

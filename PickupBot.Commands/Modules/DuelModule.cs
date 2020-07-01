@@ -10,6 +10,7 @@ using PickupBot.Commands.Extensions;
 using PickupBot.Commands.Infrastructure.Helpers;
 using PickupBot.Data.Models;
 using PickupBot.Data.Repositories;
+using PickupBot.Data.Repositories.Interfaces;
 
 namespace PickupBot.Commands.Modules
 {
@@ -364,7 +365,7 @@ namespace PickupBot.Commands.Modules
             }
         }
 
-        [Command("duel-top10"), Alias("dtop10", "d-top10")]
+        [Command("top10-duel"), Alias("top10d", "top10-d")]
         public async Task DuelTop10()
         {
             var top10 = await _duelPlayerRepository.Top10(Context.Guild.Id);

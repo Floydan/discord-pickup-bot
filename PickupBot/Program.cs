@@ -8,7 +8,6 @@ using AutoMapper;
 using AutoMapper.EquivalencyExpression;
 using Discord;
 using Discord.Addons.Hosting;
-using Discord.Addons.Hosting.Reliability;
 using Discord.Commands;
 using Discord.WebSocket;
 using Microsoft.Extensions.Configuration;
@@ -20,7 +19,6 @@ using PickupBot.Commands;
 using PickupBot.Commands.Extensions;
 using PickupBot.Commands.Infrastructure.Services;
 using PickupBot.Data.Models;
-using PickupBot.Data.Repositories;
 using PickupBot.GitHub;
 using PickupBot.Infrastructure;
 using PickupBot.Translation.Models;
@@ -56,15 +54,15 @@ namespace PickupBot
                             .AddJsonFile("appSettings.json", optional: false, reloadOnChange: true)
                             .AddJsonFile($"appSettings.{hostContext.HostingEnvironment.EnvironmentName}.json", false);
                     })
-                .ConfigureDiscordHost<DiscordSocketClient>((context, configBuilder) =>
+                .ConfigureDiscordHost<DiscordSocketClient>((context, config) =>
                 {
-                    configBuilder.SetDiscordConfiguration(new DiscordSocketConfig
+                    config.SocketConfig = new DiscordSocketConfig
                     {
                         LogLevel = LogSeverity.Info,
                         AlwaysDownloadUsers = true,
                         MessageCacheSize = 100
-                    });
-                    configBuilder.SetToken(context.Configuration["PickupBot:DiscordToken"]);
+                    };
+                    config.Token = context.Configuration["PickupBot:DiscordToken"];
                 })
                 .UseCommandService((context, conf) =>
                 {
@@ -84,13 +82,15 @@ namespace PickupBot
                 client.JoinedGuild += OnJoinedGuild;
                 client.MessageUpdated += OnMessageUpdated;
 
+                await host.StartAsync();
+
                 var prefix = pickupBotSettings.CommandPrefix ?? "!";
                 await client.SetActivityAsync(
                     new Game($"Pickup bot | {prefix}help",
                         ActivityType.Playing,
                         ActivityProperties.Play));
 
-                await host.RunReliablyAsync();
+                await host.WaitForShutdownAsync();
             }
 
             return 0;
@@ -103,6 +103,7 @@ namespace PickupBot
                 Assembly.GetExecutingAssembly(),
                 Assembly.GetAssembly(typeof(CommandHandlerService)),
                 Assembly.GetAssembly(typeof(PickupQueue)),
+                Assembly.GetAssembly(typeof(GitHubService)),
                 Assembly.GetAssembly(typeof(TranslationResult))
             };
 

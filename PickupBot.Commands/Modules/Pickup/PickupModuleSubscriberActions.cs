@@ -8,6 +8,7 @@ using PickupBot.Commands.Infrastructure.Helpers;
 using PickupBot.Commands.Infrastructure.Services;
 using PickupBot.Data.Models;
 using PickupBot.Data.Repositories;
+using PickupBot.Data.Repositories.Interfaces;
 
 // ReSharper disable MemberCanBePrivate.Global
 

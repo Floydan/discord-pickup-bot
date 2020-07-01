@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Linq;
 using System.Reflection;
 using System.Text;
@@ -11,7 +12,7 @@ using Discord.WebSocket;
 using PickupBot.Commands.Extensions;
 using PickupBot.Commands.Infrastructure.Utilities;
 using PickupBot.Data.Models;
-using PickupBot.Data.Repositories;
+using PickupBot.Data.Repositories.Interfaces;
 using PickupBot.GitHub;
 using PickupBot.GitHub.Models;
 
@@ -24,15 +25,18 @@ namespace PickupBot.Commands.Modules
         private readonly CommandService _commandService;
         private readonly ISubscriberActivitiesRepository _activitiesRepository;
         private readonly GitHubService _githubService;
+        private readonly IServerRepository _serverRepository;
 
         public PublicModule(
             CommandService commandService,
             ISubscriberActivitiesRepository activitiesRepository,
-            GitHubService gitHubService)
+            GitHubService gitHubService,
+            IServerRepository serverRepository)
         {
             _commandService = commandService;
             _activitiesRepository = activitiesRepository;
             _githubService = gitHubService;
+            _serverRepository = serverRepository;
         }
 
         [Command("ping")]
@@ -154,6 +158,76 @@ namespace PickupBot.Commands.Modules
                     await ReplyAsync(embed:embed).AutoRemoveMessage();
                 }
             }
+        }
+
+        [Command("servers")]
+        [Alias("server", "ip")]
+        [Summary("Returns a list of server addresses.")]
+        public async Task Servers()
+        {
+            using (Context.Channel.EnterTypingState())
+            {
+                var servers = await _serverRepository.List(Context.Guild.Id);
+
+                var sb = new StringBuilder();
+                if (servers.IsNullOrEmpty())
+                {
+                    sb.AppendLine("**Scandinavia**")
+                        .AppendLine("ra3.se")
+                        .AppendLine("pickup.ra3.se")
+                        .AppendLine("")
+                        .AppendLine("**US West**")
+                        .AppendLine("70.190.244.70:27950");
+                }
+                else
+                {
+                    var continents = servers.Select(s => s.Continent).OrderBy(c => c).Distinct();
+                    foreach (var continent in continents)
+                    {
+                        sb.AppendLine($"**{continent}**");
+                        sb.AppendLine("```markdown");
+                        sb.AppendLine(AsciiTableGenerator.CreateAsciiTableFromDataTable(
+                            ContinentToTable(servers.Where(s => s.Continent == continent)
+                                .OrderBy(s => s.Country)
+                                .ThenBy(s => s.City))
+                        )?.ToString());
+                        sb.AppendLine("```");
+                        sb.AppendLine("");
+                    }
+                }
+
+                await ReplyAsync(embed: new EmbedBuilder
+                {
+                    Title = "Servers",
+                    Description = sb.ToString(),
+                    Color = Color.Green
+                }.Build());
+            }
+        }
+
+        private static DataTable ContinentToTable(IEnumerable<Server> servers)
+        {
+            var dataTable = new DataTable();
+            dataTable.Columns.AddRange(new []
+            {
+                new DataColumn("Country"), 
+                new DataColumn("Region"), 
+                new DataColumn("City"), 
+                new DataColumn("Host"), 
+                new DataColumn("Port"), 
+            });
+            foreach (var server in servers)
+            {
+                var row = dataTable.NewRow();
+                row[0] = server.Country;
+                row[1] = server.RegionName;
+                row[2] = server.City;
+                row[3] = server.Host;
+                row[4] = server.Port > 0 ? server.Port.ToString() : "";
+                dataTable.Rows.Add(row);
+            }
+
+            return dataTable;
         }
     }
 }

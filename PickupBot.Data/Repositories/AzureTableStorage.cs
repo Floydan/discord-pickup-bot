@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using Microsoft.Azure.Cosmos.Table;
 using PickupBot.Data.Infrastructure.Extensions;
 using PickupBot.Data.Models;
+using PickupBot.Data.Repositories.Interfaces;
 
 namespace PickupBot.Data.Repositories
 {

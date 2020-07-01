@@ -3,6 +3,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using PickupBot.Data.Models;
 using PickupBot.Data.Repositories;
+using PickupBot.Data.Repositories.Interfaces;
 
 namespace PickupBot.Infrastructure
 {
@@ -55,12 +56,18 @@ namespace PickupBot.Infrastructure
                         new AzureTableSettings(storageConnectionString, nameof(DuelChallenge))
                     )
                 )
+                .AddScoped<IAzureTableStorage<Server>>(provider =>
+                    new AzureTableStorage<Server>(
+                        new AzureTableSettings(storageConnectionString, nameof(Server))
+                    )
+                )
                 .AddScoped<IQueueRepository, PickupQueueRepository>()
                 .AddScoped<IFlaggedSubscribersRepository, FlaggedSubscribersRepository>()
                 .AddScoped<ISubscriberActivitiesRepository, SubscriberActivitiesRepository>()
                 .AddScoped<IDuelPlayerRepository, DuelPlayerRepository>()
                 .AddScoped<IDuelMatchRepository, DuelMatchRepository>()
-                .AddScoped<IDuelChallengeRepository, DuelChallengeRepository>();
+                .AddScoped<IDuelChallengeRepository, DuelChallengeRepository>()
+                .AddScoped<IServerRepository, ServerRepository>();
 
             return services;
         }

@@ -11,6 +11,7 @@ using PickupBot.Commands.Infrastructure.Helpers;
 using PickupBot.Commands.Infrastructure.Services;
 using PickupBot.Data.Models;
 using PickupBot.Data.Repositories;
+using PickupBot.Data.Repositories.Interfaces;
 
 namespace PickupBot.Commands.Modules.Pickup
 {

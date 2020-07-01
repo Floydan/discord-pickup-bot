@@ -21,7 +21,7 @@ namespace PickupBot.Commands.Extensions
 
         public static async Task<IUserMessage> AutoRemoveMessage(this Task<RestUserMessage> message, int delay = 30)
         {
-            var cts = new CancellationTokenSource((delay + 1) * 1000);
+            var cts = new CancellationTokenSource(TimeSpan.FromSeconds(delay + 1));
 
             return await message.ContinueWith(a =>
             {
@@ -32,7 +32,7 @@ namespace PickupBot.Commands.Extensions
 
         public static async Task<IUserMessage> AutoRemoveMessage(this Task<IUserMessage> message, int delay = 30)
         {
-            var cts = new CancellationTokenSource((delay + 1) * 1000);
+            var cts = new CancellationTokenSource(TimeSpan.FromSeconds(delay + 1));
             return await message.ContinueWith(a =>
             {
                 a.Result.AutoRemoveMessage(delay); 

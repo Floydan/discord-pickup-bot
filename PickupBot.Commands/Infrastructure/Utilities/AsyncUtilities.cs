@@ -10,7 +10,7 @@ namespace PickupBot.Commands.Infrastructure.Utilities
         {
             var cancellationTokenSource = new CancellationTokenSource();
             var cancellationToken = cancellationTokenSource.Token;
-            Task.Delay(delay, cancellationToken).ContinueWith(action, cancellationToken);
+            Task.Delay(delay, cancellationToken).ContinueWith(action, cancellationToken).ConfigureAwait(false);
         }
     }
 }

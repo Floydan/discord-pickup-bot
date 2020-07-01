@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 using Discord;
 using Discord.Commands;
@@ -29,30 +28,6 @@ namespace PickupBot.Commands.Modules.Pickup
             _rconPassword = pickupBotSettings.RCONServerPassword ?? "";
             _rconHost = pickupBotSettings.RCONHost ?? "";
             int.TryParse(pickupBotSettings.RCONPort ?? "0", out _rconPort);
-        }
-
-        [Command("servers")]
-        [Alias("server", "ip")]
-        [Summary("Returns a list of server addresses.")]
-        public async Task Servers()
-        {
-            if (!PickupHelpers.IsInPickupChannel((IGuildChannel)Context.Channel))
-                return;
-
-            var sb = new StringBuilder()
-                .AppendLine("**Scandinavia**")
-                .AppendLine("ra3.se")
-                .AppendLine("pickup.ra3.se")
-                .AppendLine("")
-                .AppendLine("**US West**")
-                .AppendLine("70.190.244.70:27950");
-
-            await ReplyAsync(embed: new EmbedBuilder
-            {
-                Title = "Server addresses",
-                Description = sb.ToString(),
-                Color = Color.Green
-            }.Build());
         }
 
         [Command("serverstatus")]
