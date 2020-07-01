@@ -172,27 +172,21 @@ namespace PickupBot.Commands.Modules
                 var sb = new StringBuilder();
                 if (servers.IsNullOrEmpty())
                 {
-                    sb.AppendLine("**Scandinavia**")
-                        .AppendLine("ra3.se")
-                        .AppendLine("pickup.ra3.se")
-                        .AppendLine("")
-                        .AppendLine("**US West**")
-                        .AppendLine("70.190.244.70:27950");
+                    sb.AppendLine("No servers have been added yet.");
                 }
                 else
                 {
                     var continents = servers.Select(s => s.Continent).OrderBy(c => c).Distinct();
                     foreach (var continent in continents)
                     {
-                        sb.AppendLine($"**{continent}**");
-                        sb.AppendLine("```markdown");
-                        sb.AppendLine(AsciiTableGenerator.CreateAsciiTableFromDataTable(
+                        sb.AppendLine($"**{continent}**")
+                          .AppendLine("```markdown")
+                          .AppendLine(AsciiTableGenerator.CreateAsciiTableFromDataTable(
                             ContinentToTable(servers.Where(s => s.Continent == continent)
                                 .OrderBy(s => s.Country)
                                 .ThenBy(s => s.City))
-                        )?.ToString());
-                        sb.AppendLine("```");
-                        sb.AppendLine("");
+                            )?.ToString())
+                          .AppendLine("```");
                     }
                 }
 

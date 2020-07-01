@@ -8,6 +8,7 @@ using AutoMapper;
 using AutoMapper.EquivalencyExpression;
 using Discord;
 using Discord.Addons.Hosting;
+using Discord.Addons.Interactive;
 using Discord.Commands;
 using Discord.WebSocket;
 using Microsoft.Extensions.Configuration;
@@ -110,6 +111,8 @@ namespace PickupBot
             services
                 .AddHttpClient()
                 .ConfigureSettings<PickupBotSettings>(hostContext.Configuration.GetSection("PickupBot"))
+                .ConfigureSettings<EncryptionSettings>(hostContext.Configuration.GetSection("Encryption"))
+                .AddSingleton<InteractiveService>()
                 .AddTransient<IListCommandService, ListCommandService>()
                 .AddTransient<IMiscCommandService, MiscCommandService>()
                 .AddTransient<ISubscriberCommandService, SubscriberCommandService>()

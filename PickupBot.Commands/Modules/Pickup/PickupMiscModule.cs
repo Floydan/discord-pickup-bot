@@ -4,10 +4,13 @@ using System.Threading.Tasks;
 using Discord;
 using Discord.Commands;
 using Microsoft.Extensions.Logging;
+using PickupBot.Commands.Extensions;
 using PickupBot.Commands.Infrastructure.Helpers;
 using PickupBot.Commands.Infrastructure.Utilities;
 using PickupBot.Commands.Models;
 using PickupBot.Data.Models;
+using PickupBot.Data.Repositories.Interfaces;
+using PickupBot.Encryption;
 
 // ReSharper disable MemberCanBePrivate.Global
 namespace PickupBot.Commands.Modules.Pickup
@@ -16,14 +19,18 @@ namespace PickupBot.Commands.Modules.Pickup
     [Summary("Commands for handling pickups - misc. actions")]
     public class PickupMiscModule : ModuleBase<SocketCommandContext>
     {
+        private readonly EncryptionSettings _encryptionSettings;
         private readonly ILogger<PickupMiscModule> _logger;
+        private readonly IServerRepository _serverRepository;
         private readonly string _rconPassword;
         private readonly string _rconHost;
         private readonly int _rconPort;
 
-        public PickupMiscModule(PickupBotSettings pickupBotSettings, ILogger<PickupMiscModule> logger)
+        public PickupMiscModule(PickupBotSettings pickupBotSettings, EncryptionSettings encryptionSettings, ILogger<PickupMiscModule> logger, IServerRepository serverRepository)
         {
+            _encryptionSettings = encryptionSettings;
             _logger = logger;
+            _serverRepository = serverRepository;
 
             _rconPassword = pickupBotSettings.RCONServerPassword ?? "";
             _rconHost = pickupBotSettings.RCONHost ?? "";
@@ -31,38 +38,54 @@ namespace PickupBot.Commands.Modules.Pickup
         }
 
         [Command("serverstatus")]
-        public async Task ServerStatus()
+        public async Task ServerStatus(string host = "")
         {
             if (string.IsNullOrWhiteSpace(_rconPassword) || string.IsNullOrWhiteSpace(_rconHost) || _rconPort == 0) return;
 
+            var rconPassword = _rconPassword;
+            var rconPort = _rconPort;
+            var rconHost = _rconHost;
+            if (!string.IsNullOrEmpty(host))
+            {
+                var server = await _serverRepository.Find(Context.Guild.Id, host);
+                if (server != null)
+                {
+                    rconPort = server.Port;
+                    rconHost = server.Host;
+                    rconPassword = !string.IsNullOrWhiteSpace(server.RconPassword) ? 
+                        EncryptionProvider.AESDecrypt(server.RconPassword, _encryptionSettings.Key, _encryptionSettings.IV) : 
+                        string.Empty;
+
+                    if (string.IsNullOrWhiteSpace(rconPassword) || string.IsNullOrWhiteSpace(rconHost) || rconPort == 0)
+                    {
+                        await ReplyAsync(
+                            $"Can't show server status since no rcon password has been set for the server {host}").AutoRemoveMessage(15);
+                        return;
+                    }
+                }
+            }
+
             try
             {
-                var response = await RCON.UDPSendCommand("status", _rconHost, _rconPassword, _rconPort).ConfigureAwait(false);
-                
+                var response = await RCON.UDPSendCommand("status", rconHost, rconPassword, rconPort).ConfigureAwait(false);
+
                 _logger.LogInformation($"serverstatus response: {response}");
                 var serverStatus = new ServerStatus(response);
 
                 var embed = new EmbedBuilder
                 {
-                    Title = $"Server status for {_rconHost}",
+                    Title = $"Server status for {rconHost}",
                     Description = $"**Map:** _{serverStatus.Map} _" +
                                   $"{Environment.NewLine}" +
                                   "**Players**" +
                                   $"{Environment.NewLine}"
                 };
 
-                if (serverStatus.Players.Any())
-                {
-                    embed.Description += $"```{Environment.NewLine}" +
-                                         $"{serverStatus.PlayersToTable()}" +
-                                         $"{Environment.NewLine}```";
-                }
-                else
-                {
-                    embed.Description += $"```{Environment.NewLine}" +
-                                         "No players are currently online" +
-                                         $"{Environment.NewLine}```";
-                }
+                embed.Description += $"```{Environment.NewLine}" +
+                                     (serverStatus.Players.Any() ?
+                                        $"{serverStatus.PlayersToTable()}" :
+                                        "No players are currently online") +
+                                     $"{Environment.NewLine}```";
 
                 await ReplyAsync(embed: embed.Build());
             }
@@ -82,7 +105,7 @@ namespace PickupBot.Commands.Modules.Pickup
             if (string.IsNullOrWhiteSpace(_rconPassword) || string.IsNullOrWhiteSpace(_rconHost) || _rconPort == 0) return;
 
             var userdata = await RCON.UDPSendCommand($"dumpuser {player}", _rconHost, _rconPassword, _rconPort).ConfigureAwait(false);
-            if(userdata.IndexOf("is not on the server", StringComparison.OrdinalIgnoreCase) != -1)
+            if (userdata.IndexOf("is not on the server", StringComparison.OrdinalIgnoreCase) != -1)
             {
                 await ReplyAsync(
                     $"```{Environment.NewLine}" +

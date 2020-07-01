@@ -14,6 +14,11 @@ namespace PickupBot.Data.Repositories
             _client = client;
         }
 
+        public async Task<Server> Find(ulong guildId, string host)
+        {
+            return await _client.GetItem(guildId.ToString(), host.ToLowerInvariant());
+        }
+
         public async Task<bool> Save(ulong guildId, string host, int port = default)
         {
             return await _client.Insert(new Server(guildId, host, port));

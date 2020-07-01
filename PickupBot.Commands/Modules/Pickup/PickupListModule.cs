@@ -422,9 +422,13 @@ namespace PickupBot.Commands.Modules.Pickup
             var queue = await _miscCommandService.VerifyQueueByName(queueName, (IGuildChannel)Context.Channel).ConfigureAwait(false);
             if (queue == null) return;
 
-            await _listCommandService.PrintTeams(queue, Context.Channel, Context.Guild).ConfigureAwait(false);
+            using (Context.Channel.EnterTypingState())
+            {
 
-            await _miscCommandService.TriggerRconNotification(queue).ConfigureAwait(false);
+                await _listCommandService.PrintTeams(queue, Context.Channel, Context.Guild).ConfigureAwait(false);
+
+                await _miscCommandService.TriggerRconNotification(queue).ConfigureAwait(false);
+            }
         }
 
         [Command("stop")]

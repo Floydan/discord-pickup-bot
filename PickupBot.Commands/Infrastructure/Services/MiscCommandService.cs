@@ -11,6 +11,7 @@ using PickupBot.Commands.Infrastructure.Utilities;
 using PickupBot.Data.Models;
 using PickupBot.Data.Repositories;
 using PickupBot.Data.Repositories.Interfaces;
+using PickupBot.Encryption;
 
 namespace PickupBot.Commands.Infrastructure.Services
 {
@@ -19,15 +20,25 @@ namespace PickupBot.Commands.Infrastructure.Services
         private readonly IQueueRepository _queueRepository;
         private readonly IFlaggedSubscribersRepository _flagRepository;
         private readonly ILogger<MiscCommandService> _logger;
+        private readonly IServerRepository _serverRepository;
+        private readonly EncryptionSettings _encryptionSettings;
         private readonly string _rconPassword;
         private readonly string _rconHost;
         private readonly int _rconPort;
 
-        public MiscCommandService(IQueueRepository queueRepository, IFlaggedSubscribersRepository flagRepository, PickupBotSettings pickupBotSettings, ILogger<MiscCommandService> logger)
+        public MiscCommandService(
+            IQueueRepository queueRepository, 
+            IFlaggedSubscribersRepository flagRepository, 
+            PickupBotSettings pickupBotSettings, 
+            ILogger<MiscCommandService> logger,
+            IServerRepository serverRepository,
+            EncryptionSettings encryptionSettings)
         {
             _queueRepository = queueRepository;
             _flagRepository = flagRepository;
             _logger = logger;
+            _serverRepository = serverRepository;
+            _encryptionSettings = encryptionSettings;
 
             _rconPassword = pickupBotSettings.RCONServerPassword ?? "";
             _rconHost = pickupBotSettings.RCONHost ?? "";
@@ -85,17 +96,32 @@ namespace PickupBot.Commands.Infrastructure.Services
                 !queue.Host.Equals(_rconHost, StringComparison.OrdinalIgnoreCase))
                 return;
 
+            var rconPassword = _rconPassword;
+            var rconPort = _rconPort;
+            var rconHost = _rconHost;
+
+            var server = await _serverRepository.Find(Convert.ToUInt64(queue.GuildId), queue.Host);
+            if (server != null)
+            {
+                rconPort = server.Port;
+                rconHost = server.Host;
+                rconPassword = !string.IsNullOrWhiteSpace(server.RconPassword) ? 
+                    EncryptionProvider.AESDecrypt(server.RconPassword, _encryptionSettings.Key, _encryptionSettings.IV) : 
+                    string.Empty;
+            }
+
+            if (string.IsNullOrWhiteSpace(rconPassword) || string.IsNullOrWhiteSpace(rconHost) || rconPort == 0) return;
+
             try
             {
                 var redTeam = queue.Teams.FirstOrDefault();
                 var blueTeam = queue.Teams.LastOrDefault();
-                if (string.IsNullOrWhiteSpace(_rconPassword) || string.IsNullOrWhiteSpace(_rconHost) || _rconPort == 0) return;
 
                 var command = $"say \"^2Pickup '^3{queue.Name}^2' has started! " +
                               $"^1RED TEAM: ^5{string.Join(", ", redTeam.Subscribers.Select(w => w.Name))} ^7- " +
                               $"^4BLUE TEAM: ^5{string.Join(", ", blueTeam.Subscribers.Select(w => w.Name))}\"";
 
-                await RCON.UDPSendCommand(command, _rconHost, _rconPassword, _rconPort, true).ConfigureAwait(false);
+                await RCON.UDPSendCommand(command, rconHost, rconPassword, rconPort, true).ConfigureAwait(false);
 
             }
             catch (Exception e)

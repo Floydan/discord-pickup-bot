@@ -17,7 +17,9 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "PickupBot.Data", "PickupBot
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "PickupBot.Translation", "PickupBot.Translation\PickupBot.Translation.csproj", "{1FE7EA78-D812-4895-9621-ECB2188F8A2E}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PickupBot.GitHub", "PickupBot.GitHub\PickupBot.GitHub.csproj", "{1A49EC39-5147-48A3-AB5B-F1FFDEE253CE}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "PickupBot.GitHub", "PickupBot.GitHub\PickupBot.GitHub.csproj", "{1A49EC39-5147-48A3-AB5B-F1FFDEE253CE}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PickupBot.Encryption", "PickupBot.Encryption\PickupBot.Encryption.csproj", "{B209A496-4181-4F6B-AA9B-4134C8994ABF}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -45,6 +47,10 @@ Global
 		{1A49EC39-5147-48A3-AB5B-F1FFDEE253CE}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{1A49EC39-5147-48A3-AB5B-F1FFDEE253CE}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{1A49EC39-5147-48A3-AB5B-F1FFDEE253CE}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B209A496-4181-4F6B-AA9B-4134C8994ABF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B209A496-4181-4F6B-AA9B-4134C8994ABF}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B209A496-4181-4F6B-AA9B-4134C8994ABF}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B209A496-4181-4F6B-AA9B-4134C8994ABF}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

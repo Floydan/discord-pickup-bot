@@ -8,6 +8,7 @@
     <PackageReference Include="AutoMapper" Version="9.0.0" />
     <PackageReference Include="Discord.Addons.CommandsExtension" Version="1.0.4" />
     <PackageReference Include="Discord.Addons.Hosting" Version="3.0.0" />
+    <PackageReference Include="Discord.Addons.Interactive" Version="2.0.0" />
     <PackageReference Include="Discord.Net.Commands" Version="2.2.0" />
     <PackageReference Include="Discord.Net.WebSocket" Version="2.2.0" />
     <PackageReference Include="Microsoft.Extensions.Logging" Version="3.1.5" />
@@ -16,6 +17,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\PickupBot.Data\PickupBot.Data.csproj" />
+    <ProjectReference Include="..\PickupBot.Encryption\PickupBot.Encryption.csproj" />
     <ProjectReference Include="..\PickupBot.GitHub\PickupBot.GitHub.csproj" />
     <ProjectReference Include="..\PickupBot.Translation\PickupBot.Translation.csproj" />
   </ItemGroup>

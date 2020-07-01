@@ -28,5 +28,6 @@ namespace PickupBot.Data.Models
         public string City { get; set; }
         public string TimeZone { get; set; }
         public int Offset { get; set; }
+        public string RconPassword { get; set; }
     }
 }
