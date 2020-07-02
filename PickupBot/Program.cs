@@ -18,6 +18,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Console;
 using PickupBot.Commands;
 using PickupBot.Commands.Extensions;
+using PickupBot.Commands.Infrastructure;
 using PickupBot.Commands.Infrastructure.Services;
 using PickupBot.Data.Models;
 using PickupBot.GitHub;
@@ -113,6 +114,7 @@ namespace PickupBot
                 .ConfigureSettings<PickupBotSettings>(hostContext.Configuration.GetSection("PickupBot"))
                 .ConfigureSettings<EncryptionSettings>(hostContext.Configuration.GetSection("Encryption"))
                 .AddSingleton<InteractiveService>()
+                .AddSingleton<AppVersionInfo>()
                 .AddTransient<IListCommandService, ListCommandService>()
                 .AddTransient<IMiscCommandService, MiscCommandService>()
                 .AddTransient<ISubscriberCommandService, SubscriberCommandService>()

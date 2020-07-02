@@ -10,6 +10,7 @@ using Discord.Addons.CommandsExtension;
 using Discord.Commands;
 using Discord.WebSocket;
 using PickupBot.Commands.Extensions;
+using PickupBot.Commands.Infrastructure;
 using PickupBot.Commands.Infrastructure.Utilities;
 using PickupBot.Data.Models;
 using PickupBot.Data.Repositories.Interfaces;
@@ -26,17 +27,20 @@ namespace PickupBot.Commands.Modules
         private readonly ISubscriberActivitiesRepository _activitiesRepository;
         private readonly GitHubService _githubService;
         private readonly IServerRepository _serverRepository;
+        private readonly AppVersionInfo _appVersionInfo;
 
         public PublicModule(
             CommandService commandService,
             ISubscriberActivitiesRepository activitiesRepository,
             GitHubService gitHubService,
-            IServerRepository serverRepository)
+            IServerRepository serverRepository,
+            AppVersionInfo appVersionInfo)
         {
             _commandService = commandService;
             _activitiesRepository = activitiesRepository;
             _githubService = gitHubService;
             _serverRepository = serverRepository;
+            _appVersionInfo = appVersionInfo;
         }
 
         [Command("ping")]
@@ -57,7 +61,20 @@ namespace PickupBot.Commands.Modules
         public async Task Version()
         {
             var version = Assembly.GetEntryAssembly()?.GetName().Version;
-            BotMessageHelper.AutoRemoveMessage(await ReplyAsync($"**Version:** `{version}`"), 10);
+            var framework = System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription;
+
+            var versionDescription =
+                $"**Version: ** _{version}_ {Environment.NewLine}" +
+                $"Powered by **{framework}** and deployed from commit [{_appVersionInfo.ShortGitHash}](https://github.com/Floydan/discord-pickup-bot/commit/{_appVersionInfo.GitHash}){Environment.NewLine}" +
+                $"_© Copyright {DateTime.Now.Year}, [Floydan](https://github.com/Floydan/)_";
+
+            var embed = new EmbedBuilder()
+                .WithDescription(versionDescription)
+                .WithColor(Color.LightOrange);
+
+            BotMessageHelper.AutoRemoveMessage(
+                await ReplyAsync(embed: embed.Build()), 
+                100);
         }
 
         [Command("top10")]
