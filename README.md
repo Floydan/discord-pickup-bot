@@ -1,39 +1,50 @@
 ![build](https://github.com/Floydan/discord-pickup-bot/workflows/build/badge.svg?branch=master) 
 [![Join the chat at https://gitter.im/discord-pickup-bot/community](https://badges.gitter.im/discord-pickup-bot/community.svg)](https://gitter.im/discord-pickup-bot/community?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 [![Maintainability](https://api.codeclimate.com/v1/badges/66275c62b74e27401e3b/maintainability)](https://codeclimate.com/github/Floydan/discord-pickup-bot/maintainability)
+[![Discord](https://img.shields.io/badge/discord-chat-blue?logo=discord)](https://discord.gg/pkPMjWV)
 
 # Discord pickup game bot
 
 A discord bot for managing pickup games
 
-The bot can use azure tables for storing queues or just an in memory store using `ConcurrentDictionary`.
+The bot stores all data in an Azure Table but this can easily be changed using dependency injections and craeting new repositories inheriting from these interfaces:
++ IDuelChallengeRepository
++ IDuelMatchRepository
++ IDuelPlayerRepository
++ IFlaggedSubscriberRepository
++ IQueueRepository
++ IServerRepository
++ ISubscriberActivitiesRepository
 
-You can change which one is used by changing the dependency injection in `PickupBot/Program.cs`
+You can change which implementation is used by changing the dependency injection in `PickupBot/Program.cs`
 
 ## Setup
-Create a `launchSettings.json` file in the PickupBot/Properties folder
+Edit the `appSettings.json` file in the `PickupBot` folder
 
 Then add this to the json file substituting the values
 ```javascript
 {
-    "profiles": {
-        "PickupBot": {
-            "commandName": "Project",
-            "environmentVariables": {
-                "DiscordToken": "DISCORD TOKEN HERE",
-                "StorageConnectionString": "AZURE TABLES STORAGE CONNECTION STRING HERE",
-                "RCONHost": "ip/host",
-                "RCONPort": "portnumber",
-                "RCONPassword": "password",
-                "GoogleTranslateAPIKey": "Google API Key",
-                "CommandPrefix": "!",
-            }
-        }
-    }
+    "ConnectionStrings": {
+        "StorageConnectionString": "<PlaceHolder for connection: AzureStorage>"
+    },
+    "PickupBot": {
+        "DiscordToken": "TOKEN",
+        "RCONServerPassword": "RCON-PASSWORD",
+        "RCONHost": "RCON-HOST",
+        "RCONPort": "RCON-PORT",
+        "CommandPrefix": "!",
+        "GoogleTranslateAPIKey": "GOOGLE-TRANSLATE-KEY"
+    },
+    "Encryption": {
+        "Key": "string with 32 characters",
+        "IV": "string with 16 characters" 
+    } 
 }
 ```
 
-- The RCON Prefixed environment variables enable the bot to query and interact with an RCON enabled game server.
+- The RCON Prefixed variables enable the bot to query and interact with an RCON enabled game server.
+  + With the latest updates you can now add servers and store them in the DB with an encrypted rcon password so the prefixed app settings variables are only used as a fallback from now on.
+  + The Encryption uses the Encryption.Key and Ecryption.IV app settings
 - Google translate API Key enables the bot to translate messages in discord
   + To translate a message just add a **reaction** in the form of a country flag that represents the language you wish the message to be translated to.
   + Supported languages are the Scandinavian languages, major european languages and russian.
