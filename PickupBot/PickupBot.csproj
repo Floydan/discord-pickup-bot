@@ -13,7 +13,7 @@
         <Copyright>Copyright (c) 2020 Joakim Höglund</Copyright>
     </PropertyGroup>
     <ItemGroup>
-        <PackageReference Include="AutoMapper" Version="9.0.0" />
+        <PackageReference Include="AutoMapper" Version="10.0.0" />
         <PackageReference Include="AutoMapper.Collection" Version="6.0.0" />
         <PackageReference Include="AutoMapper.Extensions.Microsoft.DependencyInjection" Version="7.0.0" />
         <PackageReference Include="Discord.Addons.Hosting" Version="3.0.0" />
