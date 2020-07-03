@@ -74,7 +74,7 @@ namespace PickupBot.Commands.Modules
 
             BotMessageHelper.AutoRemoveMessage(
                 await ReplyAsync(embed: embed.Build()), 
-                100);
+                15);
         }
 
         [Command("top10")]
@@ -155,11 +155,11 @@ namespace PickupBot.Commands.Modules
         {
             using (Context.Channel.EnterTypingState())
             {
-                var releases = await _githubService.GetReleases();
+                var releases = await _githubService.GetReleases(2);
 
                 var gitHubReleases = releases as GitHubRelease[] ?? releases.ToArray();
 
-                foreach (var release in gitHubReleases.Take(2))
+                foreach (var release in gitHubReleases)
                 {
                     var embed = new EmbedBuilder
                     {

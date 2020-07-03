@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Net.Http;
 using System.Text.Json;
 using System.Threading.Tasks;
@@ -21,18 +22,6 @@ namespace PickupBot.GitHub
             _client = client;
         }
 
-        public async Task<string> GetCommits(int count = 10)
-        {
-            var response = await _client.GetAsync("/repos/Floydan/discord-pickup-bot/commits");
-            
-            if (response.IsSuccessStatusCode)
-            {
-                return await response.Content.ReadAsStringAsync();
-            }
-
-            return $"StatusCode: {response.StatusCode}";
-        }
-
         public async Task<IEnumerable<GitHubRelease>> GetReleases(int count = 3)
         {
             var response = await _client.GetAsync("/repos/Floydan/discord-pickup-bot/releases");
@@ -40,7 +29,7 @@ namespace PickupBot.GitHub
             if (!response.IsSuccessStatusCode) return null;
 
             await using var stream = await response.Content.ReadAsStreamAsync();
-            return await JsonSerializer.DeserializeAsync<IEnumerable<GitHubRelease>>(stream);
+            return (await JsonSerializer.DeserializeAsync<IEnumerable<GitHubRelease>>(stream)).Take(count);
 
         }
     }
