@@ -13,7 +13,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\PickupBot.Encryption\PickupBot.Encryption.csproj" />
+    <ProjectReference Include="..\..\PickupBot.Encryption\PickupBot.Encryption.csproj" />
   </ItemGroup>
 
 </Project>
