@@ -21,6 +21,6 @@ jobs:
     - name: Install dependencies
       run: dotnet restore -r linux-arm
     - name: Build
-      run: dotnet build --configuration Release --no-restore -r linux-arm
+      run: dotnet build ./PickupBot/PickupBot.csproj --configuration Release --no-restore -r linux-arm
     - name: Test
       run: dotnet test --verbosity normal
