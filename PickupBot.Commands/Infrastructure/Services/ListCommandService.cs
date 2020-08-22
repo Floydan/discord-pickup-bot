@@ -9,7 +9,6 @@ using PickupBot.Commands.Extensions;
 using PickupBot.Commands.Infrastructure.Helpers;
 using PickupBot.Commands.Infrastructure.Utilities;
 using PickupBot.Data.Models;
-using PickupBot.Data.Repositories;
 using PickupBot.Data.Repositories.Interfaces;
 
 namespace PickupBot.Commands.Infrastructure.Services

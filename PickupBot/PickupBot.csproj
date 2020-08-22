@@ -4,7 +4,7 @@
         <TargetFramework>netcoreapp3.1</TargetFramework>
         <PublishTrimmed>true</PublishTrimmed>
         <UserSecretsId>a7bb364b-0d73-420c-a3b9-18270f20e20f</UserSecretsId>
-        <Version>1.15.2</Version>
+        <Version>1.16.0</Version>
         <Authors>Joakim Höglund</Authors>
         <PackageLicenseExpression>MIT</PackageLicenseExpression>
         <PackageProjectUrl>https://github.com/Floydan/discord-pickup-bot</PackageProjectUrl>
@@ -20,12 +20,12 @@
         <PackageReference Include="Discord.Addons.Interactive" Version="2.0.0" />
         <PackageReference Include="Discord.Net" Version="2.2.0" />
         <PackageReference Include="Microsoft.Extensions.Azure" Version="1.0.0" />
-        <PackageReference Include="Microsoft.Extensions.Configuration.UserSecrets" Version="3.1.6" />
-        <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="3.1.6" />
-        <PackageReference Include="Microsoft.Extensions.Hosting" Version="3.1.6" />
-        <PackageReference Include="Microsoft.Extensions.Hosting.Systemd" Version="3.1.6" />
-        <PackageReference Include="Microsoft.Extensions.Http" Version="3.1.6" />
-        <PackageReference Include="Microsoft.Extensions.Logging" Version="3.1.6" />
+        <PackageReference Include="Microsoft.Extensions.Configuration.UserSecrets" Version="3.1.7" />
+        <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="3.1.7" />
+        <PackageReference Include="Microsoft.Extensions.Hosting" Version="3.1.7" />
+        <PackageReference Include="Microsoft.Extensions.Hosting.Systemd" Version="3.1.7" />
+        <PackageReference Include="Microsoft.Extensions.Http" Version="3.1.7" />
+        <PackageReference Include="Microsoft.Extensions.Logging" Version="3.1.7" />
     </ItemGroup>
     <ItemGroup>
         <ProjectReference Include="..\PickupBot.Commands\PickupBot.Commands.csproj" />
