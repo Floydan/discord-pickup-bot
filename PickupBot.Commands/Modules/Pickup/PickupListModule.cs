@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
 using Discord;
@@ -106,6 +107,8 @@ namespace PickupBot.Commands.Modules.Pickup
             if (!await _miscCommandService.VerifyUserFlaggedStatus((IGuildUser)Context.User, Context.Channel).ConfigureAwait(false))
                 return;
 
+            queueName = queueName.Trim(' ', '"').Trim();
+
             //find queue with name {queueName}
             var queue = await _queueRepository.FindQueue(queueName, Context.Guild.Id.ToString()).ConfigureAwait(false);
 
@@ -132,6 +135,9 @@ namespace PickupBot.Commands.Modules.Pickup
         public async Task Rename([Name("Queue name")] string queueName, [Name("New name")] string newName)
         {
             if (!PickupHelpers.IsInPickupChannel((IGuildChannel)Context.Channel)) return;
+
+            queueName = queueName.Trim(' ', '"').Trim();
+            newName = newName.Trim(' ', '"').Trim();
 
             var queue = await _miscCommandService.VerifyQueueByName(queueName, (IGuildChannel)Context.Channel).ConfigureAwait(false);
             if (queue == null) return;
@@ -181,6 +187,8 @@ namespace PickupBot.Commands.Modules.Pickup
         {
             if (!PickupHelpers.IsInPickupChannel((IGuildChannel)Context.Channel))
                 return;
+            
+            queueName = queueName.Trim(' ', '"').Trim();
 
             var queue = await _listCommandService.UpdateOperators(queueName, operators, (SocketGuildUser)Context.User).ConfigureAwait(false);
 
@@ -203,6 +211,8 @@ namespace PickupBot.Commands.Modules.Pickup
         {
             if (!PickupHelpers.IsInPickupChannel((IGuildChannel)Context.Channel))
                 return;
+
+            queueName = queueName.Trim(' ', '"').Trim();
 
             var queue = await _miscCommandService.VerifyQueueByName(queueName, (IGuildChannel)Context.Channel).ConfigureAwait(false);
             if (queue == null)
@@ -304,6 +314,8 @@ namespace PickupBot.Commands.Modules.Pickup
         {
             if (!PickupHelpers.IsInPickupChannel((IGuildChannel)Context.Channel))
                 return;
+            
+            queueName = queueName.Trim(' ', '"').Trim();
 
             var queue = await _queueRepository.FindQueue(queueName, Context.Guild.Id.ToString());
 
@@ -332,6 +344,8 @@ namespace PickupBot.Commands.Modules.Pickup
         {
             if (!PickupHelpers.IsInPickupChannel((IGuildChannel)Context.Channel))
                 return;
+            
+            queueName = queueName.Trim(' ', '"').Trim();
 
             PickupQueue queue = null;
             if (!string.IsNullOrWhiteSpace(queueName))
@@ -358,6 +372,8 @@ namespace PickupBot.Commands.Modules.Pickup
         public async Task Start([Name("Queue name"), Summary("Queue name"), Remainder] string queueName)
         {
             if (!PickupHelpers.IsInPickupChannel((IGuildChannel)Context.Channel)) return;
+            
+            queueName = queueName.Trim(' ', '"').Trim();
 
             var queue = await _miscCommandService.VerifyQueueByName(queueName, (IGuildChannel)Context.Channel).ConfigureAwait(false);
             if (queue == null || queue.Started) return;
@@ -418,6 +434,8 @@ namespace PickupBot.Commands.Modules.Pickup
         {
             if (!PickupHelpers.IsInPickupChannel((IGuildChannel)Context.Channel))
                 return;
+            
+            queueName = queueName.Trim(' ', '"').Trim();
 
             var queue = await _miscCommandService.VerifyQueueByName(queueName, (IGuildChannel)Context.Channel).ConfigureAwait(false);
             if (queue == null) return;
@@ -437,6 +455,8 @@ namespace PickupBot.Commands.Modules.Pickup
         {
             if (!PickupHelpers.IsInPickupChannel((IGuildChannel)Context.Channel))
                 return;
+            
+            queueName = queueName.Trim(' ', '"').Trim();
 
             var queue = await _miscCommandService.VerifyQueueByName(queueName, (IGuildChannel)Context.Channel).ConfigureAwait(false);
             if (queue == null) return;

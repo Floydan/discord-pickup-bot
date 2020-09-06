@@ -39,6 +39,8 @@ namespace PickupBot.Commands.Modules.Pickup
         {
             if (!PickupHelpers.IsInPickupChannel((IGuildChannel)Context.Channel))
                 return;
+            
+            queueName = queueName.Trim(' ', '"').Trim();
 
             //find queue with name {queueName}
             await _subscriberCommandService.Add(queueName, Context.Channel, (IGuildUser)Context.User).ConfigureAwait(false);
@@ -51,6 +53,8 @@ namespace PickupBot.Commands.Modules.Pickup
         {
             if (!PickupHelpers.IsInPickupChannel((IGuildChannel)Context.Channel))
                 return;
+            
+            queueName = queueName.Trim(' ', '"').Trim();
 
             if (string.IsNullOrWhiteSpace(queueName))
             {
