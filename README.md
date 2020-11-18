@@ -5,10 +5,10 @@
 
 
 - [Discord pickup game bot](#discord-pickup-game-bot)
-  - [## Setup](#-setup)
-  - [## Testing/using](#-testingusing)
-  - [## Pickups and Bot commands](#-pickups-and-bot-commands)
-  - [## Command examples](#-command-examples)
+  - [Setup](#setup)
+  - [Testing/using](#testingusing)
+  - [Pickups and Bot commands](#pickups-and-bot-commands)
+  - [Command examples](#command-examples)
   
   
 # Discord pickup game bot
@@ -27,7 +27,6 @@ The bot stores all data in an Azure Table but this can easily be changed using d
 You can change which implementation is used by changing the dependency injection in `PickupBot/Program.cs`
 
 ## Setup
----
 Edit the `appSettings.json` file in the `PickupBot` folder
 
 Then add this to the json file substituting the values
@@ -63,7 +62,6 @@ Then add this to the json file substituting the values
 The `settings.job` can be ignored since this discord bot needs to be run continuously.
 
 ## Testing/using
----
 To add the bot to your discord server just go here to authorize and give the bot access:
 
 [Bot Authorization](https://discordapp.com/api/oauth2/authorize?client_id=696658931434389505&permissions=285215793&scope=bot)
@@ -71,7 +69,6 @@ To add the bot to your discord server just go here to authorize and give the bot
 After the bot has been added to your server you can run `!help` to see all the available commands.
 
 ## Pickups and Bot commands
----
 Use the `!help` command in the #pickup channel to get familiar with the pickup bot commands
 
 `!subscribe` to get notifications when pickups are promoted
@@ -84,7 +81,6 @@ _Supported languages are:_
 :sweden: :norway: :denmark: :finland: :de: :netherlands: :es: :it: :fr: :poland: :portugal: :greece: :gb: :us: :ru: 
 
 ## Command examples
----
 When creating a pickup queue you use the `!create` command
 
 For example
