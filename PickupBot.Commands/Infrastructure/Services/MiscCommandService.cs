@@ -91,9 +91,6 @@ namespace PickupBot.Commands.Infrastructure.Services
         public async Task TriggerRconNotification(PickupQueue queue)
         {
             if (!queue.Rcon) return;
-            if (!string.IsNullOrWhiteSpace(queue.Host) &&
-                !queue.Host.Equals(_rconHost, StringComparison.OrdinalIgnoreCase))
-                return;
 
             var rconPassword = "";
             var rconPort = 0;
