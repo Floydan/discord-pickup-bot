@@ -17,6 +17,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Console;
 using PickupBot.Commands;
+using PickupBot.Commands.Constants;
 using PickupBot.Commands.Extensions;
 using PickupBot.Commands.Infrastructure;
 using PickupBot.Commands.Infrastructure.Services;
@@ -103,7 +104,7 @@ namespace PickupBot
 
             services.Configure<HostOptions>(option =>
             {
-                option.ShutdownTimeout = TimeSpan.FromSeconds(5);
+                option.ShutdownTimeout = TimeSpan.FromSeconds(10);
             });
 
             var assemblies = new[]
@@ -160,36 +161,36 @@ namespace PickupBot
         {
             try
             {
-                var pickupsCategory =
-                    (ICategoryChannel)guild.CategoryChannels.FirstOrDefault(c => c.Name.Equals("Pickups", StringComparison.OrdinalIgnoreCase)) ??
-                    await guild.CreateCategoryChannelAsync("Pickups");
+                var pickupsCategory = (ICategoryChannel)guild.CategoryChannels
+                                          .FirstOrDefault(c => c.Name.Equals(CategoryNames.Pickups, StringComparison.OrdinalIgnoreCase)) ??
+                                      await guild.CreateCategoryChannelAsync(CategoryNames.Pickups);
 
                 await CreateChannel(guild,
-                    "pickup",
+                    ChannelNames.Pickup,
                     "powered by pickup-bot | !help for instructions",
                     pickupsCategory.Id);
 
                 await CreateChannel(guild,
-                    "duel",
+                    ChannelNames.Duel,
                     "powered by pickup-bot | !help for instructions",
                     pickupsCategory.Id);
 
                 await CreateChannel(guild,
-                    "active-pickup",
+                    ChannelNames.ActivePickups,
                     "Active pickups | use reactions to signup | powered by pickup-bot",
                     pickupsCategory.Id);
 
                 // create applicable roles if missing
-                if (guild.Roles.All(w => w.Name != "pickup-promote"))
-                    await guild.CreateRoleAsync("pickup-promote", GuildPermissions.None, Color.Orange, isHoisted: false, isMentionable: true);
+                if (guild.Roles.All(w => w.Name != RoleNames.PickupPromote))
+                    await guild.CreateRoleAsync(RoleNames.PickupPromote, GuildPermissions.None, Color.Orange, isHoisted: false, isMentionable: true);
 
                 // create applicable roles if missing
-                if (guild.Roles.All(w => w.Name != "duellist"))
-                    await guild.CreateRoleAsync("duellist", GuildPermissions.None, isHoisted: false, isMentionable: true);
+                if (guild.Roles.All(w => w.Name != RoleNames.Duellist))
+                    await guild.CreateRoleAsync(RoleNames.Duellist, GuildPermissions.None, isHoisted: false, isMentionable: true);
 
                 // create voice channel category if missing
-                if (guild.CategoryChannels.FirstOrDefault(c => c.Name.Equals("Pickup voice channels", StringComparison.OrdinalIgnoreCase)) == null)
-                    await guild.CreateCategoryChannelAsync("Pickup voice channels");
+                if (guild.CategoryChannels.FirstOrDefault(c => c.Name.Equals(CategoryNames.PickupVoiceChannels, StringComparison.OrdinalIgnoreCase)) == null)
+                    await guild.CreateCategoryChannelAsync(CategoryNames.PickupVoiceChannels);
             }
             catch (Exception e)
             {

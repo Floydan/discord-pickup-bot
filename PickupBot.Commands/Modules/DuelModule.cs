@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Discord;
 using Discord.Commands;
 using Microsoft.Extensions.Logging;
+using PickupBot.Commands.Constants;
 using PickupBot.Commands.Extensions;
 using PickupBot.Commands.Infrastructure.Helpers;
 using PickupBot.Data.Models;
@@ -444,8 +445,8 @@ namespace PickupBot.Commands.Modules
         }
 
         private async Task<IRole> GetDuellistRole() =>
-            Context.Guild.Roles.FirstOrDefault(r => r.Name.Equals("duellist", StringComparison.OrdinalIgnoreCase)) ??
-            (IRole)await Context.Guild.CreateRoleAsync("duellist", GuildPermissions.None, isHoisted: false, isMentionable: false);
+            Context.Guild.Roles.FirstOrDefault(r => r.Name.Equals(RoleNames.Duellist, StringComparison.OrdinalIgnoreCase)) ??
+            (IRole)await Context.Guild.CreateRoleAsync(RoleNames.Duellist, GuildPermissions.None, isHoisted: false, isMentionable: false);
 
     }
 }

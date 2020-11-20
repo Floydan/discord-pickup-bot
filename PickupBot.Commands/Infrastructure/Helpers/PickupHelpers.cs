@@ -3,6 +3,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Discord;
 using Discord.WebSocket;
+using PickupBot.Commands.Constants;
 using PickupBot.Data.Models;
 
 namespace PickupBot.Commands.Infrastructure.Helpers
@@ -15,14 +16,14 @@ namespace PickupBot.Commands.Infrastructure.Helpers
                    ?? await guild.CreateVoiceChannelAsync(name, properties => properties.CategoryId = categoryId);
         }
 
-        public static bool IsInPickupChannel(IChannel channel) => channel.Name.StartsWith("pickup", StringComparison.OrdinalIgnoreCase);
-        public static bool IsInDuelChannel(IChannel channel) => channel.Name.Equals("duel", StringComparison.OrdinalIgnoreCase);
+        public static bool IsInPickupChannel(IChannel channel) => channel.Name.StartsWith(ChannelNames.Pickup, StringComparison.OrdinalIgnoreCase);
+        public static bool IsInDuelChannel(IChannel channel) => channel.Name.Equals(ChannelNames.Duel, StringComparison.OrdinalIgnoreCase);
 
         public static async Task<ITextChannel> GetPickupQueuesChannel(SocketGuild guild)
         {
             var queuesChannel = (ITextChannel)guild.TextChannels.FirstOrDefault(c =>
-                                    c.Name.Equals("active-pickups", StringComparison.OrdinalIgnoreCase)) ??
-                                await guild.CreateTextChannelAsync("active-pickups",
+                                    c.Name.Equals(ChannelNames.ActivePickups, StringComparison.OrdinalIgnoreCase)) ??
+                                await guild.CreateTextChannelAsync(ChannelNames.ActivePickups,
                                     properties => { properties.Topic = "Active pickups, use reactions to signup"; });
             return queuesChannel;
         }

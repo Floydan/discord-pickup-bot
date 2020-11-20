@@ -47,17 +47,17 @@ namespace PickupBot.Commands.Infrastructure.Services
 
         public async Task<PickupQueue> VerifyQueueByName(string queueName, IGuildChannel channel)
         {
-            var queue = await _queueRepository.FindQueue(queueName, channel.Guild.Id.ToString()).ConfigureAwait(false);
+            var queue = await _queueRepository.FindQueue(queueName, channel.Guild.Id.ToString());
 
             if (queue != null) return queue;
 
-            await ((ITextChannel)channel).SendMessageAsync($"`Queue with the name '{queueName}' doesn't exists!`").AutoRemoveMessage(10).ConfigureAwait(false);
+            await ((ITextChannel)channel).SendMessageAsync($"`Queue with the name '{queueName}' doesn't exists!`").AutoRemoveMessage(10);
             return null;
         }
 
         public async Task<bool> VerifyUserFlaggedStatus(IGuildUser user, ISocketMessageChannel channel)
         {
-            var flagged = await _flagRepository.IsFlagged(user).ConfigureAwait(false);
+            var flagged = await _flagRepository.IsFlagged(user);
             if (flagged == null) return true;
 
             var sb = new StringBuilder()
@@ -73,8 +73,7 @@ namespace PickupBot.Commands.Infrastructure.Services
             }.Build();
 
             await channel.SendMessageAsync(embed: embed)
-                .AutoRemoveMessage(10)
-                .ConfigureAwait(false);
+                .AutoRemoveMessage(10);
 
             return false;
         }
@@ -82,10 +81,10 @@ namespace PickupBot.Commands.Infrastructure.Services
         public void TriggerDelayedRconNotification(PickupQueue queue)
         {
             // 2 minute delay message
-            AsyncUtilities.DelayAction(TimeSpan.FromMinutes(2), async t => { await TriggerRconNotification(queue).ConfigureAwait(false); });
+            AsyncUtilities.DelayAction(TimeSpan.FromMinutes(2), async t => { await TriggerRconNotification(queue); });
 
             // 4 minute delay message
-            AsyncUtilities.DelayAction(TimeSpan.FromMinutes(4), async t => { await TriggerRconNotification(queue).ConfigureAwait(false); });
+            AsyncUtilities.DelayAction(TimeSpan.FromMinutes(4), async t => { await TriggerRconNotification(queue); });
         }
 
         [SuppressMessage("ReSharper", "PossibleNullReferenceException")]
@@ -121,7 +120,7 @@ namespace PickupBot.Commands.Infrastructure.Services
                               $"^1RED TEAM: ^5{string.Join(", ", redTeam.Subscribers.Select(w => w.Name))} ^7- " +
                               $"^4BLUE TEAM: ^5{string.Join(", ", blueTeam.Subscribers.Select(w => w.Name))}\"";
 
-                await RCON.UDPSendCommand(command, rconHost, rconPassword, rconPort, true).ConfigureAwait(false);
+                await RCON.UDPSendCommand(command, rconHost, rconPassword, rconPort, true);
 
             }
             catch (Exception e)

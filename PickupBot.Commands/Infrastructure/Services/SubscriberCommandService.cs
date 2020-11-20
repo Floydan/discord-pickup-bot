@@ -3,6 +3,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Discord;
 using Discord.WebSocket;
+using PickupBot.Commands.Constants;
 using PickupBot.Commands.Extensions;
 using PickupBot.Commands.Infrastructure.Helpers;
 using PickupBot.Data.Models;
@@ -65,24 +66,28 @@ namespace PickupBot.Commands.Infrastructure.Services
             
             queue.Updated = DateTime.UtcNow;
 
+            bool updateStaticMessage = false;
+
             if (queue.Subscribers.Count >= queue.MaxInQueue)
             {
                 if (queue.WaitingList.All(w => w.Id != user.Id))
                 {
                     queue.WaitingList.Add(new Subscriber { Id = user.Id, Name = PickupHelpers.GetNickname(user) });
-                    queue = await _listCommandService.SaveStaticQueueMessage(queue, guild);
+                    updateStaticMessage = true;
 
-                    await channel.SendMessageAsync($"`You have been added to the '{queue.Name}' waiting list`").AutoRemoveMessage(10);
+                    if(channel.Name != ChannelNames.ActivePickups)
+                        await channel.SendMessageAsync($"`You have been added to the '{queue.Name}' waiting list`").AutoRemoveMessage(10);
                 }
                 else
                 {
-                    await channel.SendMessageAsync($"`You are already on the '{queue.Name}' waiting list`").AutoRemoveMessage(10);
+                    if(channel.Name != ChannelNames.ActivePickups)
+                        await channel.SendMessageAsync($"`You are already on the '{queue.Name}' waiting list`").AutoRemoveMessage(10);
                 }
             }
             else
             {
+                updateStaticMessage = true;
                 queue.Subscribers.Add(new Subscriber { Id = user.Id, Name = PickupHelpers.GetNickname(user) });
-                queue = await _listCommandService.SaveStaticQueueMessage(queue, guild);
 
                 if (queue.Subscribers.Count == queue.MaxInQueue)
                 {
@@ -92,11 +97,18 @@ namespace PickupBot.Commands.Infrastructure.Services
                         user, 
                         queue.Subscribers.Select(s => guild.GetUser(s.Id)).Where(u => u != null).ToArray());
                 }
-
-                await channel.SendMessageAsync($"`{queue.Name} - {PickupHelpers.ParseSubscribers(queue)}`");
+                
+                if(channel.Name != ChannelNames.ActivePickups)
+                    await channel.SendMessageAsync($"`{queue.Name} - {PickupHelpers.ParseSubscribers(queue)}`");
             }
-            
+
+            if (updateStaticMessage)
+            {
+                queue = await _listCommandService.SaveStaticQueueMessage(queue, guild);
+            }
+
             await _queueRepository.UpdateQueue(queue);
+            await _activitiesRepository.Update(activity);
         }
 
         public async Task<PickupQueue> Leave(PickupQueue queue, ISocketMessageChannel channel, IGuildUser user, bool notify = true)

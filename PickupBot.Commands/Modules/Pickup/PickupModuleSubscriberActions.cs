@@ -3,6 +3,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Discord;
 using Discord.Commands;
+using PickupBot.Commands.Constants;
 using PickupBot.Commands.Extensions;
 using PickupBot.Commands.Infrastructure.Helpers;
 using PickupBot.Commands.Infrastructure.Services;
@@ -43,7 +44,7 @@ namespace PickupBot.Commands.Modules.Pickup
             queueName = queueName.Trim(' ', '"').Trim();
 
             //find queue with name {queueName}
-            await _subscriberCommandService.Add(queueName, Context.Channel, (IGuildUser)Context.User).ConfigureAwait(false);
+            await _subscriberCommandService.Add(queueName, Context.Channel, (IGuildUser)Context.User);
         }
 
         [Command("remove")]
@@ -63,13 +64,13 @@ namespace PickupBot.Commands.Modules.Pickup
             }
 
             //find queue with name {queueName}
-            var queue = await _miscCommandService.VerifyQueueByName(queueName, (IGuildChannel)Context.Channel).ConfigureAwait(false);
+            var queue = await _miscCommandService.VerifyQueueByName(queueName, (IGuildChannel)Context.Channel);
             if (queue == null)
             {
                 return;
             }
 
-            await _subscriberCommandService.Leave(queue, Context.Channel, (IGuildUser)Context.User).ConfigureAwait(false);
+            await _subscriberCommandService.Leave(queue, Context.Channel, (IGuildUser)Context.User);
         }
 
         [Command("clear")]
@@ -80,7 +81,7 @@ namespace PickupBot.Commands.Modules.Pickup
             if (!PickupHelpers.IsInPickupChannel((IGuildChannel)Context.Channel)) return;
 
             //find queues with user in it
-            var allQueues = await _queueRepository.AllQueues(Context.Guild.Id.ToString()).ConfigureAwait(false);
+            var allQueues = await _queueRepository.AllQueues(Context.Guild.Id.ToString());
 
             var matchingQueues = allQueues.Where(q => q.Subscribers.Any(s => s.Id == Context.User.Id) || q.WaitingList.Any(w => w.Id == Context.User.Id));
 
@@ -92,26 +93,25 @@ namespace PickupBot.Commands.Modules.Pickup
                     queue.WaitingList.RemoveAll(w => w.Id == Context.User.Id);
                     queue.Updated = DateTime.UtcNow;
 
-                    var updatedQueue = await _subscriberCommandService.Leave(queue, Context.Channel, (IGuildUser)Context.User, false).ConfigureAwait(false);
+                    var updatedQueue = await _subscriberCommandService.Leave(queue, Context.Channel, (IGuildUser)Context.User, false);
 
                     updatedQueue ??= queue;
 
                     if (!updatedQueue.Subscribers.Any() && !updatedQueue.WaitingList.Any())
                     {
-                        await _queueRepository.RemoveQueue(updatedQueue.Name, updatedQueue.GuildId).ConfigureAwait(false); //Try to remove queue if its empty.
+                        await _queueRepository.RemoveQueue(updatedQueue.Name, updatedQueue.GuildId); //Try to remove queue if its empty.
 
                         if (string.IsNullOrEmpty(queue.StaticMessageId)) continue;
-                        var queuesChannel = await PickupHelpers.GetPickupQueuesChannel(Context.Guild).ConfigureAwait(false);
-                        await queuesChannel.DeleteMessageAsync(Convert.ToUInt64(queue.StaticMessageId)).ConfigureAwait(false);
+                        var queuesChannel = await PickupHelpers.GetPickupQueuesChannel(Context.Guild);
+                        await queuesChannel.DeleteMessageAsync(Convert.ToUInt64(queue.StaticMessageId));
                     }
                     else
-                        await _queueRepository.UpdateQueue(updatedQueue).ConfigureAwait(false);
+                        await _queueRepository.UpdateQueue(updatedQueue);
                 }
 
                 //if queues found and user is in queue
                 await Context.Channel.SendMessageAsync($"{PickupHelpers.GetMention(Context.User)} - You have been removed from all queues")
-                    .AutoRemoveMessage(10)
-                    .ConfigureAwait(false);
+                    .AutoRemoveMessage(10);
             }
         }
 
@@ -122,7 +122,7 @@ namespace PickupBot.Commands.Modules.Pickup
             if (!PickupHelpers.IsInPickupChannel((IGuildChannel)Context.Channel))
                 return;
 
-            var role = Context.Guild.Roles.FirstOrDefault(w => w.Name == "pickup-promote");
+            var role = Context.Guild.Roles.FirstOrDefault(w => w.Name == RoleNames.PickupPromote);
             if (role == null)
                 return; //Failed to get or create role;
 
@@ -130,17 +130,16 @@ namespace PickupBot.Commands.Modules.Pickup
 
             if (user.RoleIds.Any(w => w == role.Id))
             {
-                await user.RemoveRoleAsync(role).ConfigureAwait(false);
+                await user.RemoveRoleAsync(role);
                 await ReplyAsync($"{PickupHelpers.GetMention(user)} - you are no longer subscribed to get notifications on `!promote`")
-                    .AutoRemoveMessage(10)
-                    .ConfigureAwait(false);
+                    .AutoRemoveMessage(10);
             }
             else
             {
-                await user.AddRoleAsync(role).ConfigureAwait(false);
-                await ReplyAsync($"{PickupHelpers.GetMention(user)} - you are now subscribed to get notifications on `!promote`")
-                    .AutoRemoveMessage(10)
-                    .ConfigureAwait(false);
+                await user.AddRoleAsync(role);
+                await ReplyAsync(
+                        $"{PickupHelpers.GetMention(user)} - you are now subscribed to get notifications on `!promote`")
+                    .AutoRemoveMessage(10);
             }
         }
     }

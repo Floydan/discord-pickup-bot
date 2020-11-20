@@ -5,6 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Discord;
 using Discord.WebSocket;
+using PickupBot.Commands.Constants;
 using PickupBot.Commands.Extensions;
 using PickupBot.Commands.Infrastructure.Helpers;
 using PickupBot.Commands.Infrastructure.Utilities;
@@ -147,7 +148,7 @@ namespace PickupBot.Commands.Infrastructure.Services
                 return;
             }
 
-            var role = guild.Roles.FirstOrDefault(w => w.Name == "pickup-promote");
+            var role = guild.Roles.FirstOrDefault(w => w.Name == RoleNames.PickupPromote);
             if (role == null) return; //Failed to get role;
             
             var users = guild.Users.Where(w => w.Roles.Any(r => r.Id == role.Id)).ToList();
