@@ -37,20 +37,20 @@ namespace PickupBot.Commands.Modules
         {
             if (!PickupHelpers.IsInDuelChannel(Context.Channel)) return;
 
-            var duellistRole = await GetDuellistRole().ConfigureAwait(false);
+            var duellistRole = await GetDuellistRole();
 
             var skillLevel = Parse(level);
             var user = (IGuildUser)Context.User;
-            _logger.LogInformation($"{nameof(Register)} called for user '{user.Username}' with skill level '{skillLevel.ToString()}'");
+            _logger.LogInformation($"{nameof(Register)} called for user '{user.Username}' with skill level '{skillLevel}'");
 
-            var result = await _duelPlayerRepository.Save(user, Parse(level)).ConfigureAwait(false);
+            var result = await _duelPlayerRepository.Save(user, Parse(level));
 
             if (user.RoleIds.All(r => r != duellistRole.Id))
-                await user.AddRoleAsync(duellistRole).ConfigureAwait(false);
+                await user.AddRoleAsync(duellistRole);
 
             _logger.LogInformation($"Duel player saved result: {result}");
 
-            await ReplyAsync($"You have been registered for duels with skill level [{skillLevel.ToString()}]").AutoRemoveMessage(10);
+            await ReplyAsync($"You have been registered for duels with skill level [{skillLevel}]").AutoRemoveMessage(10);
         }
 
         [Command("unregister")]
@@ -65,13 +65,13 @@ namespace PickupBot.Commands.Modules
             var duelPlayer = await _duelPlayerRepository.Find(user);
             if (duelPlayer != null)
             {
-                var duellistRole = await GetDuellistRole().ConfigureAwait(false);
+                var duellistRole = await GetDuellistRole();
                 duelPlayer.Active = false;
 
                 if (user.RoleIds.Any(r => r == duellistRole.Id))
-                    await user.RemoveRoleAsync(duellistRole).ConfigureAwait(false);
+                    await user.RemoveRoleAsync(duellistRole);
 
-                var result = await _duelPlayerRepository.Save(duelPlayer).ConfigureAwait(false);
+                var result = await _duelPlayerRepository.Save(duelPlayer);
 
                 _logger.LogInformation($"Duel player updated to inactive result: {result}");
 
@@ -90,11 +90,11 @@ namespace PickupBot.Commands.Modules
 
             var skillLevel = Parse(level);
 
-            var result = await _duelPlayerRepository.Save(user, skillLevel).ConfigureAwait(false);
+            var result = await _duelPlayerRepository.Save(user, skillLevel);
 
             _logger.LogInformation($"Duel player saved result: {result}");
 
-            await ReplyAsync($"Your skill level has been set to [{skillLevel.ToString()}]").AutoRemoveMessage(10);
+            await ReplyAsync($"Your skill level has been set to [{skillLevel}]").AutoRemoveMessage(10);
         }
 
         [Command("challenge")]
@@ -124,7 +124,7 @@ namespace PickupBot.Commands.Modules
                 {
                     if (CheckUserOnlineState(challengee))
                     {
-                        await _duelChallengeRepository.Save((IGuildUser)Context.User, challengee).ConfigureAwait(false);
+                        await _duelChallengeRepository.Save((IGuildUser)Context.User, challengee);
                         await ReplyAsync($"{Context.User.Mention} has challenged {challengee.Mention} to a duel!");
                     }
                     else
@@ -163,7 +163,7 @@ namespace PickupBot.Commands.Modules
                 else
                 {
                     var opponentUser = duellistUsers.First(u => u.Id == opponent.Id);
-                    await _duelChallengeRepository.Save((IGuildUser)Context.User, opponentUser).ConfigureAwait(false);
+                    await _duelChallengeRepository.Save((IGuildUser)Context.User, opponentUser);
                     await ReplyAsync($"{Context.User.Mention} [MMR: {duelPlayer.MMR}] has challenged {opponentUser.Mention} [MMR: {opponent.MMR}] to a duel!");
                 }
             }
@@ -191,7 +191,7 @@ namespace PickupBot.Commands.Modules
                     ChallengeDate = challenge.ChallengeDate,
                     MatchDate = DateTime.UtcNow
                 };
-                await _duelMatchRepository.Save(match).ConfigureAwait(false);
+                await _duelMatchRepository.Save(match);
                 await ReplyAsync($"{Context.User.Mention} has accepted the challenge from {challenger.Mention}!");
             }
         }
@@ -206,7 +206,7 @@ namespace PickupBot.Commands.Modules
             var challenge = await _duelChallengeRepository.Find(challenger, (IGuildUser)Context.User);
             if (challenge != null)
             {
-                await _duelChallengeRepository.Delete(challenge).ConfigureAwait(false);
+                await _duelChallengeRepository.Delete(challenge);
                 await ReplyAsync($"{Context.User.Mention} has declined the challenge from {challenger.Mention}!");
             }
         }
@@ -345,7 +345,7 @@ namespace PickupBot.Commands.Modules
 
                 var embed = new EmbedBuilder
                 {
-                    Title = $"{PickupHelpers.GetNickname(user)} stats [{((SkillLevel)duelPlayer.Skill).ToString()}] MMR: {duelPlayer.MMR}",
+                    Title = $"{PickupHelpers.GetNickname(user)} stats [{((SkillLevel)duelPlayer.Skill)}] MMR: {duelPlayer.MMR}",
                     Timestamp = duelPlayer.Timestamp
                 };
                 embed.WithFields(new List<EmbedFieldBuilder>

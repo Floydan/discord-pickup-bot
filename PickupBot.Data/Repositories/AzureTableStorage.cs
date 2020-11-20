@@ -193,7 +193,7 @@ namespace PickupBot.Data.Repositories
             var table = await GetTableAsync();
 
             //Operation
-            var operation = TableOperation.Replace(item);
+            var operation = TableOperation.InsertOrMerge(item);
 
             //Execute
             var result = await table.ExecuteAsync(operation);

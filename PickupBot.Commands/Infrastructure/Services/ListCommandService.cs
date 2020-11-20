@@ -51,10 +51,10 @@ namespace PickupBot.Commands.Infrastructure.Services
                 Games = ops?.ContainsKey("-game") ?? false ? ops["-game"] : Enumerable.Empty<string>(),
             };
 
-            await _queueRepository.AddQueue(queue).ConfigureAwait(false);
-
-            queue = await SaveStaticQueueMessage(queue, user.Guild).ConfigureAwait(false);
-            await _queueRepository.UpdateQueue(queue).ConfigureAwait(false);
+            await _queueRepository.AddQueue(queue);
+            queue = await _queueRepository.FindQueue(queue.Name, user.Guild.Id.ToString());
+            queue = await SaveStaticQueueMessage(queue, user.Guild);
+            await _queueRepository.UpdateQueue(queue);
             return queue;
         }
 
@@ -89,24 +89,24 @@ namespace PickupBot.Commands.Infrastructure.Services
 
             queue.Updated = DateTime.UtcNow;
 
-            queue = await SaveStaticQueueMessage(queue, user.Guild).ConfigureAwait(false);
-            await _queueRepository.UpdateQueue(queue).ConfigureAwait(false);
+            queue = await SaveStaticQueueMessage(queue, user.Guild);
+            await _queueRepository.UpdateQueue(queue);
             return queue;
         }
 
         public async Task<bool> DeleteEmptyQueue(PickupQueue queue, SocketGuild guild, ISocketMessageChannel channel, bool notify)
         {
-            var result = await _queueRepository.RemoveQueue(queue.Name, queue.GuildId).ConfigureAwait(false); //Try to remove queue if its empty
+            var result = await _queueRepository.RemoveQueue(queue.Name, queue.GuildId); //Try to remove queue if its empty
             if (result)
             {
-                var queuesChannel = await PickupHelpers.GetPickupQueuesChannel(guild).ConfigureAwait(false);
+                var queuesChannel = await PickupHelpers.GetPickupQueuesChannel(guild);
                 if (!string.IsNullOrEmpty(queue.StaticMessageId))
-                    await queuesChannel.DeleteMessageAsync(Convert.ToUInt64(queue.StaticMessageId)).ConfigureAwait(false);
+                    await queuesChannel.DeleteMessageAsync(Convert.ToUInt64(queue.StaticMessageId));
             }
 
             if (!notify) return false;
 
-            await channel.SendMessageAsync($"`{queue.Name} has been removed since everyone left.`").AutoRemoveMessage(10).ConfigureAwait(false);
+            await channel.SendMessageAsync($"`{queue.Name} has been removed since everyone left.`").AutoRemoveMessage(10);
 
             return false;
         }
@@ -130,21 +130,20 @@ namespace PickupBot.Commands.Infrastructure.Services
                         Description = sb.ToString(),
                         Color = Color.Red
                     }.Build())
-                    .AutoRemoveMessage(120)
-                    .ConfigureAwait(false);
+                    .AutoRemoveMessage(120);
             }
         }
 
         public async Task Promote(PickupQueue queue, ITextChannel pickupChannel, IGuildUser user)
         {
             var guild = (SocketGuild)user.Guild;
-            var activity = await _activitiesRepository.Find(user).ConfigureAwait(false);
+            var activity = await _activitiesRepository.Find(user);
             activity.PickupPromote += 1;
-            await _activitiesRepository.Update(activity).ConfigureAwait(false);
+            await _activitiesRepository.Update(activity);
 
             if (queue?.MaxInQueue <= queue?.Subscribers.Count)
             {
-                await pickupChannel.SendMessageAsync("Queue is full, why the spam?").AutoRemoveMessage(10).ConfigureAwait(false);
+                await pickupChannel.SendMessageAsync("Queue is full, why the spam?").AutoRemoveMessage(10);
                 return;
             }
 
@@ -155,8 +154,7 @@ namespace PickupBot.Commands.Infrastructure.Services
             if (!users.Any())
             {
                 await pickupChannel.SendMessageAsync("No users have subscribed using the `!subscribe` command.")
-                    .AutoRemoveMessage(10)
-                    .ConfigureAwait(false);
+                    .AutoRemoveMessage(10);
                 return;
             }
 
@@ -165,12 +163,11 @@ namespace PickupBot.Commands.Infrastructure.Services
 
                 if (queue == null)
                 {
-                    var queues = await _queueRepository.AllQueues(user.GuildId.ToString()).ConfigureAwait(false);
+                    var queues = await _queueRepository.AllQueues(user.GuildId.ToString());
                     var filtered = queues.Where(q => q.MaxInQueue > q.Subscribers.Count).ToArray();
                     if (filtered.Any())
                         await pickupChannel.SendMessageAsync($"There are {filtered.Length} pickup queues with spots left, check out the `!list`! - {role.Mention}")
-                            .AutoRemoveMessage()
-                            .ConfigureAwait(false);
+                            .AutoRemoveMessage();
                 }
                 else
                 {
@@ -185,8 +182,8 @@ namespace PickupBot.Commands.Infrastructure.Services
 
                     foreach (var u in users)
                     {
-                        await u.SendMessageAsync(embed: embed).ConfigureAwait(false);
-                        await Task.Delay(TimeSpan.FromMilliseconds(200)).ConfigureAwait(false);
+                        await u.SendMessageAsync(embed: embed);
+                        await Task.Delay(TimeSpan.FromMilliseconds(200));
                     }
                 }
             }
@@ -215,7 +212,7 @@ namespace PickupBot.Commands.Infrastructure.Services
 
         public async Task<PickupQueue> SaveStaticQueueMessage(PickupQueue queue, SocketGuild guild)
         {
-            var queuesChannel = await PickupHelpers.GetPickupQueuesChannel(guild).ConfigureAwait(false);
+            var queuesChannel = await PickupHelpers.GetPickupQueuesChannel(guild);
 
             var user = guild.GetUser(Convert.ToUInt64(queue.OwnerId));
 
@@ -237,14 +234,14 @@ namespace PickupBot.Commands.Infrastructure.Services
             if (string.IsNullOrEmpty(queue.StaticMessageId))
             {
                 var message = await queuesChannel.SendMessageAsync(embed: embed.Build());
-                await message.AddReactionsAsync(new IEmote[] { new Emoji("\u2705"), new Emoji("\uD83D\uDCE2") }).ConfigureAwait(false); // timer , new Emoji("\u23F2")
+                await message.AddReactionsAsync(new IEmote[] { new Emoji("\u2705"), new Emoji("\uD83D\uDCE2") }); // timer , new Emoji("\u23F2")
 
                 queue.StaticMessageId = message.Id.ToString();
             }
             else
             {
-                if (await queuesChannel.GetMessageAsync(Convert.ToUInt64(queue.StaticMessageId)).ConfigureAwait(false) is IUserMessage message)
-                    await message.ModifyAsync(m => { m.Embed = embed.Build(); }).ConfigureAwait(false);
+                if (await queuesChannel.GetMessageAsync(Convert.ToUInt64(queue.StaticMessageId)) is IUserMessage message)
+                    await message.ModifyAsync(m => { m.Embed = embed.Build(); });
             }
 
             return queue;

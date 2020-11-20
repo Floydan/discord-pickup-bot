@@ -5,7 +5,7 @@ using System.Text;
 
 namespace PickupBot.Encryption
 {
-    public class EncryptionProvider
+    public static class EncryptionProvider
     {
         /// <summary>  
         /// AES encrypt

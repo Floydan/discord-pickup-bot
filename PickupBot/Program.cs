@@ -68,7 +68,7 @@ namespace PickupBot
                 })
                 .UseCommandService((context, conf) =>
                 {
-                    conf.LogLevel = LogSeverity.Warning;
+                    conf.LogLevel = LogSeverity.Info;
                     conf.DefaultRunMode = RunMode.Async;
                 })
                 .ConfigureServices(ConfigureServices)
@@ -100,6 +100,12 @@ namespace PickupBot
 
         private static void ConfigureServices(HostBuilderContext hostContext, IServiceCollection services)
         {
+
+            services.Configure<HostOptions>(option =>
+            {
+                option.ShutdownTimeout = TimeSpan.FromSeconds(5);
+            });
+
             var assemblies = new[]
             {
                 Assembly.GetExecutingAssembly(),

@@ -17,14 +17,10 @@ namespace PickupBot.Commands.Modules
     public class AdminModule : ModuleBase<SocketCommandContext>
     {
         private readonly IFlaggedSubscribersRepository _flagRepository;
-        private readonly IServerRepository _serverRepository;
-        private readonly EncryptionSettings _encryptionSettings;
 
-        public AdminModule(IFlaggedSubscribersRepository flagRepository, IServerRepository serverRepository, EncryptionSettings encryptionSettings)
+        public AdminModule(IFlaggedSubscribersRepository flagRepository)
         {
             _flagRepository = flagRepository;
-            _serverRepository = serverRepository;
-            _encryptionSettings = encryptionSettings;
         }
 
         [Command("flag")]
