@@ -22,14 +22,14 @@ namespace PickupBot.Commands.Infrastructure.Services
         private readonly ILogger<MiscCommandService> _logger;
         private readonly IServerRepository _serverRepository;
         private readonly EncryptionSettings _encryptionSettings;
-        private readonly string _rconPassword;
-        private readonly string _rconHost;
-        private readonly int _rconPort;
+        //private readonly string _rconPassword;
+        //private readonly string _rconHost;
+        //private readonly int _rconPort;
 
         public MiscCommandService(
             IQueueRepository queueRepository, 
             IFlaggedSubscribersRepository flagRepository, 
-            PickupBotSettings pickupBotSettings, 
+            //PickupBotSettings pickupBotSettings, 
             ILogger<MiscCommandService> logger,
             IServerRepository serverRepository,
             EncryptionSettings encryptionSettings)
@@ -40,9 +40,9 @@ namespace PickupBot.Commands.Infrastructure.Services
             _serverRepository = serverRepository;
             _encryptionSettings = encryptionSettings;
 
-            _rconPassword = pickupBotSettings.RCONServerPassword ?? "";
-            _rconHost = pickupBotSettings.RCONHost ?? "";
-            int.TryParse(pickupBotSettings.RCONPort ?? "0", out _rconPort);
+            //_rconPassword = pickupBotSettings.RCONServerPassword ?? "";
+            //_rconHost = pickupBotSettings.RCONHost ?? "";
+            //int.TryParse(pickupBotSettings.RCONPort ?? "0", out _rconPort);
         }
 
         public async Task<PickupQueue> VerifyQueueByName(string queueName, IGuildChannel channel)
@@ -95,9 +95,9 @@ namespace PickupBot.Commands.Infrastructure.Services
                 !queue.Host.Equals(_rconHost, StringComparison.OrdinalIgnoreCase))
                 return;
 
-            var rconPassword = _rconPassword;
-            var rconPort = _rconPort;
-            var rconHost = _rconHost;
+            var rconPassword = "";
+            var rconPort = 0;
+            var rconHost = "";
 
             var server = await _serverRepository.Find(Convert.ToUInt64(queue.GuildId), queue.Host);
             if (server != null)
