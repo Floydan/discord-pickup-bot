@@ -1,49 +1,49 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk;Microsoft.NET.Sdk.Publish">
-    <PropertyGroup>
-        <OutputType>Exe</OutputType>
-        <TargetFramework>netcoreapp3.1</TargetFramework>
-        <PublishTrimmed>true</PublishTrimmed>
-        <UserSecretsId>a7bb364b-0d73-420c-a3b9-18270f20e20f</UserSecretsId>
-        <Version>1.18.2</Version>
-        <Authors>Joakim Höglund</Authors>
-        <PackageLicenseExpression>MIT</PackageLicenseExpression>
-        <PackageProjectUrl>https://github.com/Floydan/discord-pickup-bot</PackageProjectUrl>
-        <RepositoryUrl>https://github.com/Floydan/discord-pickup-bot</RepositoryUrl>
-        <RepositoryType>Git</RepositoryType>
-        <Copyright>Copyright (c) 2020 Joakim Höglund</Copyright>
-    </PropertyGroup>
-    <ItemGroup>
-        <PackageReference Include="AutoMapper" Version="10.1.1" />
-        <PackageReference Include="AutoMapper.Collection" Version="7.0.0" />
-        <PackageReference Include="AutoMapper.Extensions.Microsoft.DependencyInjection" Version="8.1.0" />
-        <PackageReference Include="Discord.Addons.Hosting" Version="3.1.0" />
-        <PackageReference Include="Discord.Addons.Interactive" Version="2.0.0" />
-        <PackageReference Include="Discord.Net" Version="2.2.0" />
-        <PackageReference Include="Microsoft.Extensions.Azure" Version="1.0.0" />
-        <PackageReference Include="Microsoft.Extensions.Configuration.UserSecrets" Version="3.1.10" />
-        <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="3.1.10" />
-        <PackageReference Include="Microsoft.Extensions.Hosting" Version="3.1.10" />
-        <PackageReference Include="Microsoft.Extensions.Hosting.Systemd" Version="3.1.10" />
-        <PackageReference Include="Microsoft.Extensions.Http" Version="3.1.10" />
-        <PackageReference Include="Microsoft.Extensions.Logging" Version="3.1.10" />
-    </ItemGroup>
-    <ItemGroup>
-        <ProjectReference Include="..\PickupBot.Commands\PickupBot.Commands.csproj" />
-        <ProjectReference Include="..\PickupBot.Data\PickupBot.Data.csproj" />
-        <ProjectReference Include="..\PickupBot.GitHub\PickupBot.GitHub.csproj" />
-    </ItemGroup>
-    <ItemGroup>
-        <None Update="appSettings.Development.json">
-          <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-        </None>
-        <None Update="appSettings.json">
-          <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-        </None>
-        <None Update="appSettings.Production.json">
-          <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-        </None>
-        <None Update="Settings.job">
-            <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-        </None>
-    </ItemGroup>
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>netcoreapp3.1</TargetFramework>
+    <PublishTrimmed>true</PublishTrimmed>
+    <UserSecretsId>a7bb364b-0d73-420c-a3b9-18270f20e20f</UserSecretsId>
+    <Version>1.18.3</Version>
+    <Authors>Joakim Höglund</Authors>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/Floydan/discord-pickup-bot</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/Floydan/discord-pickup-bot</RepositoryUrl>
+    <RepositoryType>Git</RepositoryType>
+    <Copyright>Copyright (c) 2020 Joakim Höglund</Copyright>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="AutoMapper" Version="10.1.1" />
+    <PackageReference Include="AutoMapper.Collection" Version="7.0.1" />
+    <PackageReference Include="AutoMapper.Extensions.Microsoft.DependencyInjection" Version="8.1.1" />
+    <PackageReference Include="Discord.Addons.Hosting" Version="3.1.1" />
+    <PackageReference Include="Discord.Addons.Interactive" Version="2.0.0" />
+    <PackageReference Include="Discord.Net" Version="2.3.0" />
+    <PackageReference Include="Microsoft.Extensions.Azure" Version="1.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.UserSecrets" Version="5.0.0" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="5.0.1" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="5.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Hosting.Systemd" Version="5.0.1" />
+    <PackageReference Include="Microsoft.Extensions.Http" Version="5.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Logging" Version="5.0.0" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\PickupBot.Commands\PickupBot.Commands.csproj" />
+    <ProjectReference Include="..\PickupBot.Data\PickupBot.Data.csproj" />
+    <ProjectReference Include="..\PickupBot.GitHub\PickupBot.GitHub.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Update="appSettings.Development.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="appSettings.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="appSettings.Production.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="Settings.job">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
 </Project>
