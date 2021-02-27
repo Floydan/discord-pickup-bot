@@ -24,7 +24,7 @@ jobs:
     - name: Test
       run: dotnet test --no-restore --verbosity normal
     - name: Zip artifacts
-      uses: montudor/action-zip@v0.1.0
+      uses: montudor/action-zip@v0.1.1
       with:
         args: zip -qq -r ./release.zip ./artifacts
     - uses: actions/upload-artifact@v2
