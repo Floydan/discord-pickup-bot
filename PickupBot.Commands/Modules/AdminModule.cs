@@ -1,14 +1,10 @@
 ﻿using System;
 using System.Linq;
-using System.Net.Http;
 using System.Threading.Tasks;
 using Discord;
 using Discord.Commands;
-using Newtonsoft.Json;
 using PickupBot.Commands.Infrastructure.Utilities;
-using PickupBot.Data.Models;
 using PickupBot.Data.Repositories.Interfaces;
-using PickupBot.Encryption;
 
 namespace PickupBot.Commands.Modules
 {
@@ -33,7 +29,7 @@ namespace PickupBot.Commands.Modules
             await _flagRepository.Flag(user, reason);
 
             //flag user so they can't be added to pickup queues
-            await ReplyAsync(
+            await Context.Message.ReplyAsync(
                 $"User {user.Mention} has been flagged by {Context.User.Mention} and can no longer subscribe to pickup queues {Environment.NewLine} {(!string.IsNullOrEmpty(reason) ? $" - _{reason}_" : "")}");
         }
 
@@ -47,7 +43,7 @@ namespace PickupBot.Commands.Modules
             await _flagRepository.UnFlag(user);
             BotMessageHelper.AutoRemoveMessage(
                 //flag user so they can't be added to pickup queues
-                await ReplyAsync($"User {user.Mention} has been un-flagged by {Context.User.Mention} and can now subscribe to pickup queues")
+                await Context.Message.ReplyAsync($"User {user.Mention} has been un-flagged by {Context.User.Mention} and can now subscribe to pickup queues")
             );
         }
 
@@ -60,7 +56,7 @@ namespace PickupBot.Commands.Modules
 
             BotMessageHelper.AutoRemoveMessage(
                 //flag user so they can't be added to pickup queues
-                await ReplyAsync($"**Flagged users:**{Environment.NewLine}{string.Join(", ", flaggedUsers.Select((u, i) => $"{i + 1}. {u.Name}`"))}")
+                await Context.Message.ReplyAsync($"**Flagged users:**{Environment.NewLine}{string.Join(", ", flaggedUsers.Select((u, i) => $"{i + 1}. {u.Name}`"))}")
             );
         }
     }

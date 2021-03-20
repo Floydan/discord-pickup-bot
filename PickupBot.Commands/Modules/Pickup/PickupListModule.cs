@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
 using Discord;
@@ -12,7 +11,6 @@ using PickupBot.Commands.Extensions;
 using PickupBot.Commands.Infrastructure.Helpers;
 using PickupBot.Commands.Infrastructure.Services;
 using PickupBot.Data.Models;
-using PickupBot.Data.Repositories;
 using PickupBot.Data.Repositories.Interfaces;
 
 namespace PickupBot.Commands.Modules.Pickup
@@ -117,7 +115,10 @@ namespace PickupBot.Commands.Modules.Pickup
 
             if (queue != null)
             {
-                await Context.Channel.SendMessageAsync($"`Queue with the name '{queueName}' already exists!`").AutoRemoveMessage(10);
+                await Context.Channel.SendMessageAsync(
+                    $"`Queue with the name '{queueName}' already exists!`", 
+                    messageReference: new MessageReference(Context.Message.Id))
+                    .AutoRemoveMessage(10);
                 return;
             }
 
@@ -128,7 +129,9 @@ namespace PickupBot.Commands.Modules.Pickup
 
             queue = await _listCommandService.Create(queueName, teamSize, operators, (SocketGuildUser)Context.User);
 
-            await Context.Channel.SendMessageAsync($"`Queue '{queue.Name}' was added by {PickupHelpers.GetNickname(Context.User)}`");
+            await Context.Channel.SendMessageAsync(
+                $"`Queue '{queue.Name}' was added by {PickupHelpers.GetNickname(Context.User)}`", 
+                messageReference: new MessageReference(Context.Message.Id));
 
         }
 
@@ -150,7 +153,7 @@ namespace PickupBot.Commands.Modules.Pickup
                 var newQueueCheck = await _queueRepository.FindQueue(newName, Context.Guild.Id.ToString());
                 if (newQueueCheck != null)
                 {
-                    await ReplyAsync($"`A queue with the name '{newName}' already exists.`").AutoRemoveMessage(10);
+                    await Context.Message.ReplyAsync($"`A queue with the name '{newName}' already exists.`").AutoRemoveMessage(10);
                     return;
                 }
 
@@ -162,19 +165,19 @@ namespace PickupBot.Commands.Modules.Pickup
                 if (result)
                 {
                     await _queueRepository.RemoveQueue(queue);
-                    await ReplyAsync($"The queue '{queue.Name}' has been renamed to '{newQueue.Name}'");
-                    await ReplyAsync($"`{newQueue.Name} - {PickupHelpers.ParseSubscribers(newQueue)}`");
+                    await Context.Message.ReplyAsync($"The queue '{queue.Name}' has been renamed to '{newQueue.Name}'");
+                    await Context.Message.ReplyAsync($"`{newQueue.Name} - {PickupHelpers.ParseSubscribers(newQueue)}`");
                     if (!string.IsNullOrEmpty(queue.StaticMessageId))
                         await _listCommandService.SaveStaticQueueMessage(newQueue, Context.Guild);
                     return;
                 }
 
-                await ReplyAsync("An error occured when trying to update the queue name, try again.")
+                await Context.Message.ReplyAsync("An error occured when trying to update the queue name, try again.")
                     .AutoRemoveMessage(10);
             }
             else
             {
-                await ReplyAsync("`You do not have permission to rename this queue, you have to be either the owner or a server admin`")
+                await Context.Message.ReplyAsync("`You do not have permission to rename this queue, you have to be either the owner or a server admin`")
                     .AutoRemoveMessage(10);
             }
         }
@@ -194,7 +197,10 @@ namespace PickupBot.Commands.Modules.Pickup
 
             if (queue == null)
             {
-                await Context.Channel.SendMessageAsync($"`Queue with the name '{queueName}' doesn't exists!`").AutoRemoveMessage(10);
+                await Context.Channel.SendMessageAsync(
+                    $"`Queue with the name '{queueName}' doesn't exists!`", 
+                    messageReference: new MessageReference(Context.Message.Id))
+                    .AutoRemoveMessage(10);
                 return;
             }
 
@@ -222,7 +228,10 @@ namespace PickupBot.Commands.Modules.Pickup
             var isAdmin = (Context.User as IGuildUser)?.GuildPermissions.Has(GuildPermission.Administrator) ?? false;
             if (!isAdmin && queue.OwnerId != Context.User.Id.ToString())
             {
-                await Context.Channel.SendMessageAsync("You do not have permission to remove the queue.").AutoRemoveMessage(10);
+                await Context.Channel.SendMessageAsync(
+                    "You do not have permission to remove the queue.", 
+                    messageReference: new MessageReference(Context.Message.Id))
+                    .AutoRemoveMessage(10);
                 return;
             }
 
@@ -230,20 +239,20 @@ namespace PickupBot.Commands.Modules.Pickup
             {
                 var queuesChannel = await PickupHelpers.GetPickupQueuesChannel(Context.Guild);
 
-                var result = await _queueRepository.RemoveQueue(queueName, Context.Guild.Id.ToString())
-                    ;
+                var result = await _queueRepository.RemoveQueue(queueName, Context.Guild.Id.ToString());
                 var message = result
                     ? $"`Queue '{queueName}' has been canceled`"
                     : $"`Queue with the name '{queueName}' doesn't exists or you are not the owner of the queue!`";
                 await Context.Channel.SendMessageAsync(message).AutoRemoveMessage(10);
 
                 if (!string.IsNullOrEmpty(queue.StaticMessageId))
-                    await queuesChannel.DeleteMessageAsync(Convert.ToUInt64(queue.StaticMessageId))
-                        ;
+                    await queuesChannel.DeleteMessageAsync(Convert.ToUInt64(queue.StaticMessageId));
             }
             else
             {
-                await Context.Channel.SendMessageAsync("Queue is started, you have to run `!stop` to clean up efter yourself first")
+                await Context.Channel.SendMessageAsync(
+                        "Queue is started, you have to run `!stop` to clean up efter yourself first", 
+                        messageReference: new MessageReference(Context.Message.Id))
                     .AutoRemoveMessage(15);
 
             }
@@ -270,7 +279,7 @@ namespace PickupBot.Commands.Modules.Pickup
                     Color = Color.Orange
                 }.Build();
 
-                await Context.Channel.SendMessageAsync(embed: embed).AutoRemoveMessage(10);
+                await Context.Channel.SendMessageAsync(embed: embed, messageReference: new MessageReference(Context.Message.Id)).AutoRemoveMessage(10);
                 return;
             }
 
@@ -283,7 +292,7 @@ namespace PickupBot.Commands.Modules.Pickup
                     Description = BuildListResponse(q).ToString(),
                     Color = Color.Orange
                 }.Build();
-                await Context.Channel.SendMessageAsync(embed: embed).AutoRemoveMessage();
+                await Context.Channel.SendMessageAsync(embed: embed, messageReference: new MessageReference(Context.Message.Id)).AutoRemoveMessage();
             }
         }
 
@@ -319,7 +328,10 @@ namespace PickupBot.Commands.Modules.Pickup
 
             if (queue == null)
             {
-                await Context.Channel.SendMessageAsync($"`Queue with the name '{queueName}' doesn't exists!`").AutoRemoveMessage(10);
+                await Context.Channel.SendMessageAsync(
+                    $"`Queue with the name '{queueName}' doesn't exists!`", 
+                    messageReference: new MessageReference(Context.Message.Id))
+                    .AutoRemoveMessage(10);
                 return;
             }
 
@@ -333,7 +345,8 @@ namespace PickupBot.Commands.Modules.Pickup
                 Description = waitlist,
                 Color = Color.Orange
             }.Build();
-            await Context.Channel.SendMessageAsync(embed: embed).AutoRemoveMessage(15);
+
+            await Context.Channel.SendMessageAsync(embed: embed, messageReference: new MessageReference(Context.Message.Id)).AutoRemoveMessage(15);
         }
 
         [Command("promote")]
@@ -351,13 +364,16 @@ namespace PickupBot.Commands.Modules.Pickup
                 queue = await _queueRepository.FindQueue(queueName, Context.Guild.Id.ToString());
                 if (queue == null)
                 {
-                    await Context.Channel.SendMessageAsync($"`Queue with the name '{queueName}' doesn't exists!`").AutoRemoveMessage(10);
+                    await Context.Channel.SendMessageAsync(
+                        $"`Queue with the name '{queueName}' doesn't exists!`", 
+                        messageReference: new MessageReference(Context.Message.Id))
+                        .AutoRemoveMessage(10);
                     return;
                 }
 
                 if (queue.MaxInQueue <= queue.Subscribers.Count)
                 {
-                    await ReplyAsync("Queue is full, why the spam?").AutoRemoveMessage(10);
+                    await Context.Message.ReplyAsync("Queue is full, why the spam?").AutoRemoveMessage(10);
                     return;
                 }
             }

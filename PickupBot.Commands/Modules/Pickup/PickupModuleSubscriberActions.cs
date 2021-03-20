@@ -8,7 +8,6 @@ using PickupBot.Commands.Extensions;
 using PickupBot.Commands.Infrastructure.Helpers;
 using PickupBot.Commands.Infrastructure.Services;
 using PickupBot.Data.Models;
-using PickupBot.Data.Repositories;
 using PickupBot.Data.Repositories.Interfaces;
 
 // ReSharper disable MemberCanBePrivate.Global
@@ -44,7 +43,7 @@ namespace PickupBot.Commands.Modules.Pickup
             queueName = queueName.Trim(' ', '"').Trim();
 
             //find queue with name {queueName}
-            await _subscriberCommandService.Add(queueName, Context.Channel, (IGuildUser)Context.User);
+            await _subscriberCommandService.Add(queueName, Context.Channel, (IGuildUser)Context.User, Context.Message.Reference);
         }
 
         [Command("remove")]
@@ -70,7 +69,7 @@ namespace PickupBot.Commands.Modules.Pickup
                 return;
             }
 
-            await _subscriberCommandService.Leave(queue, Context.Channel, (IGuildUser)Context.User);
+            await _subscriberCommandService.Leave(queue, Context.Channel, (IGuildUser)Context.User, messageReference: Context.Message.Reference);
         }
 
         [Command("clear")]
@@ -110,7 +109,9 @@ namespace PickupBot.Commands.Modules.Pickup
                 }
 
                 //if queues found and user is in queue
-                await Context.Channel.SendMessageAsync($"{PickupHelpers.GetMention(Context.User)} - You have been removed from all queues")
+                await Context.Channel.SendMessageAsync(
+                        $"{PickupHelpers.GetMention(Context.User)} - You have been removed from all queues",
+                        messageReference: new MessageReference(Context.Message.Id))
                     .AutoRemoveMessage(10);
             }
         }
@@ -131,13 +132,13 @@ namespace PickupBot.Commands.Modules.Pickup
             if (user.RoleIds.Any(w => w == role.Id))
             {
                 await user.RemoveRoleAsync(role);
-                await ReplyAsync($"{PickupHelpers.GetMention(user)} - you are no longer subscribed to get notifications on `!promote`")
+                await Context.Message.ReplyAsync($"{PickupHelpers.GetMention(user)} - you are no longer subscribed to get notifications on `!promote`")
                     .AutoRemoveMessage(10);
             }
             else
             {
                 await user.AddRoleAsync(role);
-                await ReplyAsync(
+                await Context.Message.ReplyAsync(
                         $"{PickupHelpers.GetMention(user)} - you are now subscribed to get notifications on `!promote`")
                     .AutoRemoveMessage(10);
             }

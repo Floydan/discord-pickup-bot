@@ -7,7 +7,6 @@ using PickupBot.Commands.Constants;
 using PickupBot.Commands.Extensions;
 using PickupBot.Commands.Infrastructure.Helpers;
 using PickupBot.Data.Models;
-using PickupBot.Data.Repositories;
 using PickupBot.Data.Repositories.Interfaces;
 
 namespace PickupBot.Commands.Infrastructure.Services
@@ -32,7 +31,7 @@ namespace PickupBot.Commands.Infrastructure.Services
             _miscCommandService = miscCommandService;
         }
         
-        public async Task Add(string queueName, ISocketMessageChannel channel, IGuildUser user)
+        public async Task Add(string queueName, ISocketMessageChannel channel, IGuildUser user, MessageReference messageReference = null)
         {
             var guild = (SocketGuild)user.Guild;
             PickupQueue queue;
@@ -48,7 +47,10 @@ namespace PickupBot.Commands.Infrastructure.Services
 
             if (queue == null)
             {
-                await channel.SendMessageAsync($"`Queue with the name '{queueName}' doesn't exists!`").AutoRemoveMessage(10);
+                await channel.SendMessageAsync(
+                    $"`Queue with the name '{queueName}' doesn't exists!`",
+                    messageReference: messageReference)
+                    .AutoRemoveMessage(10);
                 return;
             }
 
@@ -57,7 +59,9 @@ namespace PickupBot.Commands.Infrastructure.Services
 
             if (queue.Subscribers.Any(w => w.Id == user.Id))
             {
-                await channel.SendMessageAsync($"`{queue.Name} - {PickupHelpers.ParseSubscribers(queue)}`");
+                await channel.SendMessageAsync(
+                    $"`{queue.Name} - {PickupHelpers.ParseSubscribers(queue)}`", 
+                    messageReference: messageReference);
                 return;
             }
 
@@ -76,12 +80,18 @@ namespace PickupBot.Commands.Infrastructure.Services
                     updateStaticMessage = true;
 
                     if(channel.Name != ChannelNames.ActivePickups)
-                        await channel.SendMessageAsync($"`You have been added to the '{queue.Name}' waiting list`").AutoRemoveMessage(10);
+                        await channel.SendMessageAsync(
+                            $"`You have been added to the '{queue.Name}' waiting list`",
+                            messageReference: messageReference)
+                            .AutoRemoveMessage(10);
                 }
                 else
                 {
                     if(channel.Name != ChannelNames.ActivePickups)
-                        await channel.SendMessageAsync($"`You are already on the '{queue.Name}' waiting list`").AutoRemoveMessage(10);
+                        await channel.SendMessageAsync(
+                            $"`You are already on the '{queue.Name}' waiting list`",
+                            messageReference: messageReference)
+                            .AutoRemoveMessage(10);
                 }
             }
             else
@@ -99,7 +109,9 @@ namespace PickupBot.Commands.Infrastructure.Services
                 }
                 
                 if(channel.Name != ChannelNames.ActivePickups)
-                    await channel.SendMessageAsync($"`{queue.Name} - {PickupHelpers.ParseSubscribers(queue)}`");
+                    await channel.SendMessageAsync(
+                        $"`{queue.Name} - {PickupHelpers.ParseSubscribers(queue)}`",
+                        messageReference: messageReference);
             }
 
             if (updateStaticMessage)
@@ -111,7 +123,7 @@ namespace PickupBot.Commands.Infrastructure.Services
             await _activitiesRepository.Update(activity);
         }
 
-        public async Task<PickupQueue> Leave(PickupQueue queue, ISocketMessageChannel channel, IGuildUser user, bool notify = true)
+        public async Task<PickupQueue> Leave(PickupQueue queue, ISocketMessageChannel channel, IGuildUser user, bool notify = true, MessageReference messageReference = null)
         {
             var guild = (SocketGuild)user.Guild;
             var subscriber = queue.Subscribers.FirstOrDefault(s => s.Id == user.Id);
@@ -135,7 +147,10 @@ namespace PickupBot.Commands.Infrastructure.Services
             }
 
             if (notify)
-                await channel.SendMessageAsync($"`{queue.Name} - {PickupHelpers.ParseSubscribers(queue)}`").AutoRemoveMessage(10);
+                await channel.SendMessageAsync(
+                    $"`{queue.Name} - {PickupHelpers.ParseSubscribers(queue)}`",
+                    messageReference: messageReference)
+                    .AutoRemoveMessage(10);
 
             return queue;
         }
@@ -152,7 +167,10 @@ namespace PickupBot.Commands.Infrastructure.Services
                 var nextUser = guild.GetUser(next.Id);
                 if (nextUser != null)
                 {
-                    await channel.SendMessageAsync($"{PickupHelpers.GetMention(nextUser)} - you have been added to '{queue.Name}' since {subscriber.Name} has left.").AutoRemoveMessage();
+                    await channel.SendMessageAsync(
+                        $"{PickupHelpers.GetMention(nextUser)} - you have been added to '{queue.Name}' since {subscriber.Name} has left.")
+                        .AutoRemoveMessage();
+
                     if (queue.Started)
                     {
                         var team = queue.Teams.FirstOrDefault(w => w.Subscribers.Exists(s => s.Id == subscriber.Id));
@@ -160,9 +178,8 @@ namespace PickupBot.Commands.Infrastructure.Services
                         {
                             team.Subscribers.Remove(team.Subscribers.Find(s => s.Id == subscriber.Id));
                             team.Subscribers.Add(new Subscriber { Name = PickupHelpers.GetNickname(nextUser), Id = nextUser.Id });
-                            await channel.SendMessageAsync($"{PickupHelpers.GetMention(nextUser)} - you are on the {team.Name}")
-                                .AutoRemoveMessage()
-                                ;
+                            await channel.SendMessageAsync($"{PickupHelpers.GetMention(nextUser)} - you are on team '{team.Name}'")
+                                .AutoRemoveMessage();
                         }
                     }
 
@@ -174,7 +191,7 @@ namespace PickupBot.Commands.Infrastructure.Services
 
     public interface ISubscriberCommandService
     {
-        Task Add(string queueName, ISocketMessageChannel channel, IGuildUser user);
-        Task<PickupQueue> Leave(PickupQueue queue, ISocketMessageChannel channel, IGuildUser user, bool notify = true);
+        Task Add(string queueName, ISocketMessageChannel channel, IGuildUser user, MessageReference messageReference = null);
+        Task<PickupQueue> Leave(PickupQueue queue, ISocketMessageChannel channel, IGuildUser user, bool notify = true, MessageReference messageReference = null);
     }
 }

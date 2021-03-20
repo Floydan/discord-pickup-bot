@@ -10,7 +10,6 @@ using PickupBot.Commands.Constants;
 using PickupBot.Commands.Extensions;
 using PickupBot.Commands.Infrastructure.Helpers;
 using PickupBot.Data.Models;
-using PickupBot.Data.Repositories;
 using PickupBot.Data.Repositories.Interfaces;
 
 namespace PickupBot.Commands.Modules
@@ -51,7 +50,7 @@ namespace PickupBot.Commands.Modules
 
             _logger.LogInformation($"Duel player saved result: {result}");
 
-            await ReplyAsync($"You have been registered for duels with skill level [{skillLevel}]").AutoRemoveMessage(10);
+            await Context.Message.ReplyAsync($"You have been registered for duels with skill level [{skillLevel}]").AutoRemoveMessage(10);
         }
 
         [Command("unregister")]
@@ -76,7 +75,7 @@ namespace PickupBot.Commands.Modules
 
                 _logger.LogInformation($"Duel player updated to inactive result: {result}");
 
-                await ReplyAsync("You have been unregistered for duels.").AutoRemoveMessage(10);
+                await Context.Message.ReplyAsync("You have been unregistered for duels.").AutoRemoveMessage(10);
             }
         }
 
@@ -95,7 +94,7 @@ namespace PickupBot.Commands.Modules
 
             _logger.LogInformation($"Duel player saved result: {result}");
 
-            await ReplyAsync($"Your skill level has been set to [{skillLevel}]").AutoRemoveMessage(10);
+            await Context.Message.ReplyAsync($"Your skill level has been set to [{skillLevel}]").AutoRemoveMessage(10);
         }
 
         [Command("challenge")]
@@ -111,7 +110,7 @@ namespace PickupBot.Commands.Modules
             var duelPlayer = await _duelPlayerRepository.Find(user);
             if (duelPlayer == null)
             {
-                await ReplyAsync("You are not a duellist, `!register <skill level>` to become one.").AutoRemoveMessage(10);
+                await Context.Message.ReplyAsync("You are not a duellist, `!register <skill level>` to become one.").AutoRemoveMessage(10);
                 return;
             }
 
@@ -119,18 +118,18 @@ namespace PickupBot.Commands.Modules
             {
                 if (challengee.RoleIds.All(r => r != duellistRole.Id))
                 {
-                    await ReplyAsync($"'{PickupHelpers.GetNickname(challengee)}' is not a duellist.").AutoRemoveMessage(10);
+                    await Context.Message.ReplyAsync($"'{PickupHelpers.GetNickname(challengee)}' is not a duellist.").AutoRemoveMessage(10);
                 }
                 else
                 {
                     if (CheckUserOnlineState(challengee))
                     {
                         await _duelChallengeRepository.Save((IGuildUser)Context.User, challengee);
-                        await ReplyAsync($"{Context.User.Mention} has challenged {challengee.Mention} to a duel!");
+                        await Context.Message.ReplyAsync($"{Context.User.Mention} has challenged {challengee.Mention} to a duel!");
                     }
                     else
                     {
-                        await ReplyAsync($"'{PickupHelpers.GetNickname(challengee)}' is not online, maybe try again later?").AutoRemoveMessage(10);
+                        await Context.Message.ReplyAsync($"'{PickupHelpers.GetNickname(challengee)}' is not online, maybe try again later?").AutoRemoveMessage(10);
                     }
                 }
 
@@ -159,18 +158,18 @@ namespace PickupBot.Commands.Modules
 
                 if (opponent == null)
                 {
-                    await ReplyAsync("No opponents could be found.").AutoRemoveMessage(10);
+                    await Context.Message.ReplyAsync("No opponents could be found.").AutoRemoveMessage(10);
                 }
                 else
                 {
                     var opponentUser = duellistUsers.First(u => u.Id == opponent.Id);
                     await _duelChallengeRepository.Save((IGuildUser)Context.User, opponentUser);
-                    await ReplyAsync($"{Context.User.Mention} [MMR: {duelPlayer.MMR}] has challenged {opponentUser.Mention} [MMR: {opponent.MMR}] to a duel!");
+                    await Context.Message.ReplyAsync($"{Context.User.Mention} [MMR: {duelPlayer.MMR}] has challenged {opponentUser.Mention} [MMR: {opponent.MMR}] to a duel!");
                 }
             }
             else
             {
-                await ReplyAsync("No duellists are currently online").AutoRemoveMessage(10);
+                await Context.Message.ReplyAsync("No duellists are currently online").AutoRemoveMessage(10);
             }
         }
 
@@ -193,7 +192,7 @@ namespace PickupBot.Commands.Modules
                     MatchDate = DateTime.UtcNow
                 };
                 await _duelMatchRepository.Save(match);
-                await ReplyAsync($"{Context.User.Mention} has accepted the challenge from {challenger.Mention}!");
+                await Context.Message.ReplyAsync($"{Context.User.Mention} has accepted the challenge from {challenger.Mention}!");
             }
         }
 
@@ -208,7 +207,7 @@ namespace PickupBot.Commands.Modules
             if (challenge != null)
             {
                 await _duelChallengeRepository.Delete(challenge);
-                await ReplyAsync($"{Context.User.Mention} has declined the challenge from {challenger.Mention}!");
+                await Context.Message.ReplyAsync($"{Context.User.Mention} has declined the challenge from {challenger.Mention}!");
             }
         }
 
@@ -232,11 +231,11 @@ namespace PickupBot.Commands.Modules
                     sb.AppendLine($" - {PickupHelpers.GetNickname(challenger)} `{duelMatch.ChallengeDate:yyyy-MM-dd HH:mm:ss 'UTC'}`");
                 }
 
-                await ReplyAsync($"**These brave souls have challenged you to a duel**\n{sb}").AutoRemoveMessage();
+                await Context.Message.ReplyAsync($"**These brave souls have challenged you to a duel**\n{sb}").AutoRemoveMessage();
             }
             else
             {
-                await ReplyAsync("No one has been brave enough to challenge you").AutoRemoveMessage(10);
+                await Context.Message.ReplyAsync("No one has been brave enough to challenge you").AutoRemoveMessage(10);
             }
         }
 
@@ -260,11 +259,11 @@ namespace PickupBot.Commands.Modules
                     sb.AppendLine($" - {PickupHelpers.GetNickname(challengee)} `{duelMatch.ChallengeDate:yyyy-MM-dd HH:mm:ss 'UTC'}`");
                 }
 
-                await ReplyAsync($"**These are the foolish mortals you have challenged**\n{sb}").AutoRemoveMessage();
+                await Context.Message.ReplyAsync($"**These are the foolish mortals you have challenged**\n{sb}").AutoRemoveMessage();
             }
             else
             {
-                await ReplyAsync("You have not challenged anyone").AutoRemoveMessage(10);
+                await Context.Message.ReplyAsync("You have not challenged anyone").AutoRemoveMessage(10);
             }
         }
 
@@ -284,9 +283,9 @@ namespace PickupBot.Commands.Modules
                 
                 if(!string.IsNullOrEmpty(match.WinnerId))
                 {
-                    await ReplyAsync($"{match.WinnerName} has won against {match.LooserName}").AutoRemoveMessage(10);
+                    await Context.Message.ReplyAsync($"{match.WinnerName} has won against {match.LooserName}").AutoRemoveMessage(10);
                     return;
-                };
+                }
 
                 var winner = await _duelPlayerRepository.Find((IGuildUser)Context.User);
                 var looser = await _duelPlayerRepository.Find(opponent);
@@ -310,9 +309,9 @@ namespace PickupBot.Commands.Modules
                 
                 if(!string.IsNullOrEmpty(match.WinnerId))
                 {
-                    await ReplyAsync($"{match.LooserName} has lost against {match.WinnerName}").AutoRemoveMessage(10);
+                    await Context.Message.ReplyAsync($"{match.LooserName} has lost against {match.WinnerName}").AutoRemoveMessage(10);
                     return;
-                };
+                }
                 
                 var winner = await _duelPlayerRepository.Find(opponent);
                 var looser = await _duelPlayerRepository.Find((IGuildUser)Context.User);
@@ -332,7 +331,7 @@ namespace PickupBot.Commands.Modules
             var duelPlayer = await _duelPlayerRepository.Find(user);
             if (duelPlayer == null)
             {
-                await ReplyAsync($"{PickupHelpers.GetNickname(user)} is not a duellist.").AutoRemoveMessage(10);
+                await Context.Message.ReplyAsync($"{PickupHelpers.GetNickname(user)} is not a duellist.").AutoRemoveMessage(10);
             }
             else
             {
@@ -362,7 +361,7 @@ namespace PickupBot.Commands.Modules
                     }
                 });
 
-                await ReplyAsync(embed: embed.Build()).AutoRemoveMessage();
+                await Context.Message.ReplyAsync(embed: embed.Build()).AutoRemoveMessage();
             }
         }
 
@@ -380,7 +379,7 @@ namespace PickupBot.Commands.Modules
                 sb.AppendLine($"{badge} {duelPlayer.Name} _- MMR: {duelPlayer.MMR}_");
             }
 
-            await ReplyAsync($"**Top 10 duellists**\n{sb}");
+            await Context.Message.ReplyAsync($"**Top 10 duellists**\n{sb}");
         }
 
         // ReSharper disable once InconsistentNaming
@@ -395,7 +394,7 @@ namespace PickupBot.Commands.Modules
             match.MMR = mmrDiff;
 
             await _duelMatchRepository.Save(match);
-            await ReplyAsync($"{match.WinnerName} has won against {match.LooserName}").AutoRemoveMessage(10);
+            await Context.Message.ReplyAsync($"{match.WinnerName} has won against {match.LooserName}").AutoRemoveMessage(10);
 
             winner.MatchHistory.Insert(0, match);
             winner.MatchHistory = winner.MatchHistory.Take(10).ToList();

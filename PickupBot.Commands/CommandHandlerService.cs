@@ -9,6 +9,7 @@ using Discord.Commands;
 using Discord.WebSocket;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Newtonsoft.Json;
 using PickupBot.Commands.Infrastructure;
 using PickupBot.Commands.Infrastructure.Utilities;
 using PickupBot.Commands.Models;
@@ -56,6 +57,23 @@ namespace PickupBot.Commands
             //    GetActivityStats().GetAwaiter().GetResult();
             //    UpdateActvity();
             //}
+
+            //TODO: test for dynamic db driven commands
+            //_commands.CreateModuleAsync("dyntest", builder =>
+            //{
+            //    builder.AddCommand("dynhello", (context, objects, serv, callback) =>
+            //    {
+            //        _logger.LogInformation(message: JsonConvert.SerializeObject(objects));
+            //        return Task.FromResult(true);
+            //    }, create =>
+            //    {
+            //        create.AddParameter("name", typeof(string), pb =>
+            //        {
+            //            pb.IsOptional = true;
+            //            pb.DefaultValue = "world!";
+            //        });
+            //    });
+            //}).GetAwaiter().GetResult();
         }
 
         private void UpdateActvity()
@@ -79,7 +97,7 @@ namespace PickupBot.Commands
             if (string.IsNullOrWhiteSpace(_rconPassword) ||
                 string.IsNullOrWhiteSpace(_rconHost) ||
                 _rconPort <= 0) return;
-    
+
             try
             {
                 var status = await RCON.UDPSendCommand("status", _rconHost, _rconPassword, _rconPort);
@@ -135,7 +153,7 @@ namespace PickupBot.Commands
 
             AsyncUtilities.DelayAction(TimeSpan.FromSeconds(30), async t => { await sentMessage.DeleteAsync(); });
         }
-        
+
         public async Task MessageReceivedAsync(SocketMessage rawMessage)
         {
             // Ignore system messages, or messages from other bots
@@ -155,32 +173,64 @@ namespace PickupBot.Commands
             await _commands.ExecuteAsync(context, argPos, _services);
         }
 
-        private static async Task CommandExecutedAsync(Optional<CommandInfo> command, ICommandContext context, IResult result)
+        private async Task CommandExecutedAsync(Optional<CommandInfo> command, ICommandContext context, IResult result)
         {
+            if (!string.IsNullOrEmpty(result?.ErrorReason))
+            {
+                await context.Channel.SendMessageAsync(result.ErrorReason);
+            }
+
+            if (!result?.IsSuccess ?? false)
+            {
+                var commandName = command.IsSpecified ? command.Value.Name : "A command";
+                LogAsync(new LogMessage(LogSeverity.Info,
+                    "CommandExecution",
+                    $"{commandName} was executed at {DateTime.UtcNow}."));
+            }
+
             // command is unspecified when there was a search failure (command not found); we don't care about these errors
             if (!command.IsSpecified)
                 return;
 
-            // the command was successful, we don't care about this result, unless we want to log that a command succeeded.
+            // the command was successful, we don't care about this result
 
-            if (result.IsSuccess && command.Value.Name == "promote")
+            if ((result?.IsSuccess ?? false) && command.Value.Name == "promote")
             {
                 //TODO
                 //save when the command was used so we can check against this to prevent spamming
                 //e.g. only allow !promote once per hour
             }
-
-            if (result.IsSuccess)
-                return;
-
-            // the command failed, let's notify the user that something happened.
-            await context.Channel.SendMessageAsync($"error: {result}");
         }
 
         public override async Task InitializeAsync(CancellationToken cancellationToken)
         {
             await _commands.AddModulesAsync(Assembly.GetEntryAssembly(), _services);
             await _commands.AddModulesAsync(GetType().Assembly, _services);
+        }
+
+        private void LogAsync(LogMessage logMessage)
+        {
+            _logger.Log(SeverityToLogLevel(logMessage.Severity), logMessage.Exception, logMessage.Message, logMessage.Source);
+            if (logMessage.Exception is CommandException cmdException)
+            {
+                // We can also log this incident
+                Console.WriteLine($"{cmdException.Context.User} failed to execute '{cmdException.Command.Name}' in {cmdException.Context.Channel}.");
+                Console.WriteLine(cmdException.ToString());
+            }
+        }
+
+        private static LogLevel SeverityToLogLevel(LogSeverity severity)
+        {
+            return severity switch
+            {
+                LogSeverity.Critical => LogLevel.Critical,
+                LogSeverity.Error => LogLevel.Error,
+                LogSeverity.Warning => LogLevel.Warning,
+                LogSeverity.Info => LogLevel.Information,
+                LogSeverity.Verbose => LogLevel.Trace,
+                LogSeverity.Debug => LogLevel.Debug,
+                _ => LogLevel.Information
+            };
         }
 
         public void Dispose()
@@ -190,7 +240,7 @@ namespace PickupBot.Commands
             _discord.MessageReceived -= MessageReceivedAsync;
             _discord.ReactionAdded -= ReactionAddedAsync;
 
-            ((IDisposable) _commands)?.Dispose();
+            ((IDisposable)_commands)?.Dispose();
             _discord?.Dispose();
         }
     }

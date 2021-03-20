@@ -45,7 +45,7 @@ namespace PickupBot.Commands.Modules
 
         [Command("ping")]
         [Alias("pong", "hello")]
-        public async Task PingAsync() => await ReplyAsync("pong!").AutoRemoveMessage();
+        public async Task PingAsync() => await Context.Message.ReplyAsync("pong!").AutoRemoveMessage();
 
         [Command("help"), Alias("assist", "commands"), Summary("Shows help menu via a Direct Message (DM).")]
         public async Task Help([Remainder] string command = null)
@@ -53,7 +53,7 @@ namespace PickupBot.Commands.Modules
             const string botPrefix = "!";
             var helpEmbed = _commandService.GetDefaultHelpEmbed(command, botPrefix);
             await Context.User.SendMessageAsync(embed: helpEmbed);
-            await ReplyAsync($"Check your DM's {Context.User.Mention}").AutoRemoveMessage(10);
+            await Context.Message.ReplyAsync($"Check your DM's {Context.User.Mention}").AutoRemoveMessage(10);
         }
 
         [Command("version")]
@@ -73,7 +73,7 @@ namespace PickupBot.Commands.Modules
                 .WithColor(Color.LightOrange);
 
             BotMessageHelper.AutoRemoveMessage(
-                await ReplyAsync(embed: embed.Build()), 
+                await Context.Message.ReplyAsync(embed: embed.Build()), 
                 15);
         }
 
@@ -89,7 +89,7 @@ namespace PickupBot.Commands.Modules
             var activities = list as SubscriberActivities[] ?? list.ToArray();
             if (activities.IsNullOrEmpty())
             {
-                BotMessageHelper.AutoRemoveMessage(await ReplyAsync("No data yet, get active!"), 10);
+                BotMessageHelper.AutoRemoveMessage(await Context.Message.ReplyAsync("No data yet, get active!"), 10);
                 return;
             }
 
@@ -107,7 +107,7 @@ namespace PickupBot.Commands.Modules
             AddTopPlayers(embed, users, activities, a => a.PickupPromote, "promote", "spammers");
             AddTopPlayers(embed, users, activities, a => a.PickupTop10, "top10", "stats junkies");
 
-            await ReplyAsync(embed: embed.Build()).AutoRemoveMessage(60);
+            await Context.Message.ReplyAsync(embed: embed.Build()).AutoRemoveMessage(60);
         }
 
         private static void AddTopPlayers(
@@ -134,7 +134,14 @@ namespace PickupBot.Commands.Modules
             foreach (var c in top10)
             {
                 counter++;
-                var badge = counter == 1 ? ":first_place:" : counter == 2 ? ":second_place:" : counter == 3 ? ":third_place:" : "";
+                var badge = counter switch
+                {
+                    1 => ":first_place:",
+                    2 => ":second_place:",
+                    3 => ":third_place:",
+                    _ => ""
+                };
+
                 var user = users.FirstOrDefault(u => u.Id == Convert.ToUInt64(c.RowKey));
                 if (user == null) continue;
                 var val = keySelector.Invoke(c);
@@ -172,7 +179,7 @@ namespace PickupBot.Commands.Modules
 
                     }.Build();
                     
-                    await ReplyAsync(embed:embed).AutoRemoveMessage();
+                    await Context.Message.ReplyAsync(embed:embed).AutoRemoveMessage();
                 }
             }
         }
@@ -200,7 +207,7 @@ namespace PickupBot.Commands.Modules
                     var continents = enumerable.Select(s => s.Continent).OrderBy(c => c).Distinct();
                     foreach (var continent in continents)
                     {
-                        sb.AppendLine($"**{continent}**")
+                        sb.AppendLine($"**{continent} **")
                           .AppendLine("```markdown")
                           .AppendLine(AsciiTableGenerator.CreateAsciiTableFromDataTable(
                             ContinentToTable(enumerable.Where(s => s.Continent == continent)
@@ -211,7 +218,7 @@ namespace PickupBot.Commands.Modules
                     }
                 }
 
-                await ReplyAsync(embed: new EmbedBuilder
+                await Context.Message.ReplyAsync(embed: new EmbedBuilder
                 {
                     Title = "Servers",
                     Description = sb.ToString(),

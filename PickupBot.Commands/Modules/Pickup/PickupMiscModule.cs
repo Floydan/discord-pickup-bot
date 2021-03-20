@@ -58,8 +58,9 @@ namespace PickupBot.Commands.Modules.Pickup
 
                     if (string.IsNullOrWhiteSpace(rconPassword) || string.IsNullOrWhiteSpace(rconHost) || rconPort == 0)
                     {
-                        await ReplyAsync(
-                            $"Can't show server status since no rcon password has been set for the server {host}").AutoRemoveMessage(15);
+                        await Context.Message.ReplyAsync(
+                            $"Can't show server status since no rcon password has been set for the server {host}")
+                            .AutoRemoveMessage(15);
                         return;
                     }
                 }
@@ -87,7 +88,7 @@ namespace PickupBot.Commands.Modules.Pickup
                                         "No players are currently online") +
                                      $"{Environment.NewLine}```";
 
-                await ReplyAsync(embed: embed.Build());
+                await Context.Message.ReplyAsync(embed: embed.Build());
             }
             catch (Exception e)
             {
@@ -107,7 +108,7 @@ namespace PickupBot.Commands.Modules.Pickup
             var userdata = await RCON.UDPSendCommand($"dumpuser {player}", _rconHost, _rconPassword, _rconPort).ConfigureAwait(false);
             if (userdata.IndexOf("is not on the server", StringComparison.OrdinalIgnoreCase) != -1)
             {
-                await ReplyAsync(
+                await Context.Message.ReplyAsync(
                     $"```{Environment.NewLine}" +
                     $"{userdata}" +
                     $"{Environment.NewLine}```");
@@ -116,7 +117,7 @@ namespace PickupBot.Commands.Modules.Pickup
 
             var clientInfo = new ClientInfo(userdata);
 
-            await ReplyAsync(
+            await Context.Message.ReplyAsync(
                 $"```{Environment.NewLine}" +
                 $"{clientInfo.ToTable()}" +
                 $"{Environment.NewLine}```");

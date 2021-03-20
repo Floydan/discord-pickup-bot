@@ -87,7 +87,6 @@ namespace PickupBot.Commands.Infrastructure.Services
             AsyncUtilities.DelayAction(TimeSpan.FromMinutes(4), async t => { await TriggerRconNotification(queue); });
         }
 
-        [SuppressMessage("ReSharper", "PossibleNullReferenceException")]
         public async Task TriggerRconNotification(PickupQueue queue)
         {
             if (!queue.Rcon) return;
