@@ -9,7 +9,6 @@ using Discord.Commands;
 using Discord.WebSocket;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using Newtonsoft.Json;
 using PickupBot.Commands.Infrastructure;
 using PickupBot.Commands.Infrastructure.Utilities;
 using PickupBot.Commands.Models;
@@ -18,7 +17,7 @@ using PickupBot.Translation.Services;
 
 namespace PickupBot.Commands
 {
-    public class CommandHandlerService : InitializedService, IDisposable
+    public class CommandHandlerService : DiscordClientService, IDisposable
     {
         private readonly CommandService _commands;
         private readonly DiscordSocketClient _discord;
@@ -31,11 +30,17 @@ namespace PickupBot.Commands
         private readonly string _rconHost;
         private readonly int _rconPort;
 
-        public CommandHandlerService(IServiceProvider services, PickupBotSettings pickupBotSettings, ILogger<CommandHandlerService> logger)
+        public CommandHandlerService(
+            DiscordSocketClient client,
+            IServiceProvider services, 
+            PickupBotSettings pickupBotSettings, 
+            ILogger<CommandHandlerService> logger,
+            CommandService commands
+            ) : base(client, logger)
         {
             ServiceLocator.SetLocatorProvider(services);
-            _commands = services.GetRequiredService<CommandService>();
-            _discord = services.GetRequiredService<DiscordSocketClient>();
+            _commands = commands;
+            _discord = client;
             _translationService = services.GetService<ITranslationService>();
             _services = services;
             _logger = logger;
@@ -43,37 +48,26 @@ namespace PickupBot.Commands
 
             _rconPassword = pickupBotSettings.RCONServerPassword ?? "";
             _rconHost = pickupBotSettings.RCONHost ?? "";
-            int.TryParse(pickupBotSettings.RCONPort ?? "0", out _rconPort);
+            _ = int.TryParse(pickupBotSettings.RCONPort ?? "0", out _rconPort);
+        }
 
-            // Hook CommandExecuted to handle post-command-execution logic.
+        // This'll be executed during startup.
+        protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+        {
+            await InstallCommandsAsync();
+        }
+
+        public async Task InstallCommandsAsync()
+        {
+            //Hook CommandExecuted to handle post-command-execution logic.
             _commands.CommandExecuted += CommandExecutedAsync;
             // Hook MessageReceived so we can process each message to see
             // if it qualifies as a command.
             _discord.MessageReceived += MessageReceivedAsync;
             _discord.ReactionAdded += ReactionAddedAsync;
 
-            //if (_commandPrefix == "!")
-            //{
-            //    GetActivityStats().GetAwaiter().GetResult();
-            //    UpdateActvity();
-            //}
-
-            //TODO: test for dynamic db driven commands
-            //_commands.CreateModuleAsync("dyntest", builder =>
-            //{
-            //    builder.AddCommand("dynhello", (context, objects, serv, callback) =>
-            //    {
-            //        _logger.LogInformation(message: JsonConvert.SerializeObject(objects));
-            //        return Task.FromResult(true);
-            //    }, create =>
-            //    {
-            //        create.AddParameter("name", typeof(string), pb =>
-            //        {
-            //            pb.IsOptional = true;
-            //            pb.DefaultValue = "world!";
-            //        });
-            //    });
-            //}).GetAwaiter().GetResult();
+            await _commands.AddModulesAsync(Assembly.GetEntryAssembly(), _services);
+            await _commands.AddModulesAsync(GetType().Assembly, _services);
         }
 
         private void UpdateActvity()
@@ -118,9 +112,11 @@ namespace PickupBot.Commands
             }
         }
 
-        private async Task ReactionAddedAsync(Cacheable<IUserMessage, ulong> message, ISocketMessageChannel channel, SocketReaction reaction)
+        private async Task ReactionAddedAsync(Cacheable<IUserMessage, ulong> message, Cacheable<IMessageChannel, ulong> channel, SocketReaction reaction)
         {
             if (_translationService == null) return;
+
+            if (channel.Value == null) await channel.GetOrDownloadAsync();
 
             var msg = await message.GetOrDownloadAsync();
 
@@ -138,7 +134,7 @@ namespace PickupBot.Commands
                            (msg.Author as IGuildUser)?.Username ??
                            msg.Author.Username;
 
-            var sentMessage = await channel.SendMessageAsync(embed: new EmbedBuilder
+            var sentMessage = await channel.Value.SendMessageAsync(embed: new EmbedBuilder
             {
                 Author = new EmbedAuthorBuilder { IconUrl = msg.Author.GetAvatarUrl(), Name = userName },
                 Description = $"{translations.FirstOrDefault()?.TranslatedText}{Environment.NewLine + Environment.NewLine}" +
@@ -200,12 +196,6 @@ namespace PickupBot.Commands
                 //save when the command was used so we can check against this to prevent spamming
                 //e.g. only allow !promote once per hour
             }
-        }
-
-        public override async Task InitializeAsync(CancellationToken cancellationToken)
-        {
-            await _commands.AddModulesAsync(Assembly.GetEntryAssembly(), _services);
-            await _commands.AddModulesAsync(GetType().Assembly, _services);
         }
 
         private void LogAsync(LogMessage logMessage)

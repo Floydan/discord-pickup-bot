@@ -57,13 +57,18 @@ namespace PickupBot
                             .AddJsonFile("appSettings.json", optional: false, reloadOnChange: true)
                             .AddJsonFile($"appSettings.{hostContext.HostingEnvironment.EnvironmentName}.json", false);
                     })
-                .ConfigureDiscordHost<DiscordSocketClient>((context, config) =>
+                .ConfigureDiscordHost((context, config) =>
                 {
                     config.SocketConfig = new DiscordSocketConfig
                     {
                         LogLevel = LogSeverity.Info,
                         AlwaysDownloadUsers = true,
-                        MessageCacheSize = 100
+                        MessageCacheSize = 100,
+                        GatewayIntents = GatewayIntents.AllUnprivileged | 
+                                         GatewayIntents.GuildMessageReactions | 
+                                         GatewayIntents.DirectMessageTyping | 
+                                         GatewayIntents.GuildMessages | 
+                                         GatewayIntents.GuildMessageTyping
                     };
                     config.Token = context.Configuration["PickupBot:DiscordToken"];
                 })
@@ -127,7 +132,7 @@ namespace PickupBot
                 .AddTransient<ISubscriberCommandService, SubscriberCommandService>()
                 .AddSingleton<ITranslationService, GoogleTranslationService>()
                 .AddSingleton<CommandHandlerService>() //added as singleton to be used in event registration below
-                .AddHostedService(p => p.GetService<CommandHandlerService>())
+                .AddHostedService<CommandHandlerService>()
                 .AddSingleton<HttpClient>()
                 .AddRepositories(hostContext.Configuration)
                 .AddAutoMapper(config =>

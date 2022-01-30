@@ -45,9 +45,11 @@ namespace PickupBot.Commands.Modules.Pickup
             _client.ReactionRemoved += ReactionRemoved;
         }
 
-        private async Task ReactionAdded(Cacheable<IUserMessage, ulong> message, ISocketMessageChannel channel, SocketReaction reaction)
+        private async Task ReactionAdded(Cacheable<IUserMessage, ulong> message, Cacheable<IMessageChannel, ulong> channel, SocketReaction reaction)
         {
-            if (!(channel is IGuildChannel guildChannel) || guildChannel.Name != ChannelNames.ActivePickups) return;
+            if(channel.Value == null) await channel.GetOrDownloadAsync();
+
+            if (channel.Value is not IGuildChannel guildChannel || guildChannel.Name != ChannelNames.ActivePickups) return;
             if (reaction.User.Value.IsBot) return;
 
             var queue = await _queueRepository.FindQueueByMessageId(reaction.MessageId, guildChannel.GuildId.ToString());
@@ -72,9 +74,11 @@ namespace PickupBot.Commands.Modules.Pickup
             }
         }
 
-        private async Task ReactionRemoved(Cacheable<IUserMessage, ulong> message, ISocketMessageChannel channel, SocketReaction reaction)
+        private async Task ReactionRemoved(Cacheable<IUserMessage, ulong> message, Cacheable<IMessageChannel, ulong> channel, SocketReaction reaction)
         {
-            if (!(channel is IGuildChannel guildChannel) || guildChannel.Name != ChannelNames.ActivePickups) return;
+            if (channel.Value == null) await channel.GetOrDownloadAsync();
+
+            if (channel.Value is not IGuildChannel guildChannel || guildChannel.Name != ChannelNames.ActivePickups) return;
             if (reaction.User.Value.IsBot) return;
 
             if (reaction.Emote.Name == "\u2705")
